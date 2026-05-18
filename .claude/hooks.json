@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-hooks.json",
+  "_comment": "Lifecycle hooks for GreenScout. Mirrors the pre-commit quality gates from CLAUDE.md §5. Hooks should be merged into settings.json's top-level `hooks` key during Claude Code setup if your CC version requires that (see COPY-INSTRUCTIONS.md).",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "_comment": "After any file edit/write, format & lint the file path the agent just touched. Best-effort: hooks should never block legitimate work, so individual command failures only warn.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CLAUDE_FILE_PATH\" ] && echo \"$CLAUDE_FILE_PATH\" | grep -Eq '\\.(ts|tsx|js|jsx|json|css|md)$'; then npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true; fi",
+            "description": "Prettier on TS/JS/JSON/CSS/MD"
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"$CLAUDE_FILE_PATH\" ] && echo \"$CLAUDE_FILE_PATH\" | grep -Eq '\\.(ts|tsx|js|jsx)$'; then npx eslint --fix \"$CLAUDE_FILE_PATH\" 2>/dev/null || true; fi",
+            "description": "ESLint --fix on TS/JS"
+          },
+          {
+            "type": "command",
+            "command": "if [ -n \"$CLAUDE_FILE_PATH\" ] && echo \"$CLAUDE_FILE_PATH\" | grep -Eq '\\.py$'; then ruff check --fix \"$CLAUDE_FILE_PATH\" 2>/dev/null || true; ruff format \"$CLAUDE_FILE_PATH\" 2>/dev/null || true; fi",
+            "description": "Ruff fix + format on Python"
+          }
+        ]
+      }
+    ],
+    "PreCommit": [
+      {
+        "_comment": "Run before any git commit the agent initiates. Failure here BLOCKS the commit — the agent must fix or pause, never bypass.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run typecheck",
+            "description": "TypeScript: tsc --noEmit",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "npm run lint",
+            "description": "ESLint --max-warnings 0",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "npm run format:check",
+            "description": "Prettier --check",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "ruff check && ruff format --check",
+            "description": "Python lint + format check",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "pyright",
+            "description": "Python type-check",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "gitleaks detect --no-git --redact -v --exit-code 1",
+            "description": "Secrets scan (gitleaks)",
+            "blocking": true
+          }
+        ]
+      }
+    ],
+    "PrePush": [
+      {
+        "_comment": "Belt-and-braces before pushing a branch. Same as PreCommit so a forced bypass at commit time still gets caught here.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if git rev-parse --abbrev-ref HEAD | grep -qx main; then echo 'BLOCK: refusing to push main'; exit 1; fi",
+            "description": "Refuse push from main",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "npm run typecheck && npm run lint && npm run format:check",
+            "description": "Full TS gates",
+            "blocking": true
+          },
+          {
+            "type": "command",
+            "command": "ruff check && ruff format --check && pyright",
+            "description": "Full Python gates",
+            "blocking": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "_comment": "Reminder: read the contract before acting.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[Claude Code] Read SPEC.md, CLAUDE.md, TASKS.md before acting. Auto-mode: balanced (2h / 500k tokens). Forbidden actions in CLAUDE.md §8.'",
+            "description": "Boot-sequence reminder"
+          }
+        ]
+      }
+    ]
+  }
+}
