@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  pull_request: {}
+  push:
+    branches-ignore:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ─── Real gates ──────────────────────────────────────────────────────────
+
+  actionlint:
+    name: Lint workflow YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: reviewdog/action-actionlint@v1
+        with:
+          fail_on_error: true
+
+  lint-typecheck:
+    name: TS lint + format + typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - name: Coverage thresholds (stub — enforced when Vitest lands in T-018)
+        run: |
+          echo "STUB: Coverage thresholds 80% global / 100% on src/lib/calculations/"
+          echo "will be enforced once Vitest is installed (TASKS.md → T-018)."
+
+  python-checks:
+    name: Python ruff + pyright + pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/python/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pyright
+      - run: pytest
+
+  build-images:
+    name: Build Docker image (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: .
+            dockerfile: Dockerfile.web
+          - name: pyservice
+            context: ./services/python
+            dockerfile: ./services/python/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: greenscout-${{ matrix.name }}:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  gitleaks-scan:
+    name: gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  # ─── Stubs for tooling not yet installed ──────────────────────────────────
+  # Each stub echoes its tracking task and exits 0. Replace the stub step with
+  # the real invocation when the corresponding task lands.
+
+  web-tests:
+    name: Vitest (stub — T-018)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stub
+        run: |
+          echo "STUB: Vitest + React Testing Library installation pending."
+          echo "Tracked: TASKS.md → T-018 (Login page with live password-rule checklist)."
+          echo "When enabled: npm run test -- --coverage,"
+          echo "with 80% global / 100% on src/lib/calculations/."
+
+  e2e:
+    name: Playwright (stub — T-051a/b)
+    needs: [lint-typecheck, web-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stub
+        run: |
+          echo "STUB: Playwright E2E installation pending."
+          echo "Tracked: TASKS.md → T-051a/b (Playwright E2E for F1-F7)."
+
+  prisma-migrate-check:
+    name: Prisma migrate (stub — T-013)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: greenscout
+          POSTGRES_PASSWORD: greenscout_ci_only
+          POSTGRES_DB: greenscout_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U greenscout -d greenscout_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stub
+        run: |
+          echo "STUB: Prisma installation pending."
+          echo "Tracked: TASKS.md → T-013 (Initial Prisma migration + local DB apply)."
+          echo "When enabled: DATABASE_URL=postgresql://greenscout:greenscout_ci_only@localhost:5432/greenscout_ci npx prisma migrate deploy"
