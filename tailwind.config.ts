@@ -37,6 +37,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Brand tokens (T-002) — see hex map above; these stay as the
+        // primary GreenScout palette and are still usable as
+        // `bg-forest-green`, `text-plant-green-700`, etc.
         "forest-green": {
           50: "#ECF1EF",
           100: "#D3DEDA",
@@ -76,9 +79,50 @@ const config: Config = {
           900: "#202913",
           DEFAULT: "#B2D082",
         },
-        background: "#FFFFFF",
-        foreground: "#000000",
         link: "#CC3366",
+
+        // shadcn/ui semantic tokens (T-003). All bound to CSS variables
+        // declared in src/app/globals.css `:root` and there mapped to
+        // the brand palette above (or a neutral grey for border/input).
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: {
+          DEFAULT: "var(--card)",
+          foreground: "var(--card-foreground)",
+        },
+        popover: {
+          DEFAULT: "var(--popover)",
+          foreground: "var(--popover-foreground)",
+        },
+        primary: {
+          DEFAULT: "var(--primary)",
+          foreground: "var(--primary-foreground)",
+        },
+        secondary: {
+          DEFAULT: "var(--secondary)",
+          foreground: "var(--secondary-foreground)",
+        },
+        muted: {
+          DEFAULT: "var(--muted)",
+          foreground: "var(--muted-foreground)",
+        },
+        accent: {
+          DEFAULT: "var(--accent)",
+          foreground: "var(--accent-foreground)",
+        },
+        destructive: {
+          DEFAULT: "var(--destructive)",
+          foreground: "var(--destructive-foreground)",
+        },
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+      },
+      borderRadius: {
+        // shadcn primitives reference these; bound to --radius in globals.css.
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
         // Variables are defined by `next/font/local` in src/app/layout.tsx.
