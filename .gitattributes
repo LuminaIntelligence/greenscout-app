@@ -1,0 +1,9 @@
+# GreenScout — Git attributes
+# Enforce LF line endings on shell scripts and tooling that runs in sh/bash,
+# regardless of the contributor's core.autocrlf setting on Windows.
+
+# Husky hooks are invoked by sh (see .husky/_/h shim) and must be LF.
+.husky/* text eol=lf
+
+# Generic shell scripts
+*.sh text eol=lf
