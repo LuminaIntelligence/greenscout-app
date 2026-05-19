@@ -9,7 +9,7 @@ GreenScout runs the following checks **on every local commit** via Husky 9 + lin
    - `*.{ts,tsx,js,jsx,mjs,cjs}` → `eslint --max-warnings 0 --fix` then `prettier --check`
    - `*.{md,json,yml,yaml,css}` → `prettier --check` (Markdown is `.prettierignore`d in MVP and therefore a no-op until that policy changes)
    - `*.py` → `ruff check --no-fix`, `ruff format --check`, `pyright`
-3. **`gitleaks protect --staged`** — scan staged content for secrets using gitleaks defaults plus the repo allowlist in `.gitleaks.toml`.
+3. **`gitleaks git --staged`** — scan staged content for secrets using gitleaks defaults plus the repo allowlist in `.gitleaks.toml`. (Gitleaks 8.30+ replaced the legacy `protect --staged` subcommand with `git --staged`.)
 
 A clean commit should complete in **under 10 seconds** on a modern dev machine. `tsc --noEmit` is project-wide and dominates cold-cache runs; subsequent commits in the same session benefit from the incremental cache and are sub-second.
 

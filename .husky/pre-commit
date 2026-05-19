@@ -11,7 +11,7 @@ npx tsc --noEmit
 echo "-> lint-staged"
 npx lint-staged
 
-echo "-> gitleaks protect --staged"
+echo "-> gitleaks git --staged"
 if ! command -v gitleaks >/dev/null 2>&1; then
   echo "x gitleaks not found in PATH."
   echo "  Install via:"
@@ -21,6 +21,7 @@ if ! command -v gitleaks >/dev/null 2>&1; then
   echo "  Bypassing with --no-verify is a CLAUDE.md S8.12 violation for agents."
   exit 1
 fi
-gitleaks protect --staged --redact --verbose --config .gitleaks.toml
+# gitleaks 8.30 replaced `protect --staged` with `git --staged`.
+gitleaks git --staged --redact --verbose --config .gitleaks.toml
 
 echo "ok pre-commit"
