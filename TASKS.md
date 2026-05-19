@@ -29,26 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-001 Initialise Next.js 15 + TypeScript strict workspace
-- **Status:** 🟦 IN PROGRESS (branch: chore/init-nextjs-typescript)
-- **Feature:** chore (repo root)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-002, T-003, T-004, T-005, T-006, T-007, T-008
-- **Blocked by:** —
-- **Description:**
-  Scaffold the Next.js 15 (App Router) + React 19 + TypeScript 5 application at the repo root. Configure `tsconfig.json` with `"strict": true` and the path aliases from CLAUDE.md §4.3 (`@/`, `@/features/*`, `@/components/*`, `@/lib/*`, `@/types/*`). Set up the basic `src/` tree with empty placeholder folders (`features/`, `components/ui/`, `lib/`, `app/`, `i18n/`, `types/`). Add `.editorconfig`, `.nvmrc` (Node LTS), and `.gitignore` entries (`node_modules/`, `.next/`, `uploads/`, `generated/`, `.env*` except `.env.example`).
-- **Acceptance criteria:**
-  - [ ] `npm run dev` boots the app on `localhost:3000` showing a placeholder root route.
-  - [ ] `npm run build` succeeds.
-  - [ ] `tsc --noEmit` exits 0.
-  - [ ] All path aliases resolve from at least one example import.
-  - [ ] `.gitignore` excludes `uploads/`, `generated/`, and all real `.env*` files (`.env.example` stays tracked).
-- **Files likely touched:** `package.json`, `tsconfig.json`, `next.config.mjs`, `src/app/layout.tsx`, `src/app/page.tsx`, `.gitignore`, `.editorconfig`, `.nvmrc`.
-- **Pause-triggers anticipated:** §7.1 new deps — first install of `next`, `react`, `typescript`. Implementer must surface the install list before running `npm install`.
-
----
-
 ### T-002 Configure Tailwind 3 + design tokens + Gabarito font
 - **Status:** ⬜ TODO
 - **Feature:** chore (styling)
@@ -1309,7 +1289,11 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
-— none yet —
+### T-001 ✅ Initialise Next.js 15 + TypeScript strict workspace
+- **Merged:** 2026-05-19 via PR #1 (`a54059a`)
+- **Branch:** `chore/init-nextjs-typescript`
+- **Summary:** Next 15.5.18 + React 19 + TS 5 strict scaffold via `create-next-app@^15`. Full `@/*` path-alias map. Turbopack default. `.editorconfig`, `.nvmrc` (Node 24), `next.config.ts`, `eslint.config.mjs`.
+- **Decisions:** see `DECISIONS.md` entries "T-001 dependency set + scaffolding path approved" and "T-001 post-implementation choices".
 
 ---
 

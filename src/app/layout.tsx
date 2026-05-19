@@ -1,10 +1,29 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 
-// T-001 minimal root layout. T-002 will introduce Tailwind + Gabarito font
-// loading via `next/font/google` (see SPEC §8.2). The Geist defaults that
-// `create-next-app` ships with were intentionally removed so they cannot be
-// mistaken for the GreenScout design system later on.
+/**
+ * T-002: Gabarito font self-hosted via `next/font/local` (SPEC §8.2). Two
+ * weights only — Regular (400) for body, SemiBold (600) for headings. WOFF2
+ * with the `latin` subset, which fully covers German diacritics. Each weight
+ * is exposed as its own CSS variable so the Tailwind theme (see
+ * tailwind.config.ts) and global CSS (see globals.css) can target them
+ * independently. `display: 'swap'` avoids FOIT.
+ */
+
+const gabaritoBody = localFont({
+  src: "../../public/fonts/gabarito-regular.woff2",
+  variable: "--font-gabarito-body",
+  display: "swap",
+  weight: "400",
+});
+
+const gabaritoHeading = localFont({
+  src: "../../public/fonts/gabarito-semibold.woff2",
+  variable: "--font-gabarito-heading",
+  display: "swap",
+  weight: "600",
+});
 
 export const metadata: Metadata = {
   title: "GreenScout",
@@ -18,7 +37,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de">
+    <html
+      lang="de"
+      className={`${gabaritoBody.variable} ${gabaritoHeading.variable}`}
+    >
       <body>{children}</body>
     </html>
   );
