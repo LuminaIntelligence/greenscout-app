@@ -100,6 +100,10 @@ jobs:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
         env:
+          # gitleaks-action v2 requires GITHUB_TOKEN for pull_request scans
+          # (used to fetch the PR commit range — not for any write side effect).
+          # See: https://github.com/gitleaks/gitleaks-action#usage-example
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
   # ─── Stubs for tooling not yet installed ──────────────────────────────────
