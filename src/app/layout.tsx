@@ -43,10 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="de"
-      className={`${gabaritoBody.variable} ${gabaritoHeading.variable}`}
-    >
+    <html lang="de" className={`${gabaritoBody.variable} ${gabaritoHeading.variable}`}>
       <body>
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster />
