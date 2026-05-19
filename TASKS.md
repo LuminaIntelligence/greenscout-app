@@ -29,25 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-002 Configure Tailwind 3 + design tokens + Gabarito font
-- **Status:** ⬜ TODO
-- **Feature:** chore (styling)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-003, T-035, T-036
-- **Blocked by:** T-001
-- **Description:**
-  Install and configure Tailwind 3.x with the GreenScout colour tokens from CLAUDE.md §9 / SPEC §8.1 (`forest-green`, `plant-green`, `muted-lime`, `background`, `foreground`, `link`) exposed both as Tailwind theme colours and as CSS variables on `:root`. Load **Gabarito** (Semibold for headings, Regular for body) via `next/font/google` with `display: 'swap'`. Add `font-variant-numeric: tabular-nums` utility for numeric tables. Wire `globals.css` and verify a sample page renders heading + body in the correct family/weight.
-- **Acceptance criteria:**
-  - [ ] `tailwind.config.ts` defines the six colour tokens with derived 50–900 shades for the three greens.
-  - [ ] CSS variables `--color-forest-green`, `--color-plant-green`, `--color-muted-lime`, `--color-background`, `--color-foreground`, `--color-link` defined in `globals.css`.
-  - [ ] Gabarito loads via `next/font/google`; sample headline uses Semibold, body uses Regular.
-  - [ ] `tabular-nums` utility available and verified on a sample table.
-- **Files likely touched:** `tailwind.config.ts`, `postcss.config.js`, `src/app/globals.css`, `src/app/layout.tsx`.
-- **Pause-triggers anticipated:** §7.1 (tailwind, postcss, autoprefixer install).
-
----
-
 ### T-003 Install shadcn/ui primitives + base components
 - **Status:** ⬜ TODO
 - **Feature:** components/ui
@@ -1288,6 +1269,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-002 ✅ Configure Tailwind 3 + design tokens + Gabarito font
+- **Merged:** 2026-05-19 via PR #2 (`36eaa7e`)
+- **Branch:** `chore/tailwind-design-tokens`
+- **Summary:** Tailwind 3.4.19 + PostCSS 8.5.14 + Autoprefixer 10.5.0 + tailwindcss-animate 1.0.7. Self-hosted Gabarito Regular + SemiBold via `next/font/local` in `public/fonts/` with OFL licence. Six SPEC §8.1 colour tokens wired as Tailwind theme colours and `:root` CSS variables; three brand greens get 50–900 ramps via HSL-shift (muted-lime DEFAULT pinned to step 400).
+- **Decisions:** see `DECISIONS.md` entry "T-002 dependency set + Gabarito font strategy".
 
 ### T-001 ✅ Initialise Next.js 15 + TypeScript strict workspace
 - **Merged:** 2026-05-19 via PR #1 (`a54059a`)
