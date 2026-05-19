@@ -1,25 +1,66 @@
 /*
- * T-001 minimal global stylesheet.
- * T-002 will replace this with Tailwind layers (`@tailwind base/components/utilities`)
- * and the GreenScout design tokens from SPEC §8.1 / CLAUDE.md §9.
+ * GreenScout global stylesheet.
+ *
+ * T-002: Tailwind layers + GreenScout design tokens from SPEC §8.1 /
+ * CLAUDE.md §9. Both the Tailwind theme (see tailwind.config.ts) and the
+ * CSS variables below carry the same hex values so non-utility CSS can
+ * still reference the brand tokens.
+ *
+ * Body font binds to the Gabarito Regular CSS variable defined by
+ * `next/font/local` in src/app/layout.tsx; headings bind to the
+ * Gabarito SemiBold variable. Both fall back to system-ui.
  */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-forest-green: #2d473e;
+    --color-plant-green: #6a8f4e;
+    --color-muted-lime: #b2d082;
+    --color-background: #ffffff;
+    --color-foreground: #000000;
+    --color-link: #cc3366;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-gabarito-body), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-gabarito-heading), system-ui, sans-serif;
+  }
+
+  a {
+    color: var(--color-link);
+  }
 }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  background: #ffffff;
-  color: #000000;
-  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
