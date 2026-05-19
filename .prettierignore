@@ -1,0 +1,31 @@
+# Build & dependency output
+node_modules
+.next
+out
+build
+dist
+coverage
+
+# Claude Code session / agent config (managed by agents and per-developer
+# overrides; not part of the application formatting surface).
+.claude
+
+# Lockfiles — managed by the package manager
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Binary fonts — never re-format
+public/fonts/*.woff2
+
+# Generated Prisma client (will land in T-009+)
+src/generated/**
+
+# PPTX / PDF template binaries — preserve as-is
+templates/*.pptx
+templates/*.pdf
+
+# Markdown — Prettier sometimes reflows code blocks and tables in ways that
+# diverge from our authoring style. Keep MD untouched in MVP; revisit if it
+# becomes a problem.
+*.md

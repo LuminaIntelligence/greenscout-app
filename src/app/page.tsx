@@ -13,13 +13,7 @@ import type { SetupPhase } from "@/types/example";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -102,14 +96,14 @@ export default function Home() {
   };
 
   return (
-    <main className="bg-background text-foreground mx-auto min-h-screen max-w-5xl space-y-12 p-12">
+    <main className="mx-auto min-h-screen max-w-5xl space-y-12 bg-background p-12 text-foreground">
       <header className="space-y-2">
-        <h1 className="text-forest-green font-heading text-4xl">
+        <h1 className="font-heading text-4xl text-forest-green">
           GreenScout · UI primitive smoke test
         </h1>
         <p className="text-muted-foreground">
-          T-003: 18 shadcn/ui-Primitive installiert und an die Marken-Tokens
-          gebunden. Phase {phase}.
+          T-003: 18 shadcn/ui-Primitive installiert und an die Marken-Tokens gebunden. Phase {phase}
+          .
         </p>
         <p className="sr-only" aria-hidden="true">
           {aliasProof}
@@ -120,10 +114,7 @@ export default function Home() {
 
       {/* ----- Forms ----- */}
       <section aria-labelledby="forms-heading" className="space-y-6">
-        <h2
-          id="forms-heading"
-          className="text-forest-green font-heading text-2xl"
-        >
+        <h2 id="forms-heading" className="font-heading text-2xl text-forest-green">
           Formulare
         </h2>
 
@@ -184,7 +175,7 @@ export default function Home() {
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="border-border bg-card rounded-md border p-4"
+            className="rounded-md border border-border bg-card p-4"
           >
             <FormField
               control={form.control}
@@ -195,9 +186,7 @@ export default function Home() {
                   <FormControl>
                     <Input placeholder="Vorname Nachname" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Wird per Sonner-Toast bestätigt.
-                  </FormDescription>
+                  <FormDescription>Wird per Sonner-Toast bestätigt.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -213,10 +202,7 @@ export default function Home() {
 
       {/* ----- Overlays ----- */}
       <section aria-labelledby="overlays-heading" className="space-y-6">
-        <h2
-          id="overlays-heading"
-          className="text-forest-green font-heading text-2xl"
-        >
+        <h2 id="overlays-heading" className="font-heading text-2xl text-forest-green">
           Overlays
         </h2>
 
@@ -229,11 +215,10 @@ export default function Home() {
               <DialogHeader>
                 <DialogTitle>Beispiel-Dialog</DialogTitle>
                 <DialogDescription>
-                  Modale Bestätigungs- und Detailansichten nutzen dieses
-                  Primitive.
+                  Modale Bestätigungs- und Detailansichten nutzen dieses Primitive.
                 </DialogDescription>
               </DialogHeader>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-muted-foreground">
                 Hier könnte z.B. die Detailansicht einer Studie stehen.
               </p>
               <DialogFooter>
@@ -260,9 +245,7 @@ export default function Home() {
             <TooltipTrigger asChild>
               <Button variant="ghost">Hover für Tooltip</Button>
             </TooltipTrigger>
-            <TooltipContent>
-              Tooltip erläutert kontextuelle Aktionen.
-            </TooltipContent>
+            <TooltipContent>Tooltip erläutert kontextuelle Aktionen.</TooltipContent>
           </Tooltip>
         </div>
       </section>
@@ -271,10 +254,7 @@ export default function Home() {
 
       {/* ----- Data display ----- */}
       <section aria-labelledby="data-heading" className="space-y-6">
-        <h2
-          id="data-heading"
-          className="text-forest-green font-heading text-2xl"
-        >
+        <h2 id="data-heading" className="font-heading text-2xl text-forest-green">
           Datenanzeige
         </h2>
 
@@ -304,35 +284,27 @@ export default function Home() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Position</TableHead>
-                      <TableHead className="tabular-nums text-right">
-                        Wert
-                      </TableHead>
+                      <TableHead className="text-right tabular-nums">Wert</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
                       <TableCell>Anlage</TableCell>
-                      <TableCell className="tabular-nums text-right">
-                        120,00 kWp
-                      </TableCell>
+                      <TableCell className="text-right tabular-nums">120,00 kWp</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>Erzeugung</TableCell>
-                      <TableCell className="tabular-nums text-right">
-                        118.500 kWh/a
-                      </TableCell>
+                      <TableCell className="text-right tabular-nums">118.500 kWh/a</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell>Pacht</TableCell>
-                      <TableCell className="tabular-nums text-right">
-                        27.500 €
-                      </TableCell>
+                      <TableCell className="text-right tabular-nums">27.500 €</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
               </TabsContent>
               <TabsContent value="historie" className="pt-3">
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   Hier würde die Versionshistorie der Studie erscheinen.
                 </p>
               </TabsContent>
@@ -345,10 +317,7 @@ export default function Home() {
 
       {/* ----- Feedback ----- */}
       <section aria-labelledby="feedback-heading" className="space-y-6">
-        <h2
-          id="feedback-heading"
-          className="text-forest-green font-heading text-2xl"
-        >
+        <h2 id="feedback-heading" className="font-heading text-2xl text-forest-green">
           Feedback
         </h2>
 
@@ -361,16 +330,11 @@ export default function Home() {
 
         <Alert variant="destructive">
           <AlertTitle>Validierungsfehler</AlertTitle>
-          <AlertDescription>
-            Das Formular enthält Felder mit ungültigen Werten.
-          </AlertDescription>
+          <AlertDescription>Das Formular enthält Felder mit ungültigen Werten.</AlertDescription>
         </Alert>
 
         <div>
-          <Button
-            variant="secondary"
-            onClick={() => toast.success("Toast über Sonner ausgelöst.")}
-          >
+          <Button variant="secondary" onClick={() => toast.success("Toast über Sonner ausgelöst.")}>
             Sonner-Toast auslösen
           </Button>
         </div>

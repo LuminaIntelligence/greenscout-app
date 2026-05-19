@@ -29,25 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-003 Install shadcn/ui primitives + base components
-- **Status:** ⬜ TODO
-- **Feature:** components/ui
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-022, T-023, T-024, T-025, T-029
-- **Blocked by:** T-002
-- **Description:**
-  Initialise shadcn/ui via its CLI with the GreenScout colour tokens mapped into the `cn`/theme layer (no off-brand defaults). Install the primitives most likely to be needed by F1–F7: `button`, `input`, `label`, `form`, `select`, `checkbox`, `radio-group`, `textarea`, `dialog`, `dropdown-menu`, `toast`, `table`, `tabs`, `badge`, `card`, `alert`, `separator`, `tooltip`. Confirm a smoke page renders one of each.
-- **Acceptance criteria:**
-  - [ ] `components.json` configured with shadcn paths under `src/components/ui/`.
-  - [ ] Each primitive listed above exists under `src/components/ui/` and compiles.
-  - [ ] A `/components-preview` (dev-only) page renders one of each primitive without console warnings.
-  - [ ] No off-brand default colours leak through; primary uses `plant-green`, accent uses `muted-lime`.
-- **Files likely touched:** `components.json`, `src/components/ui/**`, `src/lib/utils.ts` (`cn`), one preview route.
-- **Pause-triggers anticipated:** §7.1 (`class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, Radix primitives transitive installs).
-
----
-
 ### T-004 Wire ESLint + Prettier + tsc gates
 - **Status:** ⬜ TODO
 - **Feature:** chore (lint)
@@ -1269,6 +1250,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-003 ✅ Install shadcn/ui primitives + base components
+- **Merged:** 2026-05-19 via PR #4 (`654768c`)
+- **Branch:** `chore/shadcn-ui-primitives`
+- **Summary:** shadcn 4.7.0 CLI init with new-york style and CSS-variables; 18 primitives under `src/components/ui/`. Tailwind v3 compatibility cleanup (stripped v4-only imports). Brand-token mapping landed: `primary=plant-green`, `secondary=muted-lime`, `accent=forest-green`, `destructive=#DC2626` (new — soft-flagged, see decisions). `Toaster` + `TooltipProvider` mounted in `layout.tsx`. Sonner wrapper with hard-pinned `theme="light"`. RHF+zod+`@hookform/resolvers` for `form` primitive. Smoke demo page renders all 18 primitives in four sections.
+- **Decisions:** see `DECISIONS.md` entry "T-003 silent decisions per §14 (consolidated)".
 
 ### T-002 ✅ Configure Tailwind 3 + design tokens + Gabarito font
 - **Merged:** 2026-05-19 via PR #2 (`36eaa7e`)
