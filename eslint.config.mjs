@@ -38,6 +38,8 @@ const eslintConfig = [
       "public/**",
       "next-env.d.ts",
       "**/*.config.{js,mjs,ts}",
+      // Python service venv ships bundled pyright JS that fails our rules.
+      "services/python/.venv/**",
     ],
   },
 
