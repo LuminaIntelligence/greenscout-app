@@ -27,7 +27,7 @@ Full architecture in `SPEC.md` §7. Pinned versions and conventions in `CLAUDE.m
 ## Day-zero setup (human)
 
 1. Install prerequisites on your dev machine:
-   - Node.js 20 LTS, `npm`
+   - Node.js 24 (current — matches `.nvmrc`), `npm`
    - Python 3.12 + `pip` + `venv`
    - Docker + Docker Compose
    - LibreOffice **only required on the dev machine if you want to render PDFs outside the container** — in normal dev you go through the Python service.
