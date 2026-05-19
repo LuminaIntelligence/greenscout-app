@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+# GreenScout Next.js web service.
+# Multi-stage build (deps → builder → runner) producing a minimal runtime image
+# anchored on Next.js's standalone output (next.config.ts `output: "standalone"`).
+# Base image matches the .nvmrc pin (Node 24) per DECISIONS.md.
+
+# ----- Stage 1: install production + dev dependencies for the build -----------
+FROM node:24-alpine AS deps
+WORKDIR /app
+
+# Copy only the manifests so this layer caches across source-only changes.
+COPY package.json package-lock.json ./
+
+# `--omit=optional` keeps the install reproducible against the lockfile and
+# skips optional packages that aren't required to build.
+RUN npm ci --omit=optional
+
+
+# ----- Stage 2: build the Next.js production bundle ---------------------------
+FROM node:24-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Disable Next.js telemetry inside the image build.
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN npm run build
+
+
+# ----- Stage 3: minimal runtime ------------------------------------------------
+FROM node:24-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Run as a non-root user (CLAUDE.md §3 hardening — defence in depth).
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
+
+# Standalone output bundles `server.js` + a pruned node_modules tree.
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+USER nextjs
+
+EXPOSE 3000
+
+# `HOSTNAME=0.0.0.0` is required by Next.js's standalone server so it binds on
+# all interfaces and is reachable from outside the container.
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "server.js"]
