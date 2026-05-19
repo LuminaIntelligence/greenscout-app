@@ -357,3 +357,165 @@ All nine names are §14.3-anticipated by T-006's `Pause-triggers anticipated: §
 
 **Affected files:** `TASKS.md` (T-007 → ✅ Recently completed), `.github/workflows/ci.yml` (new, 153 lines), `docs/ci.md` (new, 154 lines).
 **Open question for the user:** Branch protection on `main` requires a human admin to toggle in the GitHub UI per CLAUDE.md §8.11 — see `docs/ci.md` "Branch protection" for the exact checks to enable now (5 live gates) vs later (3 stubs, flip when their backing task lands). The agent will not configure this via `gh api`.
+
+---
+
+## 2026-05-19 — Branch protection on `main` activated (user-confirmed, with promotion TODOs)
+**Context:** After PR #9 (T-008 CI workflow) merged, the user enabled GitHub branch protection on `main`. Captured here as the binding promotion state — the previous entry's "Open question" is now answered, but immutable per the DECISIONS.md "newest at the bottom" convention.
+
+**Assumption / decision:** Branch protection rules active on `main`:
+- Pull request required (no approval count — solo setup).
+- **6 Required Status Checks** (all currently live and green on PRs #1–#9):
+  1. `Lint workflow YAML`
+  2. `TS lint + format + typecheck`
+  3. `Python ruff + pyright + pytest`
+  4. `Build Docker image (web)`
+  5. `Build Docker image (pyservice)`
+  6. `gitleaks secret scan`
+- Require branches up to date before merging — ✓
+- Require linear history — ✓
+- No force push, no delete — ✓ (matches CLAUDE.md §8.1 / §8.3)
+
+**Three CI-stub jobs are deliberately NOT yet required.** TODO — promote each to required when its backing task merges:
+
+| Stub job (CI job name) | Promote when this PR merges | Notes |
+|---|---|---|
+| `Vitest (stub — T-018)` | T-018 (Login page with live password-rule checklist) — first task with Vitest + RTL + actual coverage | Until then the echo-only stub guards the workflow-shape only |
+| `Playwright (stub — T-051a/b)` | T-051a (Playwright E2E covering F1–F4) — first task with real headless runs | Pause T-051b promotion until F5–F7 tests are also green |
+| `Prisma migrate (stub — T-013)` | T-013 (Initial Prisma migration + local DB apply) — first task with `prisma migrate deploy` against the CI Postgres service | Schema design currently pending user sign-off (see next entry) |
+
+**Promotion checklist per stub:** GitHub Settings → Branches → `main` rule → Required status checks → search the job name → tick → save. After flipping, the implementer of that task adds a note to its `Recently completed` entry in `TASKS.md` ("branch protection promoted on YYYY-MM-DD") so the audit trail is unbroken.
+
+**Affected files:** none code-wise — this is repository configuration state. Documented here so the agent (and the user) remember the promotion triggers when each backing task lands.
+**Open question for the user:** —
+
+---
+
+## 2026-05-19 — Slice 2 schema design approved (user-confirmed, binding for T-009 through T-013)
+**Context:** Per §7 pause-trigger, the agent presented a complete schema proposal for all seven entities (User, Customer, Study, StudyImage, GeneratedDocument, AuditLog, Setting) before any Prisma code was written. User reviewed and approved with **two cascade corrections** and **three operational rules**. This entry is the **binding schema contract** for T-009 (Prisma install + header), T-010 (enums + User + Customer), T-011 (Study + StudyImage), T-012 (GeneratedDocument + AuditLog + Setting), and T-013 (initial migration + local DB apply). The 5 implementers must read this entry as their schema source-of-truth.
+
+**Assumption / decision:**
+
+### Versions (pinned)
+- `prisma 5.x`, `@prisma/client 5.x` (SPEC §2 — Prisma is at 6.x but pin is binding per §14.3)
+- `pg` driver for Postgres
+- `@types/pg` only if needed by app code (Prisma Client doesn't expose `pg` types directly)
+
+### Enums (Prisma native `enum` → Postgres ENUM types)
+```prisma
+enum Role        { ADMIN  BERATER }
+enum StudyStatus { DRAFT  READY   GENERATED }
+enum ImageType   { BEFORE AFTER }
+enum DocFormat   { PPTX   PDF }
+enum FormPref    { WIZARD SINGLE_PAGE }
+```
+Defined in T-010 (first model task that references them).
+
+### Entity schemas (locked)
+Full per-field tables are in the chat exchange that produced this entry. The summary:
+
+- **User** — 19 fields incl. `passwordHash` (single column, argon2id PHC string), `passwordChangedAt: DateTime?` for V2 rotation prep, `mustChangePassword Boolean @default(true)`, `failedLoginCount Int @default(0)`, `lockoutUntil DateTime?`, `formPreference FormPref @default(WIZARD)`, `active Boolean @default(true)`, soft-delete via `deletedAt`, `organizationId @default("greenscout")`.
+- **Customer** — 13 fields, `companyName String?` optional, `contactFirstName`/`contactLastName` required, soft-delete, organizationId.
+- **Study** — 33 fields. **Decimal precision matrix:**
+  - `anlageKwp` → `Decimal(10, 3)` (kWp, 3 Nachkomma)
+  - `pvErzeugungKwhJahr` / `pvEigenverbrauchKwhJahr` / `verbrauchKwhJahr` / `netzeinspeisungKwhJahr` → `Decimal(12, 2)` (kWh-Mengen)
+  - `pvVerkaufEurKwh` / `versorgerPreisEurKwh` / `szenarioPreis1/2/3` → `Decimal(8, 4)` (€/kWh, 4 Nachkomma)
+  - `pachtEurProKwp` → `Decimal(8, 2)` (€/kWp, default 100)
+  - `modulFlaecheM2` → `Decimal(10, 2)`
+  - `eigenverbrauchsquoteProzent` → `Decimal(5, 2)`
+  - `co2TonnenProJahr` / `co2HektarMischwald` / `co2FussballfelderProJahr` → `Decimal(10, 2)`
+  - `szenarioPreis1/2/3` defaults `0.35` / `0.40` / `0.45` per Wizard-Step-5 decision (DECISIONS.md entry "Wizard step layout fixed")
+- **StudyImage** — 8 fields incl. `@@unique([studyId, type])`. No own organizationId (joined via Study). No soft-delete (lives/dies with parent).
+- **GeneratedDocument** — 6 fields (corrected from 6 originally proposed — `generatedById` becomes nullable). Cascade behaviour corrected — see "Cascading-delete matrix" below.
+- **AuditLog** — 10 fields incl. `changeSet Json?` (Postgres `jsonb`), `organizationId` added (not in SPEC §5.1 but consistent), append-only (no `@updatedAt`, no `updatedAt` column).
+- **Setting** — 3 fields, `key` as `@id`, no organizationId in MVP (single-tenant; Phase-3 will add).
+
+### Cascading-delete matrix (final — incorporates user corrections)
+| Relation | onDelete | onUpdate | Notes |
+|---|---|---|---|
+| `Study.consultantId → User` | `Restrict` | `Cascade` | User-Hard-Delete blocked while owning studies — Handover Flow F6 is mandatory |
+| `Study.customerId → Customer` | `Restrict` | `Cascade` | Customer-Hard-Delete would orphan studies |
+| `StudyImage.studyId → Study` | `Cascade` | `Cascade` | Image meaningless without study |
+| **`GeneratedDocument.studyId → Study`** | **`Cascade`** ✏️ | `Cascade` | **USER CORRECTION**: DSGVO-Hard-Delete of Study cascades DB rows AND filesystem PDFs under `./generated/studies/<studyId>/`. Audit trail lives in `AuditLog.action = GENERATE_DOCUMENT`. `studyId` stays NOT NULL. |
+| **`GeneratedDocument.generatedById → User`** | **`SetNull`** ✏️ | `Cascade` | **USER CORRECTION**: Column becomes `String?` (nullable). DSGVO-User-Hard-Delete does NOT block on old generation history. Historical reference preserved in `AuditLog.userId` (also SetNull). |
+| `AuditLog.userId → User` | `SetNull` | `Cascade` | System events have userId=null; user hard-delete nulls historic references but preserves entries |
+
+### Index strategy (final)
+| Entity | Indexes |
+|---|---|
+| User | `@@unique([email])`, `@@index([organizationId, role, active, deletedAt])`, `@@index([organizationId, createdAt])` |
+| Customer | `@@index([organizationId, deletedAt])`, `@@index([organizationId, contactLastName])` |
+| Study | `@@index([consultantId])`, `@@index([customerId])`, `@@index([status])`, `@@index([organizationId, status])`, `@@index([organizationId, consultantId, deletedAt])`, `@@index([organizationId, createdAt])` |
+| StudyImage | `@@unique([studyId, type])` |
+| GeneratedDocument | `@@index([studyId, generatedAt(sort: Desc)])` |
+| AuditLog | `@@index([userId])`, `@@index([entityType, entityId])`, `@@index([createdAt(sort: Desc)])`, `@@index([organizationId, createdAt(sort: Desc)])` |
+| Setting | `@id key` only |
+
+### `organizationId` enforcement
+- Every entity except `StudyImage`, `GeneratedDocument`, `Setting` has `organizationId String @default("greenscout") @map("organization_id")`.
+- Repository layer (T-014) enforces filtering; application code (routes, services, components) never references `organizationId` directly.
+- Phase-3 multi-tenant migration: (1) remove default value, (2) add `Organization` table, (3) populate from session. All additive (no §7.2).
+
+### `AuditLog.changeSet` JSON convention
+- Postgres type: `jsonb`.
+- Application-layer structure: **per-field tuple** — `{ "fieldName": [oldValue, newValue], ... }` — compact and diff-renderable in admin Audit-UI (T-045).
+- Soft cap at 8 KB: app-layer logger warns above this; no DB-level limit.
+- **Sensitive data excluded**: `passwordHash` never appears in `changeSet`. Password changes log `{"action": "PASSWORD_CHANGED"}` with no diff.
+- No GIN index in MVP; defer until a query pattern needs it.
+
+### NEW — Email case-insensitivity (user-mandated)
+- Repository layer normalises `email` to **lowercase** before any `create`, `findUnique`, `update`, or `upsert` involving the email column.
+- Implemented via a **pre-save hook** in `src/features/auth/repository.ts` (or wherever the User-Repository lives) — every entry into the repository passes through `email = email.trim().toLowerCase()` before the Prisma call.
+- Rationale: prevents duplicate accounts with different casing (e.g. `Foo@Bar.com` vs `foo@bar.com` would otherwise be two separate User rows because Postgres email uniqueness is case-sensitive by default).
+- Application-layer enforcement chosen over `citext` extension because Prisma 5 doesn't natively model `citext` and the migration would need raw SQL — adds complexity for marginal benefit when a one-line normalisation in the repository covers the same risk.
+- The seed script (T-015) MUST also normalise `SEED_ADMIN_EMAIL` to lowercase before lookup/insert.
+- Test coverage: T-022 (Customer feature schema + repository + list) and T-017 (Auth.js Credentials provider) will both need test cases for mixed-case email login attempting to find the lowercase-stored row.
+
+### Pre-migrate sanity (user-mandated)
+**Before** running `npx prisma migrate dev --name initial_schema` in T-013, the implementer MUST run in this order:
+1. `npx prisma format` — autoformats the schema file
+2. `npx prisma validate` — catches model errors before migration
+
+If either fails, the migration step does not proceed. Captured in the T-013 brief as a hard gate.
+
+### Seed-script placement (user-mandated)
+The idempotent admin seed (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_TEMP_PASSWORD` per DECISIONS entry "Admin account provisioning via seed") belongs in **T-015**, NOT T-010. Seed is application logic, not schema. T-010 (User + Customer model definitions) just defines the table structure; the `prisma/seed.ts` script and the `package.json` `"prisma": { "seed": "..." }` block come in T-015.
+
+### Roll-out
+**Five separate PRs in sequence (planner-konform).** Each task = one PR, each merges before the next starts. Rationale (user's words): schema design is one design unit, but the five tasks are atomic with their own acceptance criteria — separate PRs ease review and rollback if anything caught in T-012 / T-013 could have been avoided in T-010.
+
+Sequence:
+1. **T-009** — `npm install prisma @prisma/client pg` + `npx prisma init` + `prisma/schema.prisma` with datasource + generator blocks only. No models, no enums yet.
+2. **T-010** — Five enums (`Role`, `StudyStatus`, `ImageType`, `DocFormat`, `FormPref`) + `User` + `Customer` models with all indexes and the email-lowercase normalisation hook documented in `src/features/auth/repository.ts` (or staging file).
+3. **T-011** — `Study` + `StudyImage` with Decimal precisions, unique constraint, and indexes per matrix above.
+4. **T-012** — `GeneratedDocument` (with corrected Cascade/SetNull) + `AuditLog` (with `organizationId`, no `@updatedAt`) + `Setting`.
+5. **T-013** — `npx prisma format` → `npx prisma validate` → `npx prisma migrate dev --name initial_schema` against local Postgres + verify generated client + record schema-version in DECISIONS.
+
+T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each their own PR.
+
+**Affected files (across the 5 PRs):** `package.json`, `package-lock.json`, `prisma/schema.prisma`, `prisma/migrations/*/migration.sql`, `src/features/auth/repository.ts` (or staging), `docs/prisma.md`, `TASKS.md` (status flips), `DECISIONS.md` (per-task consolidated entries).
+**Open question for the user:** —
+
+---
+
+## 2026-05-19 — T-009 silent decisions per §14 (consolidated)
+**Context:** T-009 installs Prisma 5.x + @prisma/client + pg and scaffolds the schema header (datasource + generator only — no models, no enums). The full Slice-2 schema design is locked per the prior DECISIONS entry "Slice 2 schema design approved".
+
+**Assumption / decision:**
+- **Prisma 5.x pinned via `^5`** in package.json (resolved version: **5.22.0** at install time); explicit do-not-cross-into-6/7 per SPEC §2. CLI emits a "5.22.0 -> 7.8.0 upgrade available" notice on every run; deliberately ignored per the pin.
+- **`@prisma/client 5.22.0`** (same major as the CLI).
+- **`pg@8.21.0`** driver added (current major). `@types/pg` deferred — not needed by Prisma Client.
+- **Scaffolding method deviation from brief:** `npx prisma init --datasource-provider postgresql` **fails on Node 24 with Prisma 5.22.0** — known upstream incompat (`(0 , CSe.isError) is not a function`, the engine still references `util.isError` which Node 24 removed). The brief mandated hand-rewriting `prisma/schema.prisma` to the exact template anyway, so the failed `init` is moot: created `prisma/` manually with `mkdir prisma`, then wrote `prisma/schema.prisma` directly to match T-009's brief template — 2-line header pointing to DECISIONS.md, generator with `output = "../src/generated/prisma"` and empty `previewFeatures`, datasource pointing to `env("DATABASE_URL")`. No `.env` modification by Prisma (CLI never ran); created `.env` locally via `cp .env.example .env` for the validate/generate sanity (gitignored, not committed). The brief's hard pause-trigger "prisma init insists on a 6.x install" did not fire — install side resolved 5.22.0 cleanly via the `^5` pin.
+- **No models, no enums in T-009.** T-010 owns enums + User + Customer.
+- **npm scripts added**: `db:generate`, `db:studio`, `db:migrate`. **`db:seed` deferred to T-015** per user-mandate.
+- **No `prisma.seed` block in package.json yet** — also deferred to T-015.
+- **`docs/prisma.md`** written: setup, schema-change workflow (with §7 pause-trigger reminder), `prisma migrate deploy` forbidden per §7.9/§8.6, plus an explicit "T-009 state: no models yet" callout so future readers don't try `prisma generate` and panic on the no-models error.
+- **Pre-migrate sanity verified on empty schema**: `prisma format` exit 0; `prisma validate` exit 0 (after exporting a placeholder `DATABASE_URL` since validate resolves env vars even on no-model schemas). The T-013 implementer will re-run these against the populated schema.
+- **`prisma generate` against empty schema**: errors with "You don't have any models defined in your schema.prisma, so nothing will be generated" — Prisma 5's documented behaviour for empty-model schemas, acceptable for T-009 and called out in `docs/prisma.md`.
+- **No `.env` commit**: created locally for sanity, gitignored, never staged.
+- **Husky hook fired on all five commits**, no `--no-verify`. CRLF normalisation warnings on `package.json` / `package-lock.json` / `prisma/schema.prisma` / `docs/prisma.md` / `TASKS.md` are .gitattributes-driven and expected on Windows.
+
+**Net top-level deps added:** `prisma` (^5.22.0, devDependencies), `@prisma/client` (^5.22.0, dependencies), `pg` (^8.21.0, dependencies). All in CLAUDE.md §2 named tech-stack — §7.1 "new dependencies" pause-trigger softened by §14.3 since they are SPEC §2-named and explicitly pinned there. No surprise top-level packages appeared (verified via `npm ls --depth=0`).
+
+**Affected files:** `package.json`, `package-lock.json`, `prisma/schema.prisma` (new), `docs/prisma.md` (new), `TASKS.md` (T-008 → ✅ Recently completed), `DECISIONS.md` (this entry).
+**Open question for the user:** —
