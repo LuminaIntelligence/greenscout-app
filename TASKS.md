@@ -29,26 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-004 Wire ESLint + Prettier + tsc gates
-- **Status:** ⬜ TODO
-- **Feature:** chore (lint)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-011, T-040
-- **Blocked by:** T-001
-- **Description:**
-  Configure ESLint with the exact plugin set from CLAUDE.md §2: `@typescript-eslint`, `eslint-plugin-react`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`, `eslint-plugin-import`, `eslint-config-next`. Run with `--max-warnings 0`. Add Prettier with `prettier-plugin-tailwindcss`. Add npm scripts `lint`, `lint:fix`, `format`, `format:check`, `typecheck`. ESLint must flag relative cross-feature imports and missing a11y attributes.
-- **Acceptance criteria:**
-  - [ ] `npm run lint` exits 0 on an empty repo and fails on a deliberate `any` or missing `alt`.
-  - [ ] `npm run format:check` exits 0.
-  - [ ] `npm run typecheck` runs `tsc --noEmit`.
-  - [ ] `.eslintrc` extends `next/core-web-vitals` and the six plugin presets above.
-  - [ ] `import/no-relative-parent-imports` (or equivalent rule) blocks `../../..` across feature folders.
-- **Files likely touched:** `.eslintrc.cjs` (or `eslint.config.mjs`), `.prettierrc`, `.prettierignore`, `package.json` (scripts).
-- **Pause-triggers anticipated:** §7.1 (lint/prettier dev-deps).
-
----
-
 ### T-005 Set up Husky + lint-staged + gitleaks pre-commit gates
 - **Status:** ⬜ TODO
 - **Feature:** chore (hooks)
@@ -1250,6 +1230,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-004 ✅ Wire ESLint + Prettier + tsc gates
+- **Merged:** 2026-05-19 via PR #5 (`16d49f4`)
+- **Branch:** `chore/eslint-prettier-gates`
+- **Summary:** ESLint v9 flat config extended with typescript-eslint 8.59.4, eslint-plugin-react 7.37.5, eslint-plugin-react-hooks 7.1.1, eslint-plugin-jsx-a11y 6.10.2, canonical eslint-plugin-import 2.32.0 (not the -x fork — Next pre-wires the canonical), eslint-config-prettier 10.1.8 (last in array). Prettier 3.8.3 with prettier-plugin-tailwindcss 0.8.0 for class auto-sort. `prettier.config.mjs` + `.prettierignore` created. Cross-feature relative imports blocked via `no-restricted-imports` `../*` pattern (not zones — would have blocked `@/*` alias). `@typescript-eslint/no-explicit-any: error`, `no-unused-vars: error` with `^_` opt-out, `jsx-a11y/alt-text: error` covering `<img>` + Next `<Image>`. npm scripts: `lint`, `lint:fix`, `format`, `format:check`, `typecheck` — `eslint .` direct (not `next lint`, deprecated in 15.5). 21 existing source files reformatted via Prettier; no behaviour change.
+- **Decisions:** see `DECISIONS.md` entry "T-004 silent decisions per §14 (consolidated)".
 
 ### T-003 ✅ Install shadcn/ui primitives + base components
 - **Merged:** 2026-05-19 via PR #4 (`654768c`)
