@@ -9,6 +9,15 @@
  * Body font binds to the Gabarito Regular CSS variable defined by
  * `next/font/local` in src/app/layout.tsx; headings bind to the
  * Gabarito SemiBold variable. Both fall back to system-ui.
+ *
+ * T-003: Added shadcn/ui semantic CSS variables (`--primary`, `--secondary`,
+ * `--accent`, `--destructive`, `--muted`, `--card`, `--popover`, `--border`,
+ * `--input`, `--ring`, `--radius`) mapped to the GreenScout brand palette so
+ * the shadcn primitives in `src/components/ui/*` consume the same tokens as
+ * the brand layer. No `.dark` block — MVP is single-light-theme. shadcn-CLI's
+ * generated Tailwind-v4 `@import` directives (`tw-animate-css`,
+ * `shadcn/tailwind.css`) and OKLCH neutral defaults were removed; we are
+ * pinned to Tailwind v3 per SPEC §2 and use hex tokens consistently.
  */
 
 @tailwind base;
@@ -17,12 +26,37 @@
 
 @layer base {
   :root {
+    /* Brand tokens (T-002, SPEC §8.1 / CLAUDE.md §9). */
     --color-forest-green: #2d473e;
     --color-plant-green: #6a8f4e;
     --color-muted-lime: #b2d082;
     --color-background: #ffffff;
     --color-foreground: #000000;
     --color-link: #cc3366;
+
+    /* shadcn/ui semantic tokens (T-003). Each maps to a brand token above
+     * or to a neutral grey scale. `--destructive` introduces #DC2626 (red-600)
+     * because SPEC §8.1 has no destructive colour — documented in DECISIONS. */
+    --background: #ffffff;
+    --foreground: #000000;
+    --card: #ffffff;
+    --card-foreground: #000000;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+    --primary: #6a8f4e; /* plant-green */
+    --primary-foreground: #ffffff;
+    --secondary: #b2d082; /* muted-lime */
+    --secondary-foreground: #2d473e; /* forest-green */
+    --muted: #f1f7e8; /* ≈ muted-lime-50 */
+    --muted-foreground: #71717a; /* zinc-500 */
+    --accent: #2d473e; /* forest-green */
+    --accent-foreground: #ffffff;
+    --destructive: #dc2626; /* red-600 — outside SPEC §8.1, see DECISIONS */
+    --destructive-foreground: #ffffff;
+    --border: #e4e4e7; /* zinc-200 */
+    --input: #e4e4e7;
+    --ring: rgba(106, 143, 78, 0.5); /* plant-green @ 50% alpha */
+    --radius: 0.5rem;
   }
 
   *,
