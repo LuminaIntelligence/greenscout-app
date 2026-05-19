@@ -291,5 +291,78 @@ ALWAYS read SPEC.md + CLAUDE.md + TASKS.md before acting.
 ALWAYS commit on a feature branch with Conventional Commits.
 ALWAYS run the pre-commit gates before pushing.
 ALWAYS prefer "pause and ask" over a guess that crosses §7.
+ALWAYS prefer "decide and document in DECISIONS.md" over "ask" for taste-level work (see §14).
 NEVER bypass §8.
 ```
+
+---
+
+## 14. Decision discipline — taste-level vs. pause-trigger
+
+> This section sharpens §10. Read it on every session boot.
+
+### 14.1 The principle
+
+The Balanced auto-mode profile (§10) commits you to: *"make the best assumption that doesn't trip any pause-trigger or forbidden action, record it in `DECISIONS.md`, continue."*
+
+That principle is **binding**. Stopping every five minutes to ask the user about taste-level configuration is **a violation of §10, not adherence to it.** The single test before pausing is:
+
+> **Does this decision touch §7 (pause-triggers) or §8 (forbidden)?**
+> — If no → decide and document.
+> — If yes → pause and ask.
+
+The user has explicitly opted out of being consulted on taste-level micro-decisions. Respect that by not asking.
+
+### 14.2 Decide-and-document by default — no user prompt
+
+These categories are taste-level and **never warrant a user prompt**. Pick the modern, idiomatic default for the chosen tool, write one line into `DECISIONS.md`, continue:
+
+- **Plugin selection within an already-approved framework** — which Tailwind plugins, which ESLint plugins, which Prettier add-ons, which Vitest reporter, which pytest plugins. The framework itself is approved; bundled plugins within it are execution detail.
+- **Font / asset loading mechanism** — self-hosted vs. CDN, asset placement in `public/`, image optimisation settings, favicon variants. SPEC §8.2 names "self-hosted preferred" — go with that without asking.
+- **Configuration file format** — `.prettierrc` vs. `prettier.config.mjs`, `eslintrc.cjs` vs. `eslint.config.mjs`, `pyproject.toml` vs. `setup.cfg`, `requirements.txt` vs. `requirements.in` + `uv.lock`. Pick the modern default.
+- **Lockfile / dependency-resolution details** — `package-lock.json` vs. `npm-shrinkwrap`, accepted audit advisories that would only resolve via downgrading an already-approved dependency, peer-dep version pin choices.
+- **Docker base image variants** — `node:24-alpine` vs. `node:24-slim` vs. `node:24-bookworm`. Pick the smallest viable that still has the libc / build tools needed (e.g., LibreOffice requires non-alpine; Next.js standalone works on alpine).
+- **Port numbers, cron expressions, log formats, default test timeouts, Vitest pool size, Playwright workers** — pick sensible defaults aligned with the SPEC's performance budget; document if non-obvious.
+- **Stub content and placeholder routes** — placeholder text, demo paths, example values used only to prove plumbing during bootstrap.
+- **Test scaffolding** — config file location, fixture folder layout, mock helpers. The *coverage thresholds* in §5.2 are non-negotiable; the *file layout* to achieve them is taste.
+- **Bundler / compiler defaults shipped by the scaffolder** — keep what `create-next-app` produces (Turbopack, SWC, default tsconfig `target`) unless §7 fires.
+- **Conventional-commit type / scope subtleties** — `chore` vs. `build` vs. `ci` for tooling commits, scope naming for cross-cutting changes. Pick one consistently, don't deliberate per commit.
+- **CI workflow step ordering, caching strategy, matrix sparsity** — implementation detail of "GitHub Actions runs the gates". Optimise for cache hit-rate and total wall-clock, document only the non-obvious choices.
+- **Husky / lint-staged glob patterns**, **gitleaks rule selection**, **Prisma seed script structure**, **i18n key naming conventions** — taste.
+
+For each silent decision, append to `DECISIONS.md`:
+
+```
+## YYYY-MM-DD — <topic>
+**Decision:** <what was chosen> over <alternative>. Reason: <one sentence>.
+```
+
+No mention in the PR description needed unless the choice will cascade into a later task.
+
+### 14.3 Still ask — §7 pause-triggers do not soften
+
+§7 remains binding word for word. Specifically:
+
+- A **new top-level dependency with its own purpose** (e.g., adding `bullmq` for queues, `socket.io` for realtime, `sharp` if not already present) is still a pause-trigger. Adding a **plugin of an already-approved framework** (`@tailwindcss/forms` next to `tailwindcss`) is **not**.
+- **Auth, password handling, session, lockout, CSRF, CSP** — always pause.
+- **Schema renames / drops / retypes** on existing columns — always pause. Additive new tables / new nullable columns — proceed.
+- **Money, pricing, lease, customer-visible numeric output** — always pause.
+- **Outbound HTTP to a third party** (Google Fonts at runtime, PV-Sol API, weather APIs, AI providers) — always pause. *Build-time-only outbound (fetching package tarballs, downloading fonts to commit them) is not "third-party integration" — it is "package management".*
+- **DSGVO-relevant changes** — fields, retention, audit log — always pause.
+- **Architectural pivots** — SSR↔CSR mode, adding queues / caching layer / new datastore, replacing the Python service — always pause.
+- **Spec / instruction conflict** — always pause.
+
+### 14.4 The smell test
+
+Before raising a question to the user, apply this test:
+
+> *"If the user knew nothing about this decision and saw the resulting PR, would they want their time spent reading 80 lines of dialog about it — or would they say 'sensible default, move on'?"*
+>
+> If "move on" → **decide and document.**
+> If "I have an opinion here" → **pause and ask.**
+
+When the doubt is genuine, pause. But the doubt must be real, not procedural — "I'm following our process by asking" is **not** real doubt, it is process theatre. The process *is* to decide and document for taste-level work.
+
+### 14.5 Recap obligation
+
+At the end of every autonomous run, list every `DECISIONS.md` entry created during the run in the PR description under a `### Decisions taken` heading. The user reviews them as a batch — not as 20 interruptions.
