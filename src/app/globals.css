@@ -1,0 +1,25 @@
+/*
+ * T-001 minimal global stylesheet.
+ * T-002 will replace this with Tailwind layers (`@tailwind base/components/utilities`)
+ * and the GreenScout design tokens from SPEC §8.1 / CLAUDE.md §9.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #ffffff;
+  color: #000000;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
