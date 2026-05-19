@@ -29,26 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-005 Set up Husky + lint-staged + gitleaks pre-commit gates
-- **Status:** ⬜ TODO
-- **Feature:** chore (hooks)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-040
-- **Blocked by:** T-004
-- **Description:**
-  Install Husky and lint-staged. Pre-commit hook must run, in order: `tsc --noEmit`, ESLint with `--max-warnings 0`, Prettier `--check`, `ruff check`, `ruff format --check`, `pyright` (only if Python files touched), and `gitleaks protect --staged`. Add a one-page `docs/pre-commit.md` describing the hook. Hook must be fast on no-op commits (lint-staged scoping to changed files).
-- **Acceptance criteria:**
-  - [ ] `.husky/pre-commit` exists and is executable.
-  - [ ] `lint-staged` config runs ESLint + Prettier only on changed `*.{ts,tsx,js,jsx}` files.
-  - [ ] A deliberate `process.env.SECRET = "AKIA..."` test fixture is caught by `gitleaks` and the commit is rejected.
-  - [ ] A clean commit completes in under 10 seconds locally.
-  - [ ] Python checks fire only when any `*.py` is staged.
-- **Files likely touched:** `.husky/pre-commit`, `package.json` (`lint-staged`, `prepare`), `.gitleaks.toml`, `docs/pre-commit.md`.
-- **Pause-triggers anticipated:** §7.1 (`husky`, `lint-staged`, `gitleaks` install).
-
----
-
 ### T-006 Scaffold Python FastAPI service skeleton
 - **Status:** ⬜ TODO
 - **Feature:** chore (python service)
@@ -1230,6 +1210,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-005 ✅ Set up Husky + lint-staged + gitleaks pre-commit gates
+- **Merged:** 2026-05-19 via PR #6 (`25fe997`)
+- **Branch:** `chore/husky-lintstaged-gitleaks`
+- **Summary:** Husky 9.1.7 + lint-staged 17.0.5 installed. `.husky/pre-commit` runs project-wide `tsc --noEmit` → per-file `lint-staged` (eslint+prettier on TS/JS, prettier on md/json/yml/yaml/css, ruff+pyright on py — no-op until T-006) → `gitleaks git --staged --redact --verbose` last. `.gitleaks.toml` extends defaults with `.env.example` allowlist. `.gitattributes` enforces LF on `.husky/*` + `*.sh` to defend against Windows `core.autocrlf`. `docs/pre-commit.md` documents pipeline + per-OS install + §8.12 bypass warning. Clean-commit perf measured at 7.99s cold / 7.72s warm. Two §14-silent plan deviations resolved: gitleaks 8.30 removed `protect --staged` → switched to `gitleaks git --staged`; canonical AWS example `AKIAIOSFODNN7EXAMPLE` is internally allowlisted in 8.30 → fixture pivoted to a synthetic GitHub PAT for reliable rule trigger.
+- **Decisions:** see `DECISIONS.md` entry "T-005 silent decisions per §14 (consolidated)".
 
 ### T-004 ✅ Wire ESLint + Prettier + tsc gates
 - **Merged:** 2026-05-19 via PR #5 (`16d49f4`)

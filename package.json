@@ -15,16 +15,16 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
-      "eslint --max-warnings 0 --fix",
+      "eslint --max-warnings 0 --no-warn-ignored --fix",
       "prettier --check"
     ],
     "*.{md,json,yml,yaml,css}": [
       "prettier --check"
     ],
-    "*.py": [
-      "ruff check --no-fix",
-      "ruff format --check",
-      "pyright"
+    "services/python/**/*.py": [
+      "node scripts/run-py-tool.mjs ruff check --no-fix",
+      "node scripts/run-py-tool.mjs ruff format --check",
+      "node scripts/run-py-tool.mjs pyright"
     ]
   },
   "dependencies": {

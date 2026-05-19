@@ -1,0 +1,40 @@
+# GreenScout Python service tool configuration.
+# Dependencies live in requirements.txt / requirements-dev.txt (CLAUDE.md §2 pin: pip + venv).
+# This file is tool-config only — no [project] block, no wheel build.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "PT", "RUF", "SIM", "TCH"]
+
+[tool.ruff.lint.per-file-ignores]
+# F401 unused imports OK in __init__.py (re-export pattern).
+"__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pyright]
+include = ["app", "tests"]
+exclude = [".venv", "**/__pycache__"]
+# Pyright resolves third-party imports from this venv (project-local).
+# Both fields are required; absence of either causes "Import ... could not be resolved".
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingImports = "error"
+reportGeneralTypeIssues = "error"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = "-ra -q"

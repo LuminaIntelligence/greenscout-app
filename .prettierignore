@@ -21,6 +21,9 @@ public/fonts/*.woff2
 # Generated Prisma client (will land in T-009+)
 src/generated/**
 
+# Python venv — managed by pip, contains bundled JS/TS we never format.
+services/python/.venv/**
+
 # PPTX / PDF template binaries — preserve as-is
 templates/*.pptx
 templates/*.pdf
