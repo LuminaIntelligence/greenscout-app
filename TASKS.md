@@ -29,26 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-006 Scaffold Python FastAPI service skeleton
-- **Status:** ⬜ TODO
-- **Feature:** chore (python service)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-007, T-008, T-026, T-027, T-030
-- **Blocked by:** T-001
-- **Description:**
-  Create the Python FastAPI service folder structure per SPEC §7.4 under `services/python/` (or sibling — pick one and document): `app/api/`, `app/domain/`, `app/services/`, `app/schemas/`, `app/config.py`, `app/main.py`, `templates/`, `tests/`. `app/main.py` exposes FastAPI app with `/health` returning `{"status": "ok"}`. Add `requirements.txt` (initially: `fastapi`, `uvicorn[standard]`, `pydantic>=2`, `python-multipart`). Add `pyproject.toml` configuring `ruff` and `pyright`. Add Python venv instructions to `docs/python-service.md`.
-- **Acceptance criteria:**
-  - [ ] `uvicorn app.main:app --reload` boots and `GET /health` returns 200.
-  - [ ] `ruff check .` and `ruff format --check .` exit 0.
-  - [ ] `pyright` exits 0 on the skeleton.
-  - [ ] `pytest` runs (empty suite is OK) and exits 0.
-  - [ ] Folder structure matches SPEC §7.4.
-- **Files likely touched:** `services/python/app/**`, `services/python/requirements.txt`, `services/python/pyproject.toml`, `services/python/tests/test_health.py`, `docs/python-service.md`.
-- **Pause-triggers anticipated:** §7.1 (`fastapi`, `uvicorn`, `pydantic`, `ruff`, `pyright` install — first time these enter `requirements.txt`).
-
----
-
 ### T-007 Compose Docker stack skeleton (Next.js + Python + Postgres)
 - **Status:** ⬜ TODO
 - **Feature:** chore (docker)
@@ -1210,6 +1190,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-006 ✅ Scaffold Python FastAPI service skeleton
+- **Merged:** 2026-05-19 via PR #7 (`a0541c1`)
+- **Branch:** `chore/python-service-skeleton`
+- **Summary:** `services/python/` skeleton per SPEC §7.4. FastAPI 0.115+ + uvicorn[standard] + pydantic v2 + python-multipart. `GET /health` returns `{"status": "ok"}` via `app.api.health` router. requirements.txt + requirements-dev.txt split (no Poetry/PDM/uv). `pyproject.toml` tool-config only (ruff py312/line-100/E-F-W-I-UP-B-C4-PT-RUF-SIM-TCH, pyright strict, pytest with asyncio_mode=auto). Domain + services + config are docstring-only stubs with `TODO(T-XX):` markers. **Custom Node launcher `scripts/run-py-tool.mjs`** bridges lint-staged to venv-installed ruff/pyright/pytest cross-platform (Windows Scripts/ vs Unix bin/). Hook-fire perf: TS 7.77s, Python 5.91s. All gates green: Python (ruff/pyright/pytest) + TS (typecheck/lint/format:check).
+- **Decisions:** see `DECISIONS.md` entry "T-006 silent decisions per §14 (consolidated)".
 
 ### T-005 ✅ Set up Husky + lint-staged + gitleaks pre-commit gates
 - **Merged:** 2026-05-19 via PR #6 (`25fe997`)

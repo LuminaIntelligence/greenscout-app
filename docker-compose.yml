@@ -1,0 +1,122 @@
+# GreenScout — local development Docker Compose stack.
+#
+# Three services on a shared bridge network:
+#   - db         Postgres 16 (named volume for persistence)
+#   - pyservice  FastAPI service (PPTX templating + PDF rendering — T-026+)
+#   - web        Next.js App Router frontend + light API
+#
+# Host bind mounts share `./uploads` and `./generated` into both `web` and
+# `pyservice` per CLAUDE.md §3.
+#
+# Production deployment is OUT OF SCOPE for the Claude Code agent
+# (CLAUDE.md §8.10). The same file may be reused by a human operator on the
+# Hetzner VPS — but the agent never runs `docker compose up` against prod.
+#
+# Note: Compose v2+ ignores the top-level `version:` field, so it is omitted.
+
+name: greenscout
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: greenscout-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-greenscout}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-greenscout_dev}
+    ports:
+      # Bind to loopback only so the dev DB is not exposed on the LAN. Uses
+      # ${POSTGRES_PORT} on the host so a developer with a local Postgres on
+      # 5432 can override (e.g. POSTGRES_PORT=55432 in .env) without changing
+      # this file. Container-internal port stays 5432.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `$${POSTGRES_USER}` double-dollar escapes Compose interpolation so the
+      # shell inside the container expands the env at runtime.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - gs-network
+
+  pyservice:
+    build:
+      context: ./services/python
+      dockerfile: Dockerfile
+    container_name: greenscout-pyservice
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Container-internal storage paths (override the host-style values in .env).
+      UPLOADS_DIR: /app/uploads
+      GENERATED_DIR: /app/generated
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./generated:/app/generated
+    healthcheck:
+      # slim Python image has no curl/wget — use urllib instead of installing
+      # extra system packages just for a healthcheck.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=2).status == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - gs-network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: greenscout-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      pyservice:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # Overrides for the in-compose network: containers talk to each other by
+      # service name, not via the localhost-style values from .env which are
+      # used by native `npm run dev` outside Docker.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-greenscout}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-greenscout_dev}?schema=public
+      PYTHON_SERVICE_URL: http://pyservice:8000
+      AUTH_TRUST_HOST: "true"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./generated:/app/generated
+    healthcheck:
+      # alpine ships wget — no extra install needed. Use 127.0.0.1 explicitly:
+      # Next.js standalone binds IPv4-only via HOSTNAME=0.0.0.0, and wget on
+      # alpine resolves `localhost` to IPv6 ::1 first → connection refused.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks:
+      - gs-network
+
+volumes:
+  postgres-data:
+
+networks:
+  gs-network:
+    driver: bridge

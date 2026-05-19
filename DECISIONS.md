@@ -267,3 +267,53 @@ All nine names are §14.3-anticipated by T-006's `Pause-triggers anticipated: §
 
 **Affected files:** `TASKS.md` (T-005 → ✅ Recently completed), `services/python/**` (21 new files: app + tests + templates/.gitkeep + requirements + pyproject.toml), `scripts/run-py-tool.mjs` (new), `package.json` (lint-staged glob + `--no-warn-ignored`), `eslint.config.mjs` (ignore `services/python/.venv/**`), `.prettierignore` (same), `docs/pre-commit.md` (describe wrapper flow), `docs/python-service.md` (new).
 **Open question for the user:** —
+
+---
+
+## 2026-05-19 — T-007 silent decisions per §14 (consolidated)
+**Context:** T-007 stands up the local Docker Compose stack: `web` (Next.js) + `pyservice` (FastAPI) + `db` (Postgres 16) on a shared bridge network with bind mounts for `./uploads` and `./generated` into both app services per CLAUDE.md §3. Every fork below was taste-level per §14.2 — no §7 pause-triggers fired. No new top-level deps (Docker base images are runtime infrastructure, not `package.json` / `requirements.txt` entries).
+
+**Assumption / decision:**
+- **No `version:` field in `docker-compose.yml`.** Compose v2+ ignores it; the field has been deprecated for two-plus years.
+- **Web image — multi-stage Node 24 alpine.** `deps` (`npm ci --omit=optional`) → `builder` (`npm run build` with telemetry off) → `runner` (copy `.next/standalone`, `.next/static`, `public`, run `node server.js`). Matches `.nvmrc=24` user-confirmed in earlier DECISIONS. Final image: **283 MB** (Next 15 + React 19 + bundled fonts; acceptable for a dev stack).
+- **`next.config.ts` adds `output: "standalone"`.** Required for the minimal `runner` stage; without it the runner would need a full `node_modules` and would balloon past 1 GB.
+- **Web Dockerfile at repo root (`Dockerfile.web`).** Alongside `package.json`. The compose `web.build.context: .` covers it.
+- **Pyservice image — `python:3.12-slim`, single-stage.** Slim/Debian was chosen over alpine because LibreOffice (T-039) is notoriously hard to package on alpine. No system packages installed yet — pure `pip install --no-cache-dir -r requirements.txt`. Final image: **231 MB**.
+- **Pyservice Dockerfile at `services/python/Dockerfile`.** Compose `pyservice.build.context: ./services/python` — the COPY paths are relative to that folder.
+- **Postgres image — `postgres:16-alpine`.** Matches SPEC §2.
+- **Single user-defined bridge network `gs-network`.** All three services attached. No `external: true`. Service-name DNS (`db`, `pyservice`, `web`) is the canonical way containers reach each other.
+- **Named volume `postgres-data` for Postgres.** Survives `docker compose down`, destroyed by `down -v`. Top-level `volumes:` block declares it.
+- **Bind mounts `./uploads` and `./generated` into both `web` and `pyservice`.** Per CLAUDE.md §3. Both folders are gitignored and may not exist on the host — Docker creates them transparently on first up.
+- **Service names = compose-internal DNS = `web`, `pyservice`, `db`.** Container names follow the `greenscout-<service>` convention for `docker ps` readability.
+- **Healthchecks:**
+  - `db`: `pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}` (double-dollar escapes Compose interpolation so the shell expands at container runtime).
+  - `pyservice`: Python `urllib.request.urlopen('http://localhost:8000/health', timeout=2)` — slim Python has no `curl`/`wget` and installing one just for a healthcheck adds ~20 MB.
+  - `web`: `wget -q --spider http://127.0.0.1:3000/`. **Important:** uses `127.0.0.1` explicitly, not `localhost`. Alpine's wget resolves `localhost` to IPv6 `::1` first, but Next.js standalone with `HOSTNAME=0.0.0.0` only binds IPv4 → "Connection refused" until the IPv4 fallback fires (which on alpine wget it doesn't). Caught during verification; switching to `127.0.0.1` made the web container go healthy in <40 s.
+- **Port mappings bind to `127.0.0.1`** (`web 3000`, `pyservice 8000`, `db 5432`). Dev services should never be exposed on the LAN.
+- **`db` host-side port parameterised via `${POSTGRES_PORT:-5432}`.** Verification run hit a conflict with a host-side Postgres on 5432; rather than force every developer to free 5432, the host side now defers to `.env` (default 5432, override e.g. `POSTGRES_PORT=55432`). Container-internal port stays 5432 so the compose-network connection string is stable.
+- **Restart policy `unless-stopped`** on all three services. Survives daemon restarts without auto-restarting after explicit `docker compose stop`.
+- **`env_file: .env` on all three services**, paired with compose-time `environment:` overrides for in-network reach:
+  - `web.environment.DATABASE_URL` rewrites the localhost-style `.env` URL to `host=db` so the container reaches Postgres by service name.
+  - `web.environment.PYTHON_SERVICE_URL=http://pyservice:8000` (same reason).
+  - `web.environment.AUTH_TRUST_HOST="true"` for Auth.js v5 inside the container.
+  - `pyservice.environment.UPLOADS_DIR=/app/uploads` + `GENERATED_DIR=/app/generated` rewrite host-style paths from `.env` to the container-internal mount points.
+- **`AUTH_SECRET` kept, NOT renamed to `NEXTAUTH_SECRET`.** The task description in `TASKS.md` referred to `NEXTAUTH_SECRET`, but `.env.example` already uses Auth.js v5's `AUTH_SECRET` convention from the T-001 commit. Renaming would have broken the established naming; ignoring the typo in the task description is the correct call.
+- **`.dockerignore` at repo root.** Excludes `node_modules/`, `.next/`, `.venv/`, `.git/`, `docs/`, large template binaries (`templates/*.pptx`, the root-level template PPTX/PDF, `Machbarkeitsstudien Auswertung.xlsx`), `.claude/`, env files, and Docker artefacts themselves. Whitelists `README.md` so the image is self-documenting. Keeps the web build context to a few MB instead of pulling in the ~30 MB template binary.
+- **Non-root container users.** Web runs as `nextjs:nodejs` UID 1001; pyservice as `gsuser:gsgroup` UID 1001; Postgres uses its image default. Defence-in-depth hardening.
+- **No LibreOffice install in pyservice yet.** T-039 adds it. Documented in `docs/docker.md` so a future reader knows it's intentional.
+- **`docs/docker.md` covers** prereqs, first-time setup, common commands table, networking + persistence + container-user tables, intentional non-inclusions (LibreOffice, python-pptx, Pillow), agent quality gates, and the §8.10 reminder that prod deploys are a human-only workflow.
+- **Commit chunking:** (1) T-006 status flip; (2) `next.config.ts` standalone output; (3) Dockerfiles + `.dockerignore` + `docker-compose.yml` together (small diff, single logical change); (4) `docs/docker.md` + the two compose tweaks from verification (port parameter + IPv4 healthcheck); (5) this DECISIONS entry. No `--no-verify`; every commit ran tsc + lint-staged + gitleaks clean.
+- **Verification gates (all green):**
+  - `docker compose config` → exit 0.
+  - `docker compose build` → both images built (`greenscout-web` 283 MB, `greenscout-pyservice` 231 MB).
+  - `docker compose up -d db` → Postgres healthy in ~10 s, `pg_isready` returns "accepting connections".
+  - `docker compose up -d` → all three services healthy within ~75 s.
+  - `docker compose exec web wget -qO- http://pyservice:8000/health` → `{"status":"ok"}` — **service-name DNS across the network works**.
+  - Host `curl http://localhost:3000/` → HTTP 200, `curl http://localhost:8000/health` → `{"status":"ok"}`.
+  - `docker compose down -v` cleaned up containers, volume, and network.
+  - TS-side: `npm run typecheck` / `lint` / `format:check` all exit 0.
+
+**Net top-level deps added by T-007:** none. Base images (`node:24-alpine`, `python:3.12-slim`, `postgres:16-alpine`) are runtime infrastructure, not `package.json` / `requirements.txt` entries. §14.3 classifies "Docker base image variants" as taste-level pre-approved.
+
+**Affected files:** `TASKS.md` (T-006 → ✅ Recently completed), `next.config.ts` (`output: "standalone"`), `Dockerfile.web` (new, multi-stage), `services/python/Dockerfile` (new, single-stage), `docker-compose.yml` (new, three services + network + volume), `.dockerignore` (new), `docs/docker.md` (new).
+**Open question for the user:** —

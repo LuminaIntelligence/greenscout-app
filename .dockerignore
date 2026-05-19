@@ -1,0 +1,70 @@
+# GreenScout — .dockerignore
+# Keeps the build context lean for both Dockerfile.web (root context) and
+# services/python/Dockerfile (which uses ./services/python as context — most of
+# the rules below only matter for the web context).
+
+# ----- Version control --------------------------------------------------------
+.git/
+.gitattributes
+.gitignore
+.gitleaks.toml
+.husky/
+
+# ----- Node / Next.js ---------------------------------------------------------
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+playwright-report/
+test-results/
+.playwright/
+
+# ----- Python -----------------------------------------------------------------
+services/python/.venv/
+services/python/__pycache__/
+services/python/.pytest_cache/
+services/python/.ruff_cache/
+**/__pycache__/
+
+# ----- Editor / OS ------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ----- Project artefacts ------------------------------------------------------
+uploads/
+generated/
+tmp/
+temp/
+tmp-*
+templates/*.pptx
+templates/*.pdf
+Machbarkeitsstudien Auswertung.xlsx
+Machbarkeitsstudie-PV-Template_v1_6.pptx
+Machbarkeitsstudie-PV-Template_v1_6.pdf
+
+# ----- Docker artefacts (don't recurse into the image) ------------------------
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ----- Documentation (kept out of the image; README is whitelisted below) -----
+docs/
+*.md
+!README.md
+
+# ----- Claude session artefacts -----------------------------------------------
+.claude/
+
+# ----- Env files (never copy real secrets into images) ------------------------
+.env
+.env.*
+!.env.example
