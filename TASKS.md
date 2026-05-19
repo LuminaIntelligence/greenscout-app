@@ -29,26 +29,6 @@
 
 ### Slice 1 — Project bootstrap
 
-### T-007 Compose Docker stack skeleton (Next.js + Python + Postgres)
-- **Status:** ⬜ TODO
-- **Feature:** chore (docker)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-040
-- **Blocked by:** T-001, T-006
-- **Description:**
-  Author `docker-compose.yml` with three services: `web` (Next.js), `pyservice` (FastAPI), `db` (Postgres 16). Define a shared Docker network. Mount host volumes `./uploads` and `./generated` into both `web` and `pyservice` per CLAUDE.md §3. Provide minimal `Dockerfile.web` (Node 20 LTS, `next build`, `next start`) and `Dockerfile.python` (Python 3.12-slim, `pip install -r requirements.txt`, `uvicorn`). `.env.example` documents all required vars (`DATABASE_URL`, `NEXTAUTH_SECRET`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_TEMP_PASSWORD`, `SETTINGS_ENCRYPTION_KEY`, `PYTHON_SERVICE_URL`).
-- **Acceptance criteria:**
-  - [ ] `docker compose config` validates without errors.
-  - [ ] `docker compose build` succeeds for both images.
-  - [ ] `docker compose up -d db` brings up Postgres reachable on the compose network.
-  - [ ] `web` ↔ `pyservice` reachable by service name on the internal network.
-  - [ ] `.env.example` contains placeholders (no real values) for every variable mentioned above.
-- **Files likely touched:** `docker-compose.yml`, `Dockerfile.web`, `services/python/Dockerfile`, `.env.example`, `docs/docker.md`.
-- **Pause-triggers anticipated:** §7.1 (no new code deps, but base image choice may surface as scope) — and §8.10 (this task must NOT spin up production).
-
----
-
 ### T-008 GitHub Actions CI workflow stub
 - **Status:** ⬜ TODO
 - **Feature:** chore (ci)
@@ -1190,6 +1170,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-007 ✅ Compose Docker stack skeleton (Next.js + Python + Postgres)
+- **Merged:** 2026-05-19 via PR #8 (`99cb4d9`)
+- **Branch:** `chore/docker-compose-stack`
+- **Summary:** Three-service Docker Compose stack: `web` (Next.js multi-stage build on `node:24-alpine`, runs as `nextjs:1001`), `pyservice` (single-stage `python:3.12-slim`, runs as `gsuser:1001`, no LibreOffice yet — deferred to T-039), `db` (`postgres:16-alpine`, named volume `postgres-data`). Single bridge network `gs-network`. Bind mounts `./uploads` + `./generated` into both `web` and `pyservice`. Ports loopback-only (127.0.0.1). `output: "standalone"` added to `next.config.ts`. `.dockerignore` excludes node_modules/.next/.venv/.git/docs/big binaries/.claude/.env*. Compose-time env overrides rewrite `web.DATABASE_URL` to `host=db` and `web.PYTHON_SERVICE_URL` to `http://pyservice:8000`; `.env`'s localhost-style URLs stay for native `npm run dev`. AUTH_SECRET kept (Auth.js v5 — not NEXTAUTH_SECRET from the task description). Verification: `compose config` 0, `compose build` 0 (web 283 MB, pyservice 231 MB), all three healthy within ~75s, `wget -qO- http://pyservice:8000/health` from inside web returned `{"status":"ok"}` (service-name DNS verified). Two §14-silent verification fixes: db port parameterised to `${POSTGRES_PORT:-5432}` after host-side conflict, web healthcheck pinned to `127.0.0.1` instead of `localhost` after alpine wget IPv6 misroute.
+- **Decisions:** see `DECISIONS.md` entry "T-007 silent decisions per §14 (consolidated)".
 
 ### T-006 ✅ Scaffold Python FastAPI service skeleton
 - **Merged:** 2026-05-19 via PR #7 (`a0541c1`)

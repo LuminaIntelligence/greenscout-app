@@ -317,3 +317,43 @@ All nine names are §14.3-anticipated by T-006's `Pause-triggers anticipated: §
 
 **Affected files:** `TASKS.md` (T-006 → ✅ Recently completed), `next.config.ts` (`output: "standalone"`), `Dockerfile.web` (new, multi-stage), `services/python/Dockerfile` (new, single-stage), `docker-compose.yml` (new, three services + network + volume), `.dockerignore` (new), `docs/docker.md` (new).
 **Open question for the user:** —
+
+---
+
+## 2026-05-19 — T-008 silent decisions per §14 (consolidated)
+**Context:** T-008 authors the GitHub Actions CI workflow that re-runs all pre-commit gates plus the broader CLAUDE.md §5.2 checks. Every fork below was taste-level per §14.2 — no §7 pause-triggers fired. The task description's "Node 20" was overridden by the earlier user-confirmed DECISIONS entry "T-001 post-implementation choices" which pins Node 24.
+
+**Assumption / decision:**
+- **Single workflow file.** `.github/workflows/ci.yml` — one workflow, eight jobs. Easier to read than splitting per-domain workflows; matches the "single CI pipeline" mental model of CLAUDE.md §5.2.
+- **Node 24, Python 3.12.** Node 24 overrides the task description's "Node 20" per the T-001 follow-up DECISIONS entry; Python 3.12 matches `services/python/pyproject.toml` (`pythonVersion = "3.12"`).
+- **Trigger surface:** `on: { pull_request: {}, push: { branches-ignore: [main] } }`. `branches-ignore: [main]` prevents the duplicate run that would otherwise fire when a PR is merged (the merge produces a push to `main`, but the PR validation pass already covered it).
+- **Concurrency:** `group: ci-${{ github.workflow }}-${{ github.ref }}`, `cancel-in-progress: true`. Cancels stale runs when new commits land on the same ref.
+- **Top-level permissions:** `{ contents: read }`. No job currently elevates beyond that — no deploy step, no token write, no package publish. §8.10 hard line.
+- **Eight jobs, parallel by default:**
+  - **5 live gates:** `actionlint`, `lint-typecheck`, `python-checks`, `build-images` (matrix: `web` + `pyservice`), `gitleaks-scan`.
+  - **3 stubs:** `web-tests` (Vitest — T-018), `e2e` (Playwright — T-051a/b), `prisma-migrate-check` (Prisma — T-013).
+- **Stub format:** each stub job runs a single `echo "STUB: ... enabled in T-0XX"` step and exits 0. **Not commented out** — visible structure beats hidden YAML. When the underlying tool lands, the future-task implementer replaces only the stub step.
+- **Stub future-task IDs:** Vitest → T-018 (login page is the first task that will both define and exercise the Vitest config); Playwright → T-051a/b (the dedicated E2E task pair); Prisma → T-013 (initial migration + local DB apply).
+- **`e2e` dependency:** `needs: [lint-typecheck, web-tests]`. Structurally correct (E2E should not run before build is green AND unit tests pass) — currently no practical effect because `web-tests` is a stub, but the dependency becomes meaningful once Vitest lands.
+- **Coverage threshold step:** a placeholder echo in `lint-typecheck` ("Coverage thresholds 80% global / 100% on calc — will be enforced once Vitest is installed (T-018)"). No actual gate yet. The 80% / 100% numbers from CLAUDE.md §5.2 are mentioned in the echo so a future reader sees the contract.
+- **`actionlint` action choice:** `reviewdog/action-actionlint@v1`. The `rhysd/actionlint` repository publishes the binary and a Dockerfile, but the canonical GitHub Action wrapper is the reviewdog one (verified against `rhysd/actionlint/docs/usage.md`). Alternative `docker://rhysd/actionlint:latest` is heavier and offers no benefit here.
+- **`docker/build-push-action@v6`** with `push: false`, `load: true`, `tags: greenscout-${{ matrix.name }}:ci`. The image stays on the runner — never pushed to any registry. §8.10 compliance.
+- **Docker matrix:** two entries (`web` + `pyservice`). `fail-fast: false` so a `pyservice` build failure doesn't mask a `web` build failure on the same run.
+- **Cache strategy:**
+  - `actions/setup-node@v4` with `cache: 'npm'` + `cache-dependency-path: package-lock.json`.
+  - `actions/setup-python@v5` with `cache: 'pip'` + `cache-dependency-path: services/python/requirements-dev.txt`.
+  - `docker/build-push-action@v6` with `cache-from: type=gha` + `cache-to: type=gha,mode=max` (GitHub Actions cache backend).
+- **Postgres service block in `prisma-migrate-check`** defined now so the YAML is structurally complete. The future T-013 implementer just replaces the stub echo with the migrate command. `POSTGRES_PASSWORD: greenscout_ci_only` is **not** a real secret (literal string, ephemeral container, never reused) — flagged here in case a future reader wonders. gitleaks default rules do not flag this token.
+- **`gitleaks/gitleaks-action@v2`** with `fetch-depth: 0` so the scan covers full history, not just the PR diff. The action reads `.gitleaks.toml` automatically via `GITLEAKS_CONFIG` env var. No `GITLEAKS_LICENSE` needed (this repo is small / not enterprise-tier). **First-run fix:** the action's `pull_request` event path now requires `GITHUB_TOKEN` (the built-in `secrets.GITHUB_TOKEN`) to fetch the PR commit range — this is a 2024-era breaking change in the action. The fix is a single env var; permissions stay at `contents: read` (the action does not write back to the repo). Caught on the very first CI run when the `pull_request` job failed; the `push` event run passed because that code path doesn't need the token.
+- **Secrets references:** the workflow references only the built-in `secrets.GITHUB_TOKEN` (implicit via the gitleaks action). **No `PRODUCTION_*`, `PROD_*`, `LIVE_*`, `HETZNER_*`, `FLY_*`, `VERCEL_*`, or any deploy-target-name secret is referenced.** §8.10 hard line.
+- **No `deploy` job.** T-008 is explicitly a gate-skeleton; production deployment is a human-operator workflow outside CI.
+- **Workflow validation:** `actionlint` v1.7.7 was downloaded locally (rhysd release binary) and run against `.github/workflows/ci.yml` → 0 errors, 0 warnings. YAML round-trip via `python -c "import yaml; yaml.safe_load(...)"` → 8 jobs parsed cleanly. In-CI validation path is the `actionlint` job itself, which will re-run on every PR.
+- **Branch protection NOT auto-configured.** This is a human-admin step in the GitHub UI per CLAUDE.md §8.11. `docs/ci.md` enumerates which checks to require **now** (the 5 live gates) and which to **flip when their backing task lands** (the 3 stubs). The agent must not toggle protection via `gh api` even though `gh` would accept the call — §8.11 is binding.
+- **`docs/ci.md`:** trigger description, job map (real vs stub), per-job local-equivalent commands, parallelism explanation, stub replacement guide, caching, branch-protection setup, action-version audit list, §8.10 / §8.11 reminders.
+- **Commit chunking:** (1) T-007 status flip; (2) `chore(ci): scaffold .github/workflows/ci.yml`; (3) `docs(ci): add docs/ci.md`; (4) this DECISIONS entry. The "stub jobs" diff was folded into commit (2) — the diff is small enough that splitting would have produced two near-identical commits.
+- **No `--no-verify` ever.** Every commit ran the full Husky chain (tsc + lint-staged + gitleaks) clean.
+
+**Net top-level deps added by T-008:** none. The workflow consumes only published GitHub Actions and base images that are runtime infrastructure (`postgres:16-alpine` already used by the compose stack from T-007). §14.3 classifies action versions as taste-level pre-approved.
+
+**Affected files:** `TASKS.md` (T-007 → ✅ Recently completed), `.github/workflows/ci.yml` (new, 153 lines), `docs/ci.md` (new, 154 lines).
+**Open question for the user:** Branch protection on `main` requires a human admin to toggle in the GitHub UI per CLAUDE.md §8.11 — see `docs/ci.md` "Branch protection" for the exact checks to enable now (5 live gates) vs later (3 stubs, flip when their backing task lands). The agent will not configure this via `gh api`.
