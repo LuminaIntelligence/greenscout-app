@@ -203,3 +203,30 @@ Tailwind, shadcn, Prettier, Husky, Vitest, Playwright, Prisma, Auth.js etc. are 
 
 **Affected files:** `eslint.config.mjs`, `prettier.config.mjs`, `.prettierignore`, `package.json`, `package-lock.json`, `src/app/layout.tsx`, `src/app/page.tsx`, `src/lib/utils.ts`, `src/components/ui/*` (formatting/class-sort touch-ups from `prettier-plugin-tailwindcss`), `TASKS.md` (T-003 flipped to ✅, T-004 status update).
 **Open question for the user:** —
+
+---
+
+## 2026-05-19 — T-005 silent decisions per §14 (consolidated)
+**Context:** T-005 wires the pre-commit gate chain (Husky + lint-staged + gitleaks) per CLAUDE.md §5.1. All taste forks resolved silently per §14; the only §7.1 surface is the three top-level dev-deps (`husky`, `lint-staged`, plus the system-level `gitleaks` binary) that T-005 itself anticipated.
+
+**Assumption / decision:**
+- **Husky:** v9.1.7, modern flow (`npx husky init` writes `.husky/`, adds `"prepare": "husky"` to `package.json`, no `husky install` legacy script).
+- **lint-staged:** v17.0.5 — current major. Plan named "v15+"; v17 is the latest stable in the v15+ line at install time. Silent acceptable per §14.2 (lockfile / dependency-resolution detail of an approved tool).
+- **lint-staged config location:** inline in `package.json` under `lint-staged` key (no separate `.lintstagedrc.*`). Matches the convention of keeping all tooling config in `package.json` / `*.config.mjs`.
+- **Hook order in `.husky/pre-commit`:** project-wide `tsc --noEmit` first → `lint-staged` (per-file ESLint/Prettier/ruff/pyright) → `gitleaks git --staged` last. Hook is plain shell, no `.husky/_/husky.sh` source line (Husky v9 removed that requirement).
+- **Lint-staged globs:** `*.{ts,tsx,js,jsx,mjs,cjs}` → `eslint --max-warnings 0 --fix` + `prettier --check`; `*.{md,json,yml,yaml,css}` → `prettier --check` (Markdown is currently `.prettierignore`d and therefore a no-op until that policy changes, but the rule is set up forward-compatibly); `*.py` → `ruff check --no-fix`, `ruff format --check`, `pyright` (no-op until T-006 lands `*.py`).
+- **`.gitleaks.toml`:** extends gitleaks defaults via `[extend] useDefault = true`. `.env.example` allowlisted because its placeholder values (`REPLACE_WITH_32_BYTE_BASE64`, `REPLACE_AT_FIRST_LOGIN`, etc.) could false-positive against future gitleaks default rules.
+- **gitleaks invocation:** `gitleaks git --staged --redact --verbose --config .gitleaks.toml`. **Critical deviation from the implementer plan:** gitleaks 8.30 removed the legacy `protect --staged` subcommand and replaced it with `git --staged`. The plan still referenced `protect`. Running `gitleaks protect --staged` against 8.30 silently exits 0 without scanning (acceptance criterion #3 was failing on the first wire-up commit before this fix). A dedicated **fix(hooks)** commit updates the hook and `docs/pre-commit.md`. Acceptance criterion verified afterwards with the GitHub-PAT fixture (see below).
+- **Fixture choice for acceptance criterion #3:** plan called for `AKIAIOSFODNN7EXAMPLE`. Investigation showed gitleaks 8.30's default AWS rule does NOT flag this canonical example (likely because the value itself is on gitleaks' internal allowlist of well-known examples). Switched to a synthetic GitHub PAT (`ghp_…` + 36 hex/alphanumeric chars) — same acceptance-criterion intent (high-entropy secret-format string), reliably caught by gitleaks 8.30's `github-pat` rule. Fixture file deleted before final `git status`; rejection log redacted and reproduced in PR body.
+- **Missing-gitleaks handling:** hook fails with a helpful install message; does not silently skip. CI workflow in T-008 will install gitleaks separately.
+- **`docs/pre-commit.md`:** new one-page file covering pipeline, tool installs per OS (winget / brew / Linux release binaries), bypass warning (§8.12), config locations.
+- **`.gitattributes`:** new top-level file enforcing `text eol=lf` on `.husky/*` and `*.sh`. Required because the Windows dev environment's `core.autocrlf=true` would otherwise convert `.husky/pre-commit` to CRLF on checkout, which `sh` on Linux/macOS hosts (and on Windows under Git Bash) cannot execute. Verified via `git check-attr --all -- .husky/pre-commit` → `eol: lf`.
+- **`tsc --noEmit` placement:** outside lint-staged because it's a project-wide check, not per-file. Runs once at the top of the hook against the whole project.
+- **Clean-commit perf:** measured at **7.99s** (cold) and **7.72s** (warm) on a trivial single-file commit — well under the 10s target. `tsc --noEmit` dominates the runtime; lint-staged + gitleaks together add <1s.
+- **Commit chunking:** (1) T-004 status flip; (2) install Husky + lint-staged + `.gitattributes`; (3) wire `.husky/pre-commit` + `lint-staged` config in `package.json`; (4) `.gitleaks.toml` + `docs/pre-commit.md`; (5) **fix(hooks)** correcting `gitleaks protect` → `gitleaks git` after the fixture surfaced the deviation. The fix commit was added per §8.12 (no `--no-verify`) and CLAUDE.md's preference for new commits over amends. The DECISIONS entry itself ships as the final commit.
+- **No `--no-verify` ever** — including for the rejected-fixture verification, which is supposed to fail (and did, exit code 1 with `husky - pre-commit script failed`).
+
+**Net top-level dev-deps added by T-005:** `husky` ^9.1.7, `lint-staged` ^17.0.5. Both are "plugins of an approved framework" (`npm`-managed Node tooling) per §14.3, anticipated by T-005's `Pause-triggers anticipated: §7.1`. The `gitleaks` binary is a system-level prereq installed via OS package manager (winget/brew/release binary) — not a Node dep, not in `package.json`.
+
+**Affected files:** `package.json` (lint-staged block, `prepare` script, devDeps), `package-lock.json`, `.husky/pre-commit`, `.husky/_/` (auto-gitignored Husky internals), `.gitattributes` (new), `.gitleaks.toml` (new), `docs/pre-commit.md` (new), `TASKS.md` (T-004 flipped to ✅).
+**Open question for the user:** —

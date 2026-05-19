@@ -1,0 +1,14 @@
+# GreenScout gitleaks configuration
+# Extends the default rule set (AWS, GCP, GitHub tokens, Slack, JWT, private
+# keys, etc.). See: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+
+[extend]
+useDefault = true
+
+# Allowlist .env.example because it intentionally contains placeholder values
+# like REPLACE_WITH_32_BYTE_BASE64 that gitleaks defaults might false-positive on.
+[allowlist]
+description = "Placeholder values in .env.example are not real secrets."
+paths = [
+  '''\.env\.example''',
+]

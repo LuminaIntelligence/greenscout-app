@@ -10,7 +10,22 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs}": [
+      "eslint --max-warnings 0 --fix",
+      "prettier --check"
+    ],
+    "*.{md,json,yml,yaml,css}": [
+      "prettier --check"
+    ],
+    "*.py": [
+      "ruff check --no-fix",
+      "ruff format --check",
+      "pyright"
+    ]
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -41,6 +56,8 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
     "postcss": "^8.5.14",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
