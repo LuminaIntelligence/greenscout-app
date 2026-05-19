@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 /**
@@ -9,6 +11,10 @@ import "./globals.css";
  * is exposed as its own CSS variable so the Tailwind theme (see
  * tailwind.config.ts) and global CSS (see globals.css) can target them
  * independently. `display: 'swap'` avoids FOIT.
+ *
+ * T-003: `<Toaster />` (sonner) and `<TooltipProvider />` mounted here —
+ * production-correct location so any client component can fire `toast.*`
+ * or render a tooltip without worrying about provider scope.
  */
 
 const gabaritoBody = localFont({
@@ -41,7 +47,10 @@ export default function RootLayout({
       lang="de"
       className={`${gabaritoBody.variable} ${gabaritoHeading.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <TooltipProvider>{children}</TooltipProvider>
+        <Toaster />
+      </body>
     </html>
   );
 }
