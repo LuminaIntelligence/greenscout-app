@@ -29,26 +29,6 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-013 Initial Prisma migration + local DB apply
-- **Status:** ⬜ TODO
-- **Feature:** db
-- **Type:** feat
-- **Effort:** S
-- **Blocks:** T-014, T-015, T-022, T-031
-- **Blocked by:** T-011, T-012
-- **Description:**
-  Run `prisma migrate dev --name init_schema` against the local dev DB to produce the first migration. Verify the generated SQL respects `@map` snake_case naming, defaults, indexes, and the unique constraint. Commit `prisma/migrations/<timestamp>_init_schema/` to the repo. Document migration workflow in `docs/db.md` (local-only; never `prisma migrate deploy` against prod per CLAUDE.md §7.9 / §8.6).
-- **Acceptance criteria:**
-  - [ ] Migration folder committed.
-  - [ ] Migration applies cleanly against a fresh local Postgres.
-  - [ ] `prisma migrate status` reports "in sync".
-  - [ ] Generated SQL contains snake_case table/column names matching `@map` directives.
-  - [ ] `docs/db.md` warns against running `prisma migrate deploy` outside CI/local.
-- **Files likely touched:** `prisma/migrations/<timestamp>_init_schema/migration.sql`, `prisma/migrations/migration_lock.toml`, `docs/db.md`.
-- **Pause-triggers anticipated:** §7.2 (none expected — pure additive), §7.9 reminder.
-
----
-
 ### T-014 Implement repository helper layer with organizationId filter
 - **Status:** ⬜ TODO
 - **Feature:** lib (db)
@@ -1069,6 +1049,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-013 ✅ Initial Prisma migration + local DB apply
+- **Merged:** 2026-05-20 via PR #14 (`f3e8474`)
+- **Branch:** `chore/prisma-initial-migration`
+- **Summary:** `prisma/migrations/20260520074451_initial_schema/migration.sql` (225 lines) generated and applied. 5 `CREATE TYPE ... AS ENUM` + 7 `CREATE TABLE` + 14 `CREATE INDEX` + 2 `CREATE UNIQUE INDEX` + 6 FK constraints. All cascade behaviour matches the DECISIONS contract verbatim (Study→User RESTRICT, Study→Customer RESTRICT, StudyImage→Study CASCADE, GeneratedDocument→Study CASCADE, GeneratedDocument→User SET NULL, AuditLog→User SET NULL). Pre-migrate hard-gate (`prisma format` + `prisma validate`) ran clean. Local Postgres via docker compose on `:5433` (host had Postgres 17 on `:5432`). CI `prisma-migrate-check` promoted: renamed from `Prisma migrate (stub — T-013)` to `Prisma migrate`, real `migrate deploy` + `generate` against fresh CI Postgres service container, 33s/38s green on both events. **User added `Prisma migrate` as the 7th required check on `main` branch protection** — Slice 2 fully gated by CI.
+- **Decisions:** see `DECISIONS.md` entry "T-013 silent decisions per §14 (consolidated)".
 
 ### T-012 ✅ Define GeneratedDocument + AuditLog + Setting models
 - **Merged:** 2026-05-20 via PR #13 (`f1c13a0`)
