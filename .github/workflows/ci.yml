@@ -40,10 +40,6 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
-      - name: Coverage thresholds (stub — enforced when Vitest lands in T-018)
-        run: |
-          echo "STUB: Coverage thresholds 80% global / 100% on src/lib/calculations/"
-          echo "will be enforced once Vitest is installed (TASKS.md → T-018)."
 
   python-checks:
     name: Python ruff + pyright + pytest
@@ -106,20 +102,32 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
-  # ─── Stubs for tooling not yet installed ──────────────────────────────────
-  # Each stub echoes its tracking task and exits 0. Replace the stub step with
-  # the real invocation when the corresponding task lands.
-
   web-tests:
-    name: Vitest (stub — T-018)
+    name: Vitest
     runs-on: ubuntu-latest
     steps:
-      - name: Stub
-        run: |
-          echo "STUB: Vitest + React Testing Library installation pending."
-          echo "Tracked: TASKS.md → T-018 (Login page with live password-rule checklist)."
-          echo "When enabled: npm run test -- --coverage,"
-          echo "with 80% global / 100% on src/lib/calculations/."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Generate Prisma Client (test imports transitively pull @/lib/db)
+        run: npx prisma generate
+      - name: Run Vitest with coverage
+        run: npm run test:coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ─── Stub for tooling not yet installed ──────────────────────────────────
+  # The stub below echoes its tracking task and exits 0. Replace the stub
+  # step with the real invocation when the corresponding task lands.
 
   e2e:
     name: Playwright (stub — T-051a/b)
