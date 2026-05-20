@@ -580,3 +580,32 @@ T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each th
 
 **Affected files:** `prisma/schema.prisma` (+Study, +StudyImage, +User/Customer/Study back-relations), `TASKS.md` (T-010 → ✅ Recently completed), `DECISIONS.md` (this entry).
 **Open question for the user:** —
+
+## 2026-05-20 — T-012 silent decisions per §14 (consolidated)
+**Context:** T-012 completes the Slice-2 schema with `GeneratedDocument`, `AuditLog`, and `Setting` models, plus back-relations on `User` and `Study`. The schema is now feature-complete and ready for T-013 migration.
+
+**Assumption / decision:**
+- **GeneratedDocument cascades (user-corrected from initial proposal):**
+  - `studyId → Study`: `Cascade / Cascade` — DSGVO hard-delete of Study cascades DB rows AND physical PDFs under `./generated/studies/<studyId>/`. Audit trail remains in `AuditLog.action = GENERATE_DOCUMENT`. `studyId` stays NOT NULL.
+  - `generatedById → User`: `SetNull / Cascade`. Column type `String?` (nullable). User hard-delete preserves document existence; historical actor identity preserved in AuditLog.userId (also SetNull).
+- **AuditLog:**
+  - `userId → User`: `SetNull / Cascade` per contract.
+  - `entityType` and `action` as `String` columns, not enums — allow-lists enforced in application layer for forward-compatibility without schema migrations.
+  - `changeSet Json?` — Prisma 5 with Postgres provider creates `jsonb` by default; no explicit `@db.JsonB` needed. Application-layer convention is per-field tuple `{ "fieldName": [oldValue, newValue], ... }`.
+  - No `@updatedAt`, no `updatedAt` column — append-only semantics enforced in application layer (DB triggers deferred to Phase 3 hardening).
+  - `organizationId @default("greenscout") @map("organization_id")` — added per DECISIONS contract even though SPEC §5.1 didn't list it, for consistency with other multi-tenant-ready models.
+- **Setting:**
+  - Three columns: `key @id`, `value`, `updatedAt @updatedAt`.
+  - No `organizationId` in MVP (single-tenant); Phase-3 multi-tenant addition.
+  - Expected keys documented in model docstring.
+- **Back-relation field names:** `User.generatedDocuments GeneratedDocument[]`, `User.auditLogs AuditLog[]`, `Study.documents GeneratedDocument[]`. Noun-led, pluralised. No `@relation("...")` naming needed (no ambiguity — all three new models have exactly one relation each to existing models).
+- **`@map` discipline preserved** from T-010/T-011 — non-trivial snake_case mappings only. Single-word `value`, `key`, `format`, `filename`, `action` get no `@map`.
+- **Indexes per contract:** GeneratedDocument 1 (`[studyId, generatedAt(sort: Desc)]` for newest-first version history UI in T-040), AuditLog 4 (`[userId]`, `[entityType, entityId]`, `[createdAt(sort: Desc)]`, `[organizationId, createdAt(sort: Desc)]`), Setting 0 beyond `@id`.
+- **`ipAddress` and `userAgent` as plain `String?`:** sufficient for V1. `@db.Inet` and `@db.Text` deferred unless length / native-type issues arise.
+- **Commit-splitting strategy:** same pragmatic write-then-split approach as T-011. Intermediate states may fail `prisma validate`; Husky doesn't run it; final state validates clean. Six commits in order: (1) T-011 status flip; (2) GeneratedDocument; (3) AuditLog; (4) Setting; (5) User+Study back-relations; (6) this DECISIONS entry.
+- **Husky pre-commit hook** fired on all commits, no `--no-verify`.
+
+**Net top-level deps added:** none.
+
+**Affected files:** `prisma/schema.prisma` (+GeneratedDocument, +AuditLog, +Setting, +User back-relations, +Study back-relation), `TASKS.md` (T-011 → ✅ Recently completed), `DECISIONS.md` (this entry).
+**Open question for the user:** —
