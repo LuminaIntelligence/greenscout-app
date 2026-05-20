@@ -864,3 +864,141 @@ T-016 may NOT ship non-running test files. Vitest + React Testing Library + cove
 
 **Affected files**: `src/features/auth/password-constants.ts` (new — argon2 constants + `MIN_PASSWORD_LENGTH` + `parseIntEnv` helper), `src/features/auth/password-policy.ts` (new — rule predicates + `validatePassword` + re-exports from constants module + hash-password), `src/features/auth/password-policy.test.ts` (new — 100% coverage on `password-policy.ts`), `src/features/auth/utils/hash-password.ts` (refactor — consume constants from `password-constants.ts`), `src/features/auth/utils/hash-password.test.ts` (unchanged; verified still passes 5/5), `src/i18n/de.ts` (new — 5 password-rule keys + typed `t()` helper), `src/i18n/de.test.ts` (new — dictionary integrity + lookup), `vitest.config.ts` (per-pattern 100% threshold added on `src/features/auth/password-policy.ts`), `TASKS.md` (T-015b → ✅ Recently completed), `DECISIONS.md` (this entry).
 **Open question for the user:** —
+
+---
+
+## 2026-05-20 — T-017 Auth.js v5 Credentials + session config (user-confirmed, binding)
+**Context:** §7.3 pause-trigger — user reviewed the design proposal before implementation. Six decision-points were resolved; one (②) is a **substantial corrective** that re-scopes T-017 to ship the complete lockout state machine and shrinks T-020 to SMTP-wiring-only. SPEC §4.1 gets a precision edit in the same PR.
+
+**Assumption / decision:**
+
+### ① JWT payload (user-confirmed Vorschlag)
+Six fields in the JWT token: `id`, `email`, `role`, `mustChangePassword`, `formPreference`, **`organizationId`** (user-approved addition for multi-tenant readiness — saves per-request DB lookup, Phase-3 swap-point is trivial). Type-augmentation via `declare module "next-auth"` in `src/features/auth/types.ts` extends `Session` and `User` with the 6 custom fields.
+
+### ② Lockout state machine — USER CORRECTION (neither Vorschlag nor Alternative)
+**T-017 ships the COMPLETE counter-based state machine.** Single source of truth = `User.failedLoginCount` + `User.lockoutUntil` columns. AuditLog `LOGIN_FAIL` entries are **pure audit/forensic trail** — NEVER queried for lockout decisions.
+
+**Algorithm (counter-based, NOT time-window-based):**
+```
+on login attempt:
+  if user.lockoutUntil != null AND user.lockoutUntil > now():
+    audit LOGIN_FAIL { reason: "locked" }
+    DENY (soft-distinguished: only reveal "locked" message AFTER password verifies)
+
+  if NOT verifyPassword(user.passwordHash, plain):
+    counter = user.failedLoginCount + 1
+    repository.incrementFailedLoginCount(user.id)
+    if counter == 5:      repository.setLockoutUntil(user.id, now() + 15min)
+    elif counter == 10:   repository.setLockoutUntil(user.id, now() + 1h); emitAdminLockoutAlert(user)
+    elif counter > 10:    repository.setLockoutUntil(user.id, now() + 1h)
+    audit LOGIN_FAIL { reason: "bad-password", counterAfter: counter }
+    DENY
+
+  # success path
+  repository.resetFailedLoginCount(user.id)   # sets counter=0 AND lockoutUntil=null
+  audit LOGIN_SUCCESS { reason: "credentials" }
+  GRANT
+```
+
+**Key invariants:**
+- Counter resets to 0 **ONLY on successful login**. **NEVER on lockout-expiry.** A user who hit counter==5 + 15min lockout, then waits, then fails once, is at counter=6 (not 1).
+- Lockout durations don't escalate beyond 1h. counter==10 sets 1h; every subsequent failure (counter>10) renews `lockoutUntil = now+1h` (sliding 1h penalty box).
+- Admin-alert fires **only at counter==10** (avoid spam at counter>10).
+- All `failedLoginCount` / `lockoutUntil` writes go via the repository functions T-014 already shipped: `incrementFailedLoginCount`, `setLockoutUntil`, `resetFailedLoginCount`.
+
+**`emitAdminLockoutAlert(user)` is a no-op stub** in `src/features/auth/services/admin-alerts.ts`. T-020 shrinks to wiring this hook to a real SMTP send once T-042 lands the SMTP infrastructure.
+
+**T-020 task description rewrites** in `TASKS.md` from "implement lockout state machine" to "wire SMTP admin-alert to the lockout-stub from T-017". Update pre-staged in the dirty `TASKS.md` (committed by the T-017 implementer).
+
+### SPEC §4.1 precision edit (user-mandated, same PR as T-017 implementation)
+
+The current SPEC §4.1 lockout paragraph gets replaced with:
+> "Lockout: counter-based, NOT time-window-based. After 5 consecutive failed login attempts → 15-minute lockout. After 10 consecutive failures → 1-hour lockout + admin alert via configured SMTP. Subsequent failures at counter > 10 renew the 1-hour lockout (no escalation, no further admin alerts to avoid spam). The counter resets to 0 **only on a successful login** — NOT when a lockout timer expires. AuditLog `LOGIN_FAIL` entries are written for every failed attempt as a forensic trail; the lockout decision itself is made from the `failedLoginCount` and `lockoutUntil` columns on `User`, not from the audit log."
+
+User classification: **precision/clarification, NOT scope change.** Allowed per CLAUDE.md §6 "Update SPEC.md only for clarifications". Implementer edits SPEC.md in the T-017 PR.
+
+### ③ CSP Pragmatisch (user-confirmed) WITH verification mandate
+Default:
+- `default-src 'self'`
+- `style-src 'self' 'unsafe-inline'` (Tailwind + Radix portals)
+- `script-src 'self' 'wasm-unsafe-eval'` (Prisma WASM modules)
+- `img-src 'self' data: blob:` (T-029 preview uploads later)
+- `connect-src 'self'`
+- `font-src 'self'` (Gabarito self-hosted)
+
+**Mandatory pre-merge verification** (user-stipulated): `npm run dev` AND `npm run build && npm start` BOTH render Next 15 RSC streaming + hydration without CSP-blocked inline scripts in browser console. If either fails → **preferred fallback**: nonce-based `script-src` via Next 15 middleware-generated nonce. **Last resort**: `'unsafe-inline'` on `script-src` with the deviation explicitly documented in DECISIONS.md. **Never ship an app-breaking CSP.**
+
+### ④ Soft-Distinguished error disclosure (user-confirmed Vorschlag)
+- Generic "Email oder Passwort falsch" for bad-creds AND non-existent-user AND inactive/soft-deleted scenarios.
+- Specific "Konto temporär gesperrt — versuche es in N Min." ONLY after `verifyPassword` returns `true` AND `lockoutUntil > now()`. Attackers who don't already know the correct password see no enumeration signal.
+
+Five new i18n keys in `src/i18n/de.ts`:
+- `auth.error.invalid-credentials` → "Email oder Passwort falsch."
+- `auth.error.locked-out` → "Konto temporär gesperrt. Versuche es in {minutes} Minuten erneut."
+- `auth.error.inactive` → "Konto deaktiviert. Bitte wende dich an den Administrator."
+- `auth.error.must-change-password` → "Bitte ändere zunächst dein Passwort."
+- `auth.error.server` → "Anmeldung fehlgeschlagen. Bitte versuche es später erneut."
+
+### ⑤ Middleware-centralised mustChangePassword guard (user-confirmed Vorschlag)
+- `src/middleware.ts` matcher: `["/((?!password-change|api/auth|_next/static|_next/image|favicon.ico).*)"]`
+- Logic: authenticated user with `mustChangePassword === true` AND pathname ≠ `/password-change/*` → redirect to `/password-change`. Unauthenticated → `/login`.
+
+### ⑥ Server Actions only for mutations (user-confirmed Vorschlag)
+- All mutating operations via `'use server'` functions. Next 15's built-in origin/CSRF protection.
+- API Routes reserved for non-mutating GETs or external service backchannels.
+- `sign-in` Server Action in `src/features/auth/actions/sign-in.ts` for T-018 form submission.
+
+### Silent corrections (§14.2)
+- **`next-auth ^5` stable** (Auth.js v5 stable since 2025) — NOT `@beta`.
+- **No `@auth/prisma-adapter`** — Credentials + JWT needs no adapter.
+- **`AUTH_SECRET`** (NOT `NEXTAUTH_SECRET`) — Auth.js v5 naming; already in `.env.example`.
+- **`next-auth` in `dependencies`, NOT `devDependencies`** — user-corrected. Runtime package.
+
+### Module structure (binding)
+
+```
+src/
+  middleware.ts                                       ← NEW
+  lib/auth.ts                                         ← NEW (Auth.js singleton + AUTH_SECRET fail-fast)
+  app/api/auth/[...nextauth]/route.ts                 ← NEW (re-export handlers)
+  features/auth/
+    types.ts                                          ← NEW (declare-module extensions)
+    schemas/login-schema.ts                           ← NEW (zod)
+    services/
+      authorize-credentials.ts                        ← NEW (pure-function authorize callback)
+      authorize-credentials.test.ts                   ← NEW (100% coverage, mocked repos)
+      admin-alerts.ts                                 ← NEW (emitAdminLockoutAlert no-op stub)
+      admin-alerts.test.ts                            ← NEW (stub call verification)
+    actions/sign-in.ts                                ← NEW (Server Action for T-018)
+  i18n/
+    de.ts                                             ← EXTEND (+5 auth-error keys)
+    de.test.ts                                        ← EXTEND
+```
+
+### Test strategy — 9 scenarios on `authorize-credentials.test.ts`
+Full mocking of `@/lib/repositories/*`. Cover every branch:
+1. Successful login → resetFailedLoginCount, audit LOGIN_SUCCESS, returns user
+2. Bad password (counter<5) → incrementFailedLoginCount, audit LOGIN_FAIL bad-password, returns null
+3. Non-existent user → audit LOGIN_FAIL non-existent, returns null
+4. Soft-deleted user → audit LOGIN_FAIL soft-deleted, returns null
+5. Inactive user (`active=false`) → audit LOGIN_FAIL inactive, returns null
+6. User with active lockoutUntil + bad password → audit LOGIN_FAIL locked, returns null
+7. User with active lockoutUntil + good password → audit LOGIN_FAIL locked (still denied), returns null with `lockedUntil` in error metadata for the soft-distinguished UI
+8. Counter transitions: ==4 (no lockout set), ==5 (15min set), ==9 (no), ==10 (1h set + admin-alert called once), ==11 (1h set, no alert)
+9. Successful login resets BOTH counter AND lockoutUntil
+
+**Vitest per-pattern coverage**: 100% on `src/features/auth/services/authorize-credentials.ts` AND on `src/features/auth/services/admin-alerts.ts` (5-line stub; cheap to maintain at 100%).
+
+**Integration / E2E**: deferred to T-051a Playwright (full login flow with real Auth.js).
+
+### Audit changeSet shapes
+- `LOGIN_SUCCESS`: `{ reason: "credentials" }`
+- `LOGIN_FAIL`: `{ reason: "bad-password" | "locked" | "inactive" | "soft-deleted" | "non-existent", counterAfter?: number }` — `counterAfter` only on bad-password path.
+- Never include `email` or `passwordHash` in changeSet. `userId` = User.id when user exists; `null` when non-existent. `entityType: "Auth"`, `entityId: null` (no entity row).
+
+### Server-start fail-fast
+`src/lib/auth.ts` checks at module load: throw if `AUTH_SECRET` missing/empty/equal-to-placeholder. Clean server-start failure with actionable error message pointing to `.env.example`.
+
+**Affected files (T-017 implementation):**
+`package.json` (+`next-auth ^5` in `dependencies`), `package-lock.json`, `src/lib/auth.ts` (new), `src/middleware.ts` (new), `src/app/api/auth/[...nextauth]/route.ts` (new), `src/features/auth/types.ts` (new), `src/features/auth/schemas/login-schema.ts` (new), `src/features/auth/services/authorize-credentials.ts` (new), `src/features/auth/services/authorize-credentials.test.ts` (new), `src/features/auth/services/admin-alerts.ts` (new), `src/features/auth/services/admin-alerts.test.ts` (new), `src/features/auth/actions/sign-in.ts` (new), `src/i18n/de.ts` (extend +5 auth-error keys), `src/i18n/de.test.ts` (extend), `vitest.config.ts` (+2 per-pattern thresholds), `SPEC.md` (§4.1 precision edit), `TASKS.md` (T-016 → ✅ Recently completed + T-020 description rewritten — pre-staged dirty), `DECISIONS.md` (T-017 implementation entry).
+**Open question for the user:** —

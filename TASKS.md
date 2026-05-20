@@ -29,27 +29,6 @@
 
 ### Slice 3 — Auth feature
 
-### T-016 Password-policy module (argon2id + rules)
-- **Status:** ⬜ TODO
-- **Feature:** auth
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-017, T-018, T-019, T-020, T-021
-- **Blocked by:** T-015b
-- **Description:**
-  Implement `src/features/auth/password-policy.ts` per the user-approved design captured in **DECISIONS.md → "T-016 password-policy module design (user-confirmed, binding)"**. Export argon2id constants (`PASSWORD_HASH_MEMORY_KIB`/`TIME_COST`/`PARALLELISM` with env override matching `.env.example`) + `MIN_PASSWORD_LENGTH`. Re-export `hashPassword`/`verifyPassword` from the existing `src/features/auth/utils/hash-password.ts` (T-015 implementation stays; refactor `getArgon2Params()` to consume the policy constants — single source of truth). Export `passwordRules` (5 Unicode-aware rule predicates: `min-length`, `upper` via `\p{Lu}`, `lower` via `\p{Ll}`, `digit` via `[0-9]`, `special` via `/[^\p{L}\p{N}]/u`). Rule predicates carry only `key` + `test` — NO labels. German labels live in `src/i18n/de.ts` (new file with 5 password-rule keys, T-049 will extend). Export `validatePassword(input): { ok, rules: Array<{ key, ok }> }`. 100% unit-test coverage on the module (Vitest from T-015b).
-- **Acceptance criteria:**
-  - [ ] Algorithm hard-coded to `argon2id`; params come from `password-policy.ts` constants with env override (`PASSWORD_HASH_*`).
-  - [ ] Roundtrip test (`hashPassword` → `verifyPassword`) passes via Vitest CI.
-  - [ ] Each of the 5 Unicode-aware rule predicates has true/false test cases — including ä/Ä/!/0 edge cases proving the Unicode classes work correctly.
-  - [ ] Module coverage = 100% (verified by CI `Vitest` job's coverage threshold).
-  - [ ] `password-policy.ts` is string-frei (zero German text); 5 i18n keys exist in `src/i18n/de.ts`.
-  - [ ] `hash-password.ts` refactored to consume policy constants; existing T-015 hash-password.test.ts still passes.
-- **Files likely touched:** `src/features/auth/password-policy.ts` (new), `src/features/auth/password-policy.test.ts` (new), `src/features/auth/utils/hash-password.ts` (refactor), `src/i18n/de.ts` (new, 5 keys).
-- **Pause-triggers anticipated:** None — design was approved as a §7.3 recap before this entry. `argon2` and `tsx` already installed in T-015. Implementer follows the approved design verbatim.
-
----
-
 ### T-017 Auth.js v5 Credentials provider + session config
 - **Status:** ⬜ TODO
 - **Feature:** auth
@@ -110,23 +89,23 @@
 
 ---
 
-### T-020 Lockout state machine (5/15min → 15min, 10/15min → 1h)
+### T-020 Wire SMTP admin-alert to the lockout-stub from T-017
 - **Status:** ⬜ TODO
 - **Feature:** auth
 - **Type:** feat
-- **Effort:** M
-- **Blocks:** T-021, T-032
-- **Blocked by:** T-017
+- **Effort:** S (scope shrunk per DECISIONS T-017 corrective ②)
+- **Blocks:** T-021
+- **Blocked by:** T-017, T-044 (SMTP infrastructure)
 - **Description:**
-  Implement `src/features/auth/services/lockout.ts` per SPEC §4.1: track failed login attempts in a 15-minute rolling window. At 5 failures → set `lockoutUntil = now + 15min`. At 10 cumulative failures within the window → set `lockoutUntil = now + 1h` **and** invoke a `notifyAdminLockout(userId)` hook. **The SMTP send is a no-op stub here** (`src/features/auth/services/admin-alert.ts` logs to console and writes an `AuditLog` `LOCKOUT` entry) — the real SMTP send is wired in slice 12 (T-032). Successful login resets `failedLoginCount`. Audit entries written for every `LOGIN_SUCCESS`, `LOGIN_FAIL`, `LOCKOUT`.
+  T-017 ships the **complete counter-based lockout state machine** (failedLoginCount + lockoutUntil columns on User are the single source of truth, see DECISIONS T-017 corrective ②). T-020's residual scope is purely the SMTP wiring: replace the no-op `emitAdminLockoutAlert(user)` stub at `src/features/auth/services/admin-alerts.ts` with a real SMTP send that uses the encrypted SMTP config from T-044 / Settings. Add an integration test that the real sender is invoked exactly once when counter reaches 10, never on counter > 10. **SPEC §4.1 was precision-edited in T-017's PR** to reflect counter-based (not time-window) semantics — re-read there.
 - **Acceptance criteria:**
-  - [ ] Unit tests cover: 5th failure locks 15min, 10th failure locks 1h and triggers stub, success resets counter.
-  - [ ] During lockout, `verifyPassword` is short-circuited (no hash work performed).
-  - [ ] `AuditLog` entries created for all three actions with `ipAddress` + `userAgent`.
-  - [ ] `notifyAdminLockout` stub is replaceable via dependency injection so T-032 can swap in the real sender.
-  - [ ] Stub never throws even if console output fails.
-- **Files likely touched:** `src/features/auth/services/lockout.ts`, `src/features/auth/services/admin-alert.ts`, `src/features/auth/services/lockout.test.ts`.
-- **Pause-triggers anticipated:** §7.3 (auth state).
+  - [ ] The `emitAdminLockoutAlert` no-op stub is replaced with a real SMTP send.
+  - [ ] SMTP credentials decrypted via the Settings repository + AES-256-GCM helper from T-042.
+  - [ ] Email body identifies the locked user (id + email) + timestamp + counterAfter value.
+  - [ ] Unit test verifies the function is wired into the existing T-017 flow (no `authorize-credentials.ts` edits needed beyond import path swap).
+  - [ ] If SMTP send fails, the auth flow still completes (lockout is enforced from the DB columns; alert is best-effort delivery). Failure logged as `AuditLog` action="SYSTEM" with reason="admin-alert-send-failed".
+- **Files likely touched:** `src/features/auth/services/admin-alerts.ts` (replace no-op with real send), `src/features/auth/services/admin-alerts.test.ts` (extend coverage to integration), possibly `src/i18n/de.ts` (email subject/body strings).
+- **Pause-triggers anticipated:** §7.6 (outbound HTTP / SMTP send — gated behind T-044's SMTP-settings approval). §7.11 (DSGVO — admin email content must not leak user passwords/hashes).
 
 ---
 
@@ -1011,6 +990,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-016 ✅ Password-policy module (argon2id + rules)
+- **Merged:** 2026-05-20 via PR #18 (`f9fac3c`)
+- **Branch:** `feat/password-policy-module`
+- **Summary:** `src/features/auth/password-policy.ts` (5 Unicode-aware rule predicates `\p{Lu}` / `\p{Ll}` / `[0-9]` / `[^\p{L}\p{N}]/u`, `Object.frozen(passwordRules)`, `validatePassword`) + `src/features/auth/password-constants.ts` (extracted to avoid circular re-export between policy and hash modules) + i18n seed `src/i18n/de.ts` (5 password-rule keys + typed `t()` helper). `hash-password.ts` refactored to consume policy constants. Vitest per-pattern 100% threshold on password-policy.ts active in CI. 13 test files / 96 tests, all green. Global coverage 96.12%.
+- **Decisions:** see `DECISIONS.md` entries "T-016 password-policy module design" + "T-016 password-policy module implementation".
 
 ### T-015b ✅ Vitest + RTL + coverage setup
 - **Merged:** 2026-05-20 via PR #17 (`6a9a5c1`)
