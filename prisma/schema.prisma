@@ -41,3 +41,33 @@ enum FormPref {
   WIZARD
   SINGLE_PAGE
 }
+
+// ─── Models ──────────────────────────────────────────────────────────
+
+/// Internal consultant or admin account.
+/// See DECISIONS.md "Slice 2 schema design approved" for the field contract.
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String    @map("password_hash")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  role               Role      @default(BERATER)
+  firstName          String    @map("first_name")
+  lastName           String    @map("last_name")
+  phone              String?
+  mobile             String?
+  addressLine        String?   @map("address_line")
+  signaturePhotoUrl  String?   @map("signature_photo_url")
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  failedLoginCount   Int       @default(0) @map("failed_login_count")
+  lockoutUntil       DateTime? @map("lockout_until")
+  formPreference     FormPref  @default(WIZARD) @map("form_preference")
+  active             Boolean   @default(true)
+  deletedAt          DateTime? @map("deleted_at")
+  organizationId     String    @default("greenscout") @map("organization_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId, role, active, deletedAt])
+  @@index([organizationId, createdAt])
+}
