@@ -192,3 +192,24 @@ model StudyImage {
 
   @@unique([studyId, type])
 }
+
+/// Generated PPTX / PDF artefact for a study.
+/// onDelete:Cascade on study — DB rows AND physical files under ./generated/studies/<studyId>/
+/// are wiped on DSGVO hard-delete (audit trail remains in AuditLog.action = GENERATE_DOCUMENT).
+/// generatedById:SetNull — user hard-delete preserves the document; historical actor identity
+/// preserved in AuditLog.userId (also SetNull).
+model GeneratedDocument {
+  id String @id @default(cuid())
+
+  studyId String @map("study_id")
+  study   Study  @relation(fields: [studyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  generatedById String? @map("generated_by_id")
+  generatedBy   User?   @relation(fields: [generatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  format      DocFormat
+  filename    String
+  generatedAt DateTime  @default(now()) @map("generated_at")
+
+  @@index([studyId, generatedAt(sort: Desc)])
+}
