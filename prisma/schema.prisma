@@ -65,7 +65,9 @@ model User {
   active             Boolean   @default(true)
 
   // Back-relations
-  consultantStudies Study[] @relation("ConsultantStudies")
+  consultantStudies  Study[]             @relation("ConsultantStudies")
+  generatedDocuments GeneratedDocument[]
+  auditLogs          AuditLog[]
 
   deletedAt      DateTime? @map("deleted_at")
   organizationId String    @default("greenscout") @map("organization_id")
@@ -156,7 +158,8 @@ model Study {
   co2FussballfelderProJahr Decimal? @map("co2_fussballfelder_pro_jahr") @db.Decimal(10, 2)
 
   // Back-relations
-  images StudyImage[]
+  images    StudyImage[]
+  documents GeneratedDocument[]
 
   // Soft-delete / org / timestamps
   deletedAt      DateTime? @map("deleted_at")
