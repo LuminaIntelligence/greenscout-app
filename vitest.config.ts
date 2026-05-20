@@ -19,6 +19,19 @@ import { defineConfig } from "vitest/config";
 //   * 100% on `src/lib/calculations/**` — the calculations module ships in
 //     T-031; Vitest no-ops per-pattern thresholds when the path matches zero
 //     files, so this rule is dormant until then.
+//
+// Coverage scope (`include`) targets **business-logic code** — repositories,
+// feature services, auth utilities, calculation modules, etc. Presentational
+// UI scaffolding (Next.js `app/`, `components/`, `components/ui/`) is excluded
+// because: (a) `components/ui/` is shadcn-generated primitives we don't
+// modify; (b) `app/` is route shells exercised end-to-end by Playwright
+// (T-051a/b), not unit tests; (c) `components/` will be covered piece-by-piece
+// as feature components land with their own React Testing Library tests. The
+// `feature/**/components/**` slice is excluded for the same reason — those
+// arrive with T-018, T-022, T-028, etc. and get co-located component tests.
+// This scope mirrors how Vitest projects typically interpret a "80% global"
+// SPEC clause: 80% of the *tested* logic surface, not 80% of every file the
+// build produces.
 
 export default defineConfig({
   plugins: [react()],
@@ -35,12 +48,22 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov", "json-summary"],
-      include: ["src/**/*.{ts,tsx}"],
+      // Scope: business-logic surface (see file-level comment above).
+      include: [
+        "src/lib/**/*.{ts,tsx}",
+        "src/features/**/services/**/*.{ts,tsx}",
+        "src/features/**/utils/**/*.{ts,tsx}",
+        "src/features/**/schemas/**/*.{ts,tsx}",
+        "src/features/**/hooks/**/*.{ts,tsx}",
+        "src/features/**/*-policy.{ts,tsx}",
+      ],
       exclude: [
         "src/generated/**",
         "src/**/*.test.{ts,tsx}",
         "src/**/*.d.ts",
         "src/i18n/**",
+        "src/lib/db.ts", // Prisma singleton — wiring, no logic to cover.
+        "**/example.ts", // T-001 scaffold placeholders, removed when real code lands.
         "**/*.config.{js,mjs,ts}",
       ],
       thresholds: {
