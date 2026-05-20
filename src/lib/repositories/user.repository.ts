@@ -186,6 +186,14 @@ export async function incrementFailedLoginCount(
   });
 }
 
+/**
+ * Reset both `failedLoginCount` and `lockoutUntil` atomically. Called
+ * on the success path of the Auth.js Credentials authorize flow
+ * (T-017) — a successful login wipes the lockout state entirely. The
+ * counter resets to 0 **only on a successful login**; lockout-expiry
+ * does NOT reset the counter (counter-based, not time-window-based,
+ * per DECISIONS T-017 corrective ② and SPEC §4.1).
+ */
 export async function resetFailedLoginCount(
   organizationId: string,
   id: string,
@@ -194,7 +202,7 @@ export async function resetFailedLoginCount(
   const client: Client = tx ?? prisma;
   return client.user.update({
     where: { id, organizationId },
-    data: { failedLoginCount: 0 },
+    data: { failedLoginCount: 0, lockoutUntil: null },
   });
 }
 

@@ -91,6 +91,27 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // 100% on the T-017 authorize-credentials service per
+        // DECISIONS T-017 corrective ②. The counter-based lockout
+        // state machine is security-critical; every branch (counter
+        // == 5, == 10, > 10, locked, soft-deleted, inactive,
+        // non-existent) is covered.
+        "src/features/auth/services/authorize-credentials.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // 100% on the admin-alerts stub. Cheap to maintain at 100%
+        // (single function, 3 tests). T-020 will replace the no-op
+        // body with a real SMTP send; the threshold catches any
+        // regression in shape of the audit row at that point.
+        "src/features/auth/services/admin-alerts.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
       },
     },
   },

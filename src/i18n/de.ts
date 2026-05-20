@@ -11,11 +11,18 @@
  */
 
 export const de = {
+  // Password-rule labels (T-016)
   "auth.password.rule.min-length": "Mindestens 8 Zeichen",
   "auth.password.rule.upper": "Mindestens ein Großbuchstabe",
   "auth.password.rule.lower": "Mindestens ein Kleinbuchstabe",
   "auth.password.rule.digit": "Mindestens eine Ziffer",
   "auth.password.rule.special": "Mindestens ein Sonderzeichen",
+  // Auth error messages (T-017)
+  "auth.error.invalid-credentials": "Email oder Passwort falsch.",
+  "auth.error.locked-out": "Konto temporär gesperrt. Versuche es in {minutes} Minuten erneut.",
+  "auth.error.inactive": "Konto deaktiviert. Bitte wende dich an den Administrator.",
+  "auth.error.must-change-password": "Bitte ändere zunächst dein Passwort.",
+  "auth.error.server": "Anmeldung fehlgeschlagen. Bitte versuche es später erneut.",
 } as const;
 
 export type TranslationKey = keyof typeof de;

@@ -168,11 +168,11 @@ describe("user.repository — auth state helpers", () => {
     });
   });
 
-  it("resetFailedLoginCount sets the counter to zero", async () => {
+  it("resetFailedLoginCount clears both counter and lockoutUntil", async () => {
     await resetFailedLoginCount(ORG, "user-1");
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1", organizationId: ORG },
-      data: { failedLoginCount: 0 },
+      data: { failedLoginCount: 0, lockoutUntil: null },
     });
   });
 
