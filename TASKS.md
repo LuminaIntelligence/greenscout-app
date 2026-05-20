@@ -29,25 +29,6 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-014 Implement repository helper layer with organizationId filter
-- **Status:** ⬜ TODO
-- **Feature:** lib (db)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-022, T-024, T-031, T-032
-- **Blocked by:** T-013
-- **Description:**
-  Create `src/lib/repositories/` with one repository per entity (`user.repository.ts`, `customer.repository.ts`, `study.repository.ts`, `study-image.repository.ts`, `generated-document.repository.ts`, `audit-log.repository.ts`, `setting.repository.ts`). Every query accepts `organizationId` (default `"greenscout"`) and filters by it. Soft-deleted rows excluded by default with an `includeDeleted: false` opt-in. Repositories are the only place that touches `prisma.*` directly — per SPEC §5.3 no app code outside repositories references `organizationId`.
-- **Acceptance criteria:**
-  - [ ] Every repository function signature includes an explicit `organizationId` parameter.
-  - [ ] Soft-deleted rows hidden unless `includeDeleted: true`.
-  - [ ] Unit tests assert that a query without `organizationId` is impossible (TypeScript-level enforcement via required param).
-  - [ ] ESLint rule (or doc lint) flags `prisma.*` references outside `src/lib/repositories/`.
-- **Files likely touched:** `src/lib/repositories/**`, `src/lib/repositories/*.test.ts`.
-- **Pause-triggers anticipated:** none.
-
----
-
 ### T-015 Idempotent admin seed (`prisma db seed`)
 - **Status:** ⬜ TODO
 - **Feature:** db (seed)
@@ -1049,6 +1030,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-014 ✅ Implement repository helper layer with organizationId filter
+- **Merged:** 2026-05-20 via PR #15 (`09c8eac`)
+- **Branch:** `feat/repository-layer`
+- **Summary:** 7 entity repositories at `src/lib/repositories/` (User 12 functions, Customer 5, Study 7, StudyImage 4, GeneratedDocument 2, AuditLog 2, Setting 3 = 35 total) + `withOrg<T>` helper + `withTransaction` + `PrismaTransaction` alias. Prisma Client singleton at `src/lib/db.ts` with Next dev hot-reload protection. `organizationId` required first parameter on every function (TypeScript-enforced, no defaults). Soft-delete default-on with `includeDeleted: true` opt-in. `normaliseEmail()` called in User repo's email-touching functions. Update/delete uses `where: { id, organizationId }` so cross-tenant ID guesses silently no-op. `hardDeleteUser` marked `TODO(T-041b)` for DSGVO. ESLint flat-config bans `@/generated/prisma` imports with trusted-path override for `src/lib/db.ts`, `src/lib/repositories/**`, `prisma/seed.ts` — deliberate violation verified. Dockerfile.web added `npx prisma generate` step in builder stage as CI-driven follow-on.
+- **Decisions:** see `DECISIONS.md` entry "T-014 silent decisions per §14 (consolidated)".
 
 ### T-013 ✅ Initial Prisma migration + local DB apply
 - **Merged:** 2026-05-20 via PR #14 (`f3e8474`)
