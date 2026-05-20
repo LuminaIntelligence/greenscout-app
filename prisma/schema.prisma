@@ -239,3 +239,14 @@ model AuditLog {
   @@index([createdAt(sort: Desc)])
   @@index([organizationId, createdAt(sort: Desc)])
 }
+
+/// Single-row key/value store for app-wide config.
+/// Expected keys: smtp.host, smtp.port, smtp.user, smtp.password_enc, smtp.from_name,
+/// smtp.from_address, smtp.use_starttls, retention.years, retention.notice_days.
+/// SMTP password is AES-256-GCM encrypted via SETTINGS_ENCRYPTION_KEY env (DECISIONS T-004).
+/// No organizationId in MVP (single-tenant); Phase-3 will add per the contract.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
