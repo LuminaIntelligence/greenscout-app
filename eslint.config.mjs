@@ -79,16 +79,22 @@ const eslintConfig = [
   {
     files: ["**/*.{ts,tsx,js,jsx,mjs}"],
     rules: {
-      // CLAUDE.md §4.3 — no relative `../../..` chains across feature boundaries.
-      // The use of `no-restricted-imports` here (rather than the literal
-      // `import/no-relative-parent-imports`) is deliberate:
-      // `import/no-relative-parent-imports` flags *any* import that resolves
-      // upwards in the file tree — including the prescribed `@/...` alias
-      // imports, since those alias to `src/` which sits above feature folders.
-      // The intent of §4.3 is to ban literal `../` chains; `@/...` is the
-      // prescribed cross-feature pattern. This rule narrows the prohibition to
-      // exactly that intent: literal relative-parent specifiers (`../foo`,
-      // `../../bar`, etc.) are blocked; `@/...` imports stay clean.
+      // Two-pattern `no-restricted-imports`:
+      //
+      //  1. CLAUDE.md §4.3 — no relative `../../..` chains across feature
+      //     boundaries. `import/no-relative-parent-imports` would flag the
+      //     prescribed `@/...` alias too (since `@/` resolves above feature
+      //     folders). This pattern bans literal `../` specifiers only.
+      //
+      //  2. T-014 — Prisma Client direct-import is restricted to the
+      //     repository layer. App code uses `@/lib/repositories/*`; only
+      //     `src/lib/db.ts` (the singleton), `src/lib/repositories/**` (the
+      //     functions themselves), and `prisma/seed.ts` (T-015) get to reach
+      //     into the generated client. The override block below switches the
+      //     whole rule off for exactly those paths — granular `patterns`
+      //     overrides aren't supported in flat config, so the trusted-path
+      //     block disables the rule wholesale, then re-establishes the
+      //     §4.3 `../*` ban via the dedicated block immediately after.
       "no-restricted-imports": [
         "error",
         {
@@ -98,9 +104,26 @@ const eslintConfig = [
               message:
                 "Use the `@/...` path alias instead of `../` chains across feature boundaries (see CLAUDE.md §4.3).",
             },
+            {
+              group: ["@/generated/prisma", "@/generated/prisma/*"],
+              message:
+                "Import Prisma Client only via @/lib/db (singleton) and run queries through @/lib/repositories/*. Direct Prisma Client access is restricted to the repository layer — see DECISIONS.md T-014.",
+            },
           ],
         },
       ],
+    },
+  },
+
+  // Trusted-path override: the repository layer, the singleton, and the
+  // (T-015) seed script are the only places allowed to import from
+  // `@/generated/prisma`. Disabling `no-restricted-imports` wholesale here
+  // also re-allows `../*` for these files — acceptable because every file
+  // in `src/lib/repositories/**` only sibling-imports inside that folder.
+  {
+    files: ["src/lib/db.ts", "src/lib/repositories/**/*.ts", "prisma/seed.ts"],
+    rules: {
+      "no-restricted-imports": "off",
     },
   },
 
