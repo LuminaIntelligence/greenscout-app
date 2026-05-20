@@ -71,3 +71,25 @@ model User {
   @@index([organizationId, role, active, deletedAt])
   @@index([organizationId, createdAt])
 }
+
+/// External customer entity (the property owner who receives the feasibility study).
+/// See DECISIONS.md "Slice 2 schema design approved" for the field contract.
+model Customer {
+  id               String    @id @default(cuid())
+  contactFirstName String    @map("contact_first_name")
+  contactLastName  String    @map("contact_last_name")
+  companyName      String?   @map("company_name")
+  email            String?
+  phone            String?
+  billingAddress   String?   @map("billing_address")
+  billingZipCode   String?   @map("billing_zip_code")
+  billingCity      String?   @map("billing_city")
+  notes            String?
+  deletedAt        DateTime? @map("deleted_at")
+  organizationId   String    @default("greenscout") @map("organization_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, contactLastName])
+}
