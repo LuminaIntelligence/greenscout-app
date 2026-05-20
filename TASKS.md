@@ -29,26 +29,6 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-010 Define enums + User + Customer models
-- **Status:** ⬜ TODO
-- **Feature:** db
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-013, T-014, T-015, T-022
-- **Blocked by:** T-009
-- **Description:**
-  In `prisma/schema.prisma`, declare enums `Role` (`ADMIN`, `BERATER`), `StudyStatus` (`DRAFT`, `READY`, `GENERATED`), `ImageType` (`BEFORE`, `AFTER`), `DocFormat` (`PPTX`, `PDF`), `FormPref` (`WIZARD`, `SINGLE_PAGE`). Define `User` and `Customer` per SPEC §5.1 with every field listed, `@map("snake_case")` on each field, soft-delete (`deletedAt`), `organizationId` default `"greenscout"`, and `createdAt`/`updatedAt` timestamps. Add table-level `@@index` only where SPEC §5 requires.
-- **Acceptance criteria:**
-  - [ ] All five enums declared with the exact variants from SPEC §5.
-  - [ ] `User` model includes all fields from SPEC §5.1 `User` table.
-  - [ ] `Customer` model includes all fields from SPEC §5.1 `Customer` table; `companyName` nullable, `contactFirstName`/`contactLastName` required.
-  - [ ] Every column carries an `@map("snake_case_db_name")`.
-  - [ ] `prisma format` keeps the file clean and `prisma validate` passes.
-- **Files likely touched:** `prisma/schema.prisma`.
-- **Pause-triggers anticipated:** none — adding new tables only (CLAUDE.md §7.2 exception).
-
----
-
 ### T-011 Define Study + StudyImage models with constraints
 - **Status:** ⬜ TODO
 - **Feature:** db
@@ -1129,6 +1109,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-010 ✅ Define enums + User + Customer models
+- **Merged:** 2026-05-20 via PR #11 (`efcfaf4`)
+- **Branch:** `chore/prisma-user-customer-models`
+- **Summary:** 5 enums (`Role`, `StudyStatus`, `ImageType`, `DocFormat`, `FormPref`) + `User` model (19 fields incl. `passwordChangedAt` V2-prep, `mustChangePassword`, `lockoutUntil`, `formPreference` default `WIZARD`, soft-delete, `organizationId @default("greenscout")`, two compound indexes) + `Customer` model (13 fields, two compound indexes). Email normalisation utility staged at `src/features/auth/utils/normalise-email.ts` (pure `email.trim().toLowerCase()`) with co-located Vitest-API tests waiting for T-018 install. `tsconfig.json` excludes `**/*.test.ts(x)` until Vitest lands. `eslint.config.mjs` ignores `src/generated/**` (Prisma client). Plan deviation: Prisma 5.22 `prisma format` enforced multi-line enum syntax; single-line briefing version was rejected, pivoted mechanically. Quality gates all 0; `prisma format`, `validate`, `db:generate` all clean.
+- **Decisions:** see `DECISIONS.md` entry "T-010 silent decisions per §14 (consolidated)".
 
 ### T-009 ✅ Install Prisma + Postgres client + scaffold schema header
 - **Merged:** 2026-05-20 via PR #10 (`0194eab`)

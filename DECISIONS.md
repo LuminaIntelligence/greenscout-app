@@ -548,3 +548,35 @@ T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each th
 
 **Affected files:** `prisma/schema.prisma` (+5 enums, +User, +Customer), `src/features/auth/utils/normalise-email.ts` (new), `src/features/auth/utils/normalise-email.test.ts` (new), `tsconfig.json` (exclude `**/*.test.ts(x)`), `eslint.config.mjs` (ignore `src/generated/**`), `TASKS.md` (T-009 → ✅ Recently completed), `DECISIONS.md` (this entry).
 **Open question for the user:** —
+
+---
+
+## 2026-05-20 — T-011 silent decisions per §14 (consolidated)
+**Context:** T-011 adds `Study` (33 fields, 6 indexes, §7.7-money-relevant Decimal precisions) and `StudyImage` (8 fields, `@@unique([studyId, type])`, Cascade delete) to `prisma/schema.prisma`. Also wires bidirectional relations into `User` and `Customer` (back-relation fields `consultantStudies` / `studies` / `images`). No migration runs (T-013), no repository layer (T-014), no seed (T-015) in this PR.
+
+**Assumption / decision:**
+- **Relation naming (forward-thinking):** `@relation("ConsultantStudies")` between User ↔ Study (forward-thinking — T-012 adds `GeneratedDocument.generatedById → User`, so a second User-rooted relation will exist; naming both now avoids a future `@relation` rename). `@relation("CustomerStudies")` between Customer ↔ Study chosen for symmetry/clarity even though only one such relation will ever exist. `StudyImage ↔ Study` left unnamed — single relation pair.
+- **Cascade per DECISIONS contract (verbatim, no deviations):**
+  - `Study.consultantId → User`: `onDelete: Restrict, onUpdate: Cascade`
+  - `Study.customerId → Customer`: `onDelete: Restrict, onUpdate: Cascade`
+  - `StudyImage.studyId → Study`: `onDelete: Cascade, onUpdate: Cascade`
+- **Decimal precision matrix per DECISIONS (no deviations):** `anlageKwp Decimal(10, 3)`; `pvErzeugungKwhJahr / pvEigenverbrauchKwhJahr / verbrauchKwhJahr / netzeinspeisungKwhJahr Decimal(12, 2)`; `pvVerkaufEurKwh / versorgerPreisEurKwh / szenarioPreis1/2/3 Decimal(8, 4)`; `pachtEurProKwp Decimal(8, 2)`; `modulFlaecheM2 Decimal(10, 2)`; `eigenverbrauchsquoteProzent Decimal(5, 2)`; `co2TonnenProJahr / co2HektarMischwald / co2FussballfelderProJahr Decimal(10, 2)`.
+- **Decimal default-literal style:** `pachtEurProKwp @default(100)` (bare integer — Prisma 5.22 accepts numeric defaults for `@db.Decimal(8, 2)`). `vertragslaufzeitJahre Int @default(20)` (integer column, integer literal). **Fractional defaults `szenarioPreis1/2/3` used string-literal form** `@default("0.35")` / `@default("0.40")` / `@default("0.45")` — Prisma 5.22 accepted the string form cleanly (no fallback to bare numeric needed). Chosen over bare numeric to avoid float-precision quirks with `@db.Decimal(8, 4)`.
+- **`co2Override @default(false)`** per DECISIONS contract.
+- **Field ordering within `Study`:** grouped by purpose, not strict alphabetical — `id` → relations (consultantId/consultant/customerId/customer) → status → object data → PV inputs (money-relevant) → module/Anlage spec optionals → sensitivity scenarios → termine → CO₂ block → back-relations (`images`) → soft-delete/org/timestamps (incl. `generatedAt` nullable, set on transition to GENERATED) → indexes. Pragmatic readability call (same precedent as T-010's User field ordering).
+- **`StudyImage` field ordering:** `id` → studyId/study relation → `type` → `filename` → `mimeType` → `widthPx` → `heightPx` → `fileSizeBytes` → `uploadedAt` → `@@unique([studyId, type])`. `type` is not a Prisma 5 reserved keyword — kept verbatim per contract.
+- **Schema-edit commit strategy:** **wrote the full schema state first (Study + StudyImage + back-relations), ran `prisma format`/`validate`/`db:generate` once to confirm the end-state is clean, then split the change into three logical commits** by reverting the working tree and re-applying each chunk on top of HEAD. Commit order: (1) Study model; (2) StudyImage model; (3) User/Customer/Study back-relations. **Intermediate commits (1) and (2) do not pass `prisma validate`** (Study references `ConsultantStudies` and `CustomerStudies` relations that have no back side yet; StudyImage references Study with no `images` back side). This is **deliberate and tolerated** because the Husky pre-commit hook runs `tsc --noEmit` + `lint-staged` + `gitleaks` — **not** `prisma validate`. The final state (after commit 3) validates cleanly; CI gates run at PR/push level against the final state. `git add -p` interactive staging considered and rejected as fragile on Windows non-interactive shells.
+- **Back-relation field names:** on `User` → `consultantStudies Study[] @relation("ConsultantStudies")`; on `Customer` → `studies Study[] @relation("CustomerStudies")`; on `Study` → `images StudyImage[]`. The `consultantStudies` (vs e.g. `studiesAsConsultant`) keeps the relation noun-led and reads naturally with `user.consultantStudies`.
+- **Back-relation block placement within models:** dedicated `// Back-relations` comment block placed **before** the soft-delete/org/timestamps group, matching the §7 group-by-purpose convention from T-010 and applied symmetrically to all three models (User/Customer/Study).
+- **`@map` discipline preserved from T-010:** every camelCase column mapping to a non-trivial snake_case DB name carries `@map`. Single-word fields `id`, `status`, `flurstueck`, `filename`, `type` get no `@map` (Prisma's default identifier mapping is already snake_case-equivalent or single-word). T-010 precedent honoured verbatim.
+- **`prisma format` reformatting:** `format` slightly tightened the column alignment inside `Customer` after the back-relation insertion (collapsed `String?   @map(...)` to `String? @map(...)` because the field-name column shortened). Accepted as authoritative.
+- **`relationMode`:** not declared — Prisma 5 default `foreignKeys` mode is correct for Postgres 16. No need to set `relationMode = "prisma"`.
+- **No migration run.** `migrate dev` is T-013 by contract.
+- **No repository layer / no soft-delete helper.** T-014.
+- **No `Study.images` cascade verification at runtime.** Cascade declarations are schema-level; T-013 migration SQL will materialise them. No SQL hand-check needed in T-011 — `prisma validate` + `db:generate` produced no errors and the generated `StudyImage` model exposes the `study` relation typed correctly.
+- **Husky pre-commit hook fired on all four commits** (1× TASKS flip + 3× schema). No `--no-verify`. CRLF normalisation warnings on `prisma/schema.prisma` / `TASKS.md` / `DECISIONS.md` are `.gitattributes`-driven and expected on Windows.
+
+**Net top-level deps added:** none. All work is in existing toolchain.
+
+**Affected files:** `prisma/schema.prisma` (+Study, +StudyImage, +User/Customer/Study back-relations), `TASKS.md` (T-010 → ✅ Recently completed), `DECISIONS.md` (this entry).
+**Open question for the user:** —
