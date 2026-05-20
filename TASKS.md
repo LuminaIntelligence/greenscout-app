@@ -29,26 +29,6 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-011 Define Study + StudyImage models with constraints
-- **Status:** ⬜ TODO
-- **Feature:** db
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-013, T-016, T-022, T-025
-- **Blocked by:** T-010
-- **Description:**
-  Add `Study` (all SPEC §5.1 fields incl. Decimals, `pachtEurProKwp @default(100)`, `vertragslaufzeitJahre @default(20)`, `co2Override @default(false)`, nullable sensitivity & module spec fields, `generatedAt`, `deletedAt`, `organizationId`) and `StudyImage` (with `@@unique([studyId, type])`). Add indexes per SPEC §5.1 footer: `Study(consultantId)`, `Study(customerId)`, `Study(status)`, `Study(organizationId, status)`. Set up FK relations `Study.consultant → User`, `Study.customer → Customer`, `StudyImage.study → Study` (`onDelete: Restrict`).
-- **Acceptance criteria:**
-  - [ ] All `Study` fields present with correct types (Decimal where SPEC says Decimal, Int where Int).
-  - [ ] `pachtEurProKwp` default `100`, `vertragslaufzeitJahre` default `20`, `co2Override` default `false`.
-  - [ ] All four required indexes present.
-  - [ ] `StudyImage` enforces `@@unique([studyId, type])`.
-  - [ ] FK cascade behaviour: deleting a Study is blocked at DB level — soft-delete only.
-- **Files likely touched:** `prisma/schema.prisma`.
-- **Pause-triggers anticipated:** none — additive only.
-
----
-
 ### T-012 Define GeneratedDocument + AuditLog + Setting models
 - **Status:** ⬜ TODO
 - **Feature:** db
@@ -1109,6 +1089,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-011 ✅ Define Study + StudyImage models with constraints
+- **Merged:** 2026-05-20 via PR #12 (`9a15789`)
+- **Branch:** `chore/prisma-study-studyimage-models`
+- **Summary:** `Study` model (33 fields incl. relations to User+Customer with named `"ConsultantStudies"` / `"CustomerStudies"` relations, all §7.7-money-relevant Decimal precisions per DECISIONS matrix — `anlageKwp(10,3)`, `pv*KwhJahr/verbrauch*/netzeinspeisung*(12,2)`, `pvVerkauf*/versorgerPreis*/szenarioPreis*(8,4)` with string defaults `"0.35"/"0.40"/"0.45"`, `pachtEurProKwp(8,2) @default(100)`, `vertragslaufzeit Int @default(20)`, `modulFlaecheM2(10,2)`, `eigenverbrauchsquoteProzent(5,2)`, `co2*(10,2)`, six compound indexes from contract). `StudyImage` (8 fields, `@@unique([studyId, type])`, Cascade delete). User+Customer extended with `consultantStudies`/`studies` back-relations. Pragmatic commit-split: full schema written first, intermediate commits intentionally fail `prisma validate` (Husky doesn't run it) — final state validates clean. All gates 0, `db:generate` 68ms.
+- **Decisions:** see `DECISIONS.md` entry "T-011 silent decisions per §14 (consolidated)".
 
 ### T-010 ✅ Define enums + User + Customer models
 - **Merged:** 2026-05-20 via PR #11 (`efcfaf4`)
