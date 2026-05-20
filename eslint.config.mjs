@@ -120,8 +120,18 @@ const eslintConfig = [
   // `@/generated/prisma`. Disabling `no-restricted-imports` wholesale here
   // also re-allows `../*` for these files — acceptable because every file
   // in `src/lib/repositories/**` only sibling-imports inside that folder.
+  //
+  // T-017 added `src/features/auth/types.ts` to the trusted paths because
+  // Auth.js v5 type augmentation (`declare module "next-auth"`) needs the
+  // generated `Role` and `FormPref` enum types to type the JWT/Session
+  // payload. The file is *only* type imports — no runtime Prisma access.
   {
-    files: ["src/lib/db.ts", "src/lib/repositories/**/*.ts", "prisma/seed.ts"],
+    files: [
+      "src/lib/db.ts",
+      "src/lib/repositories/**/*.ts",
+      "prisma/seed.ts",
+      "src/features/auth/types.ts",
+    ],
     rules: {
       "no-restricted-imports": "off",
     },
