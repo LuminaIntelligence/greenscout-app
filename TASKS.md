@@ -29,25 +29,6 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-009 Install Prisma + Postgres client + scaffold schema header
-- **Status:** ⬜ TODO
-- **Feature:** chore (db)
-- **Type:** chore
-- **Effort:** S
-- **Blocks:** T-010, T-011, T-012, T-013
-- **Blocked by:** T-001, T-007
-- **Description:**
-  Install `prisma` and `@prisma/client`. Initialise `prisma/schema.prisma` with `datasource db` (PostgreSQL via `DATABASE_URL`) and `generator client`. Add `src/lib/db.ts` exporting a singleton `PrismaClient` (dev-mode HMR-safe pattern). Add npm scripts: `db:migrate` → `prisma migrate dev`, `db:generate` → `prisma generate`, `db:studio`, `db:seed`. Document local DB setup in `docs/db.md`.
-- **Acceptance criteria:**
-  - [ ] `npx prisma generate` succeeds on the empty schema.
-  - [ ] `src/lib/db.ts` exports a singleton with the dev HMR guard.
-  - [ ] `docs/db.md` documents the local Postgres setup steps using the compose `db` service.
-  - [ ] No real `DATABASE_URL` committed; `.env.example` has placeholder only.
-- **Files likely touched:** `prisma/schema.prisma`, `src/lib/db.ts`, `package.json`, `docs/db.md`.
-- **Pause-triggers anticipated:** §7.1 (Prisma deps).
-
----
-
 ### T-010 Define enums + User + Customer models
 - **Status:** ⬜ TODO
 - **Feature:** db
@@ -1148,6 +1129,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-009 ✅ Install Prisma + Postgres client + scaffold schema header
+- **Merged:** 2026-05-20 via PR #10 (`0194eab`)
+- **Branch:** `chore/prisma-install-scaffold`
+- **Summary:** Prisma 5.22.0 + @prisma/client 5.22.0 + pg 8.21.0 installed (SPEC §2-pinned; v6 upgrade prompt ignored). `prisma/schema.prisma` scaffolded with generator + datasource only — no models yet (deferred to T-010+). Generator output set to `../src/generated/prisma` (gitignored). npm scripts added: `db:generate`, `db:studio`, `db:migrate`. `db:seed` deferred to T-015 per DECISIONS. `docs/prisma.md` covers setup, schema-change workflow (with §7 pause-trigger reminder), and `prisma migrate deploy` forbidden per §7.9/§8.6. **Plan deviation:** `npx prisma init` failed on Node 24 + Prisma 5.22 with `util.isError` upstream bug — implementer manually scaffolded `prisma/schema.prisma` to the briefing template; identical end result. Pre-migrate sanity: `prisma format` and `prisma validate` both exit 0 on the empty-models schema. `src/lib/db.ts` deferred to T-014 (repository layer) per the 5-PR Slice-2 rollout.
+- **Decisions:** see `DECISIONS.md` entry "T-009 silent decisions per §14 (consolidated)".
 
 ### T-008 ✅ GitHub Actions CI workflow stub
 - **Merged:** 2026-05-19 via PR #9 (`59ae07d`)
