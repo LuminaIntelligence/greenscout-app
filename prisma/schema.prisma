@@ -93,3 +93,72 @@ model Customer {
   @@index([organizationId, deletedAt])
   @@index([organizationId, contactLastName])
 }
+
+/// Photovoltaic feasibility study — central business entity.
+/// See DECISIONS.md "Slice 2 schema design approved" for the field contract
+/// and the §7.7-relevant Decimal precision matrix.
+model Study {
+  id String @id @default(cuid())
+
+  // Relations
+  consultantId String   @map("consultant_id")
+  consultant   User     @relation("ConsultantStudies", fields: [consultantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  customerId   String   @map("customer_id")
+  customer     Customer @relation("CustomerStudies", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Status
+  status StudyStatus @default(DRAFT)
+
+  // Object data
+  objectName    String @map("object_name")
+  objectAddress String @map("object_address")
+  objectZipCode String @map("object_zip_code")
+  objectCity    String @map("object_city")
+  flurstueck    String
+
+  // PV inputs (§7.7 money-relevant)
+  anlageKwp               Decimal @map("anlage_kwp") @db.Decimal(10, 3)
+  pvErzeugungKwhJahr      Decimal @map("pv_erzeugung_kwh_jahr") @db.Decimal(12, 2)
+  pvEigenverbrauchKwhJahr Decimal @map("pv_eigenverbrauch_kwh_jahr") @db.Decimal(12, 2)
+  pvVerkaufEurKwh         Decimal @map("pv_verkauf_eur_kwh") @db.Decimal(8, 4)
+  verbrauchKwhJahr        Decimal @map("verbrauch_kwh_jahr") @db.Decimal(12, 2)
+  versorgerPreisEurKwh    Decimal @map("versorger_preis_eur_kwh") @db.Decimal(8, 4)
+  pachtEurProKwp          Decimal @default(100) @map("pacht_eur_pro_kwp") @db.Decimal(8, 2)
+  vertragslaufzeitJahre   Int     @default(20) @map("vertragslaufzeit_jahre")
+
+  // Module / Anlage spec (optional from PV-Sol)
+  modulAnzahl                 Int?     @map("modul_anzahl")
+  modulFlaecheM2              Decimal? @map("modul_flaeche_m2") @db.Decimal(10, 2)
+  eigenverbrauchsquoteProzent Decimal? @map("eigenverbrauchsquote_prozent") @db.Decimal(5, 2)
+  netzeinspeisungKwhJahr      Decimal? @map("netzeinspeisung_kwh_jahr") @db.Decimal(12, 2)
+
+  // Sensitivity scenarios (defaults 35/40/45 ct/kWh per DECISIONS Wizard-Step-5)
+  szenarioPreis1 Decimal? @default("0.35") @map("szenario_preis_1") @db.Decimal(8, 4)
+  szenarioPreis2 Decimal? @default("0.40") @map("szenario_preis_2") @db.Decimal(8, 4)
+  szenarioPreis3 Decimal? @default("0.45") @map("szenario_preis_3") @db.Decimal(8, 4)
+
+  // Termine for Slide 19
+  terminVorschlag1 DateTime? @map("termin_vorschlag_1")
+  terminVorschlag2 DateTime? @map("termin_vorschlag_2")
+
+  // CO₂ block
+  co2Override              Boolean  @default(false) @map("co2_override")
+  co2TonnenProJahr         Decimal? @map("co2_tonnen_pro_jahr") @db.Decimal(10, 2)
+  co2HektarMischwald       Decimal? @map("co2_hektar_mischwald") @db.Decimal(10, 2)
+  co2FussballfelderProJahr Decimal? @map("co2_fussballfelder_pro_jahr") @db.Decimal(10, 2)
+
+  // Soft-delete / org / timestamps
+  deletedAt      DateTime? @map("deleted_at")
+  organizationId String    @default("greenscout") @map("organization_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  generatedAt    DateTime? @map("generated_at")
+
+  // Indexes (per DECISIONS contract)
+  @@index([consultantId])
+  @@index([customerId])
+  @@index([status])
+  @@index([organizationId, status])
+  @@index([organizationId, consultantId, deletedAt])
+  @@index([organizationId, createdAt])
+}
