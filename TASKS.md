@@ -27,28 +27,6 @@
 
 ---
 
-### Slice 1 — Project bootstrap
-
-### T-008 GitHub Actions CI workflow stub
-- **Status:** ⬜ TODO
-- **Feature:** chore (ci)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-040
-- **Blocked by:** T-004, T-005, T-006, T-007
-- **Description:**
-  Create `.github/workflows/ci.yml` running on `pull_request` and pushes to non-main branches. Jobs: (a) `lint-typecheck` (Node 20, install deps, run `lint`, `format:check`, `typecheck`); (b) `web-tests` (Vitest); (c) `python-checks` (ruff + pyright + pytest); (d) `e2e` (Playwright, headless, depends on a, b); (e) `build-images` (matrix builds the two Dockerfiles); (f) `prisma-migrate-check` (spin up Postgres service, run `prisma migrate deploy` against test DB — local-equivalent target, never prod). Coverage uploaded as an artifact. Set the coverage threshold check to **80% global** and **100% on calculation logic paths**.
-- **Acceptance criteria:**
-  - [ ] Workflow YAML is valid and parses with `actionlint` (or equivalent).
-  - [ ] Each job has explicit `permissions:` minimised.
-  - [ ] Coverage threshold step fails when global < 80% or calculation logic < 100%.
-  - [ ] Workflow never references production secrets or deploy targets.
-  - [ ] Required for PR merge per CLAUDE.md §5.2 — branch-protection note in `docs/ci.md`.
-- **Files likely touched:** `.github/workflows/ci.yml`, `docs/ci.md`.
-- **Pause-triggers anticipated:** none directly; CLAUDE.md §8.11 reminder (never bypass branch protection).
-
----
-
 ### Slice 2 — Data model & Prisma migrations
 
 ### T-009 Install Prisma + Postgres client + scaffold schema header
@@ -1170,6 +1148,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-008 ✅ GitHub Actions CI workflow stub
+- **Merged:** 2026-05-19 via PR #9 (`59ae07d`)
+- **Branch:** `chore/github-actions-ci`
+- **Summary:** `.github/workflows/ci.yml` with 8 jobs (5 live: `actionlint`, `lint-typecheck` Node 24, `python-checks` Python 3.12, `build-images` matrix web+pyservice, `gitleaks-scan`; 3 stubs: `web-tests` echoing T-018, `e2e` echoing T-051a/b, `prisma-migrate-check` echoing T-013 with Postgres service block pre-wired). Trigger: `pull_request` + `push: { branches-ignore: [main] }` with concurrency cancellation. Top-level `permissions: { contents: read }`. Cache: setup-node npm + setup-python pip + docker/build-push-action `type=gha`. `actionlint` via `reviewdog/action-actionlint@v1` (rhysd ships only the binary). `gitleaks-action@v2` with `GITHUB_TOKEN` for `pull_request` event path (first-run fix in `fb36e4e`). `docker/build-push-action@v6` with `push: false`. No deploy job, no production secrets. `docs/ci.md` documents branch-protection setup. **First CI runs both green** (push 1m48s, pull_request 3m13s — all 8 jobs pass). Branch protection on `main` activated by user with 6 live required checks; 3 stub jobs deliberately not yet required (see DECISIONS "Branch protection on `main` activated").
+- **Decisions:** see `DECISIONS.md` entries "T-008 silent decisions per §14 (consolidated)" and "Branch protection on `main` activated (user-confirmed, with promotion TODOs)".
 
 ### T-007 ✅ Compose Docker stack skeleton (Next.js + Python + Postgres)
 - **Merged:** 2026-05-19 via PR #8 (`99cb4d9`)
