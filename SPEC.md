@@ -88,7 +88,7 @@ The MVP must deliver these five capabilities:
 - **First login** forces a password change before any other action is allowed.
 - **Session duration:** 8 hours (hard expiry; no rolling refresh after expiry).
 - **2FA / TOTP:** not in MVP. Architecture must not make it expensive to add later.
-- **Lockout:** after 5 failed attempts in a 15-minute window → 15-minute lockout. After 5 *further* failed attempts (10 cumulative) → 1-hour lockout **and** an email alert to the admin via the configured SMTP. Subsequent failures keep the 1-hour lockout and are noted in the audit log.
+- **Lockout:** counter-based, NOT time-window-based. After 5 consecutive failed login attempts → 15-minute lockout. After 10 consecutive failures → 1-hour lockout + admin alert via configured SMTP. Subsequent failures at counter > 10 renew the 1-hour lockout (no escalation, no further admin alerts to avoid spam). The counter resets to 0 **only on a successful login** — NOT when a lockout timer expires. AuditLog `LOGIN_FAIL` entries are written for every failed attempt as a forensic trail; the lockout decision itself is made from the `failedLoginCount` and `lockoutUntil` columns on `User`, not from the audit log.
 
 ### 4.2 Roles
 
