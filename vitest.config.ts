@@ -81,6 +81,16 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // 100% on the password-policy module per T-016 user mandate
+        // ("T-016 mergt erst, wenn password-policy.test.ts mit 100% Coverage
+        // in CI grün läuft"). See DECISIONS.md → "T-016 password-policy
+        // module design (user-confirmed, binding)".
+        "src/features/auth/password-policy.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
       },
     },
   },
