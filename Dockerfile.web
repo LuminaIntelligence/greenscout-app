@@ -26,6 +26,12 @@ COPY . .
 # Disable Next.js telemetry inside the image build.
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Prisma Client is gitignored (src/generated/prisma is regenerated on every
+# `db:generate`). The Next.js build imports the client via `src/lib/db.ts`,
+# so we MUST generate it before `next build` or typecheck fails with
+# "Cannot find module '@/generated/prisma'". See DECISIONS.md T-014.
+RUN npx prisma generate
+
 RUN npm run build
 
 

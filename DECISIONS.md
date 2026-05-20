@@ -644,3 +644,38 @@ T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each th
 
 **Affected files:** `prisma/migrations/20260520074451_initial_schema/migration.sql` (new, 225 lines), `prisma/migrations/migration_lock.toml` (new), `.github/workflows/ci.yml` (prisma-migrate-check job: name + steps), `TASKS.md` (T-012 → ✅ Recently completed; T-013 will be marked complete by the post-merge job), `DECISIONS.md` (this entry).
 **Open question for the user:** Promote the renamed `Prisma migrate` job (was `Prisma migrate (stub — T-013)`) to required-status-check in branch protection (CLAUDE.md §8.11 — agent cannot do this).
+
+---
+
+## 2026-05-20 — T-014 silent decisions per §14 (consolidated)
+**Context:** T-014 builds the repository helper layer that owns all Prisma access. Per the user's directive, all decisions in this task were silent per §14.2.
+
+**Assumption / decision:**
+- **Pattern**: functional, async, exported per entity. No classes.
+- **Layout**: `src/lib/repositories/<entity>.repository.ts` + `index.ts` barrel + `with-org.ts` + `transaction.ts`. Singleton at `src/lib/db.ts`.
+- **organizationId enforcement**: required first parameter on every function (TypeScript-level), no defaults. Schema-level `@default("greenscout")` is still in place at the DB. `createUser`/`createCustomer`/`createStudy`/`createAuditEntry` all spread `data` first then override `organizationId` with the function parameter, so a caller cannot smuggle a different tenant id through the data payload.
+- **`withOrg<T>` helper**: near-no-op sugar with single-seam Phase-3 swap point. Returns `fn(organizationId)`.
+- **Transaction support**: `withTransaction(fn)` exports + every repository function accepts optional `tx?: PrismaTransaction` to participate. `PrismaTransaction` aliased to `Prisma.TransactionClient` (available in Prisma 5.22 generated client).
+- **Soft-delete**: default filter `deletedAt: null` on reads (User/Customer/Study); opt-in `includeDeleted: true`. Write helpers: `softDelete*` (sets timestamp), `hardDelete*` (Prisma delete, marked `TODO(T-041b)` for DSGVO workflow). Only `hardDeleteUser` exposed in this PR; Customer/Study hard-delete added when the DSGVO admin flow lands.
+- **Email normalisation**: User repo's `findUserByEmail`, `createUser`, and `updateUser` (when email is in the patch — both literal-string and `{ set }` operation shapes) all call `normaliseEmail()`.
+- **Update-where with organizationId**: Prisma 5.x `UserWhereUniqueInput` etc. accept additional scalar filters via `Prisma.AtLeast<{id, ...}>`. We pass `{ id, organizationId }` so any cross-tenant ID guess silently no-ops instead of mutating a foreign row. No `findFirst → check → update` round-trip needed.
+- **Pagination**: default `take: 50`, hard cap `200`. `skip: 0` default. Implemented via a private `clampTake()` helper per repo.
+- **Sort**: default `orderBy: { createdAt: 'desc' }` on lists (audit-log: same). Setting list orders by `key ASC`. StudyImage list orders by `type ASC`. GeneratedDocument list orders by `generatedAt DESC` (matches the covering index).
+- **Error handling**: Prisma native errors propagate — no custom wrapping in T-014.
+- **StudyImage / GeneratedDocument repos**: no `organizationId` param — access control derived from parent Study; documented in module-level JSDoc.
+- **Setting repo**: no `organizationId` (MVP single-tenant per schema).
+- **AuditLog repo**: append-only — only `createAuditEntry` + `listAuditEntries`, no update/delete functions.
+- **ESLint enforcement**: implemented via two-pattern `no-restricted-imports` in the default block (group 1 = `../*` per CLAUDE.md §4.3; group 2 = `@/generated/prisma` + `@/generated/prisma/*`) followed by a trusted-path override that disables `no-restricted-imports` wholesale for `src/lib/db.ts`, `src/lib/repositories/**/*.ts`, and `prisma/seed.ts`. Granular per-pattern overrides aren't possible in flat config — the wholesale-off shape is acceptable because every file in `src/lib/repositories/**` only sibling-imports inside the same folder (no cross-feature `../*` chains possible). Captured deliberate-violation output (rule fires on `src/app/page.tsx` `import { PrismaClient } from "@/generated/prisma"`):
+  ```
+  src/app/page.tsx
+    3:1   error  '@/generated/prisma' import is restricted from being used by a pattern. Import Prisma Client only via @/lib/db (singleton) and run queries through @/lib/repositories/*. Direct Prisma Client access is restricted to the repository layer — see DECISIONS.md T-014  no-restricted-imports
+  ```
+- **Tests**: 9 co-located `*.test.ts` files (7 repos + with-org + transaction). Vitest API (`describe`/`it`/`expect`/`vi.mock`). Mock the `@/lib/db` singleton in each repo test rather than running real Prisma queries. Idle until T-018 installs Vitest — `tsconfig.json` already excludes `**/*.test.ts(x)`. Tests verify (1) `organizationId` applies to reads + cannot be overridden on writes; (2) soft-delete filter applies by default and is bypassable; (3) `normaliseEmail` is called on every User-repo email path.
+- **Function count per entity**: User 12, Customer 5, Study 7, StudyImage 4, GeneratedDocument 2, AuditLog 2, Setting 3. Total 35 functions across 7 repositories + 2 infrastructure helpers (`withOrg`, `withTransaction`).
+- **Husky pre-commit hook**: fired on all 7 commits; no `--no-verify`.
+- **Dockerfile.web — `npx prisma generate` in builder stage**: required because `src/lib/db.ts` imports `@/generated/prisma`, which is gitignored. The first CI push (`26153916366`) failed the web Docker build with `Cannot find module '@/generated/prisma'` in `next build`. Standard Prisma + Next.js Docker pattern: run `npx prisma generate` after `COPY . .` and before `npm run build` in the builder stage. Local `next build` works because `db:generate` was already run during T-009 — the gap only showed up against a clean Docker context. Fix committed in 064708a; not a §7 pause-trigger (no architectural pivot — just the mechanical Docker-side consequence of introducing the singleton).
+
+**Net top-level deps added:** none.
+
+**Affected files:** `src/lib/db.ts` (new), `src/lib/repositories/**` (16 new files: 7 repository modules + 7 repository tests + with-org + with-org test + transaction + transaction test + index barrel), `eslint.config.mjs` (no-restricted-imports rule extended with Prisma-Client group + trusted-path override block), `Dockerfile.web` (`npx prisma generate` step added in builder stage), `TASKS.md` (T-013 → ✅ Recently completed), `DECISIONS.md` (this entry).
+**Open question for the user:** —
