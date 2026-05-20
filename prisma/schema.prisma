@@ -13,3 +13,31 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ─── Enums ───────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  BERATER
+}
+
+enum StudyStatus {
+  DRAFT
+  READY
+  GENERATED
+}
+
+enum ImageType {
+  BEFORE
+  AFTER
+}
+
+enum DocFormat {
+  PPTX
+  PDF
+}
+
+enum FormPref {
+  WIZARD
+  SINGLE_PAGE
+}
