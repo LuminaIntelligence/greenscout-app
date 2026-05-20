@@ -519,3 +519,32 @@ T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each th
 
 **Affected files:** `package.json`, `package-lock.json`, `prisma/schema.prisma` (new), `docs/prisma.md` (new), `TASKS.md` (T-008 → ✅ Recently completed), `DECISIONS.md` (this entry).
 **Open question for the user:** —
+
+---
+
+## 2026-05-20 — T-010 silent decisions per §14 (consolidated)
+**Context:** T-010 adds the five Slice-2 enums plus `User` and `Customer` models to `prisma/schema.prisma`, and stages the email-normalisation utility per the user-mandated case-insensitivity rule from the "Slice 2 schema design approved" entry. No migration runs (T-013), no seed (T-015), no repository layer (T-014) in this PR.
+
+**Assumption / decision:**
+- **Enum block placement:** between `datasource db {...}` and the first model, under a section comment header `// ─── Enums ───`. Models live under their own `// ─── Models ───` header below.
+- **Enum declaration style (forced change):** the briefing pre-approved "comma-separated on one line if short" (e.g. `enum Role { ADMIN BERATER }`). **Prisma 5.22 rejected this** — `prisma format` raised P1012 "This line is invalid. It does not start with any known Prisma schema keyword" on every single-line enum. Pivot: each enum value on its own line, Prisma's canonical format. No semantic change, just multi-line bodies.
+- **Model order in schema file:** `User` first (more central, referenced by future Study/AuditLog), then `Customer`. Strict alphabetical would flip them — pragmatic readability call. Future models inserted by T-011/T-012 should keep the conceptual ordering rather than strict alphabetical so the relation graph reads top-down.
+- **`@map` convention:** applied to every camelCase field that maps to a non-trivial snake_case column (per CLAUDE.md §4.2). Single-word fields (`id`, `email`, `role`, `phone`, `mobile`, `notes`, `active`) get no `@map` — Prisma's default identifier mapping is fine. **Note on TASKS.md T-010 acceptance criterion** "Every column carries an `@map`": that wording predates §14 and would force `@map("id")`/`@map("email")` etc., which the briefing explicitly de-scoped. The intent of CLAUDE.md §4.2 is "camelCase TS → snake_case DB" — single-word fields satisfy that trivially without `@map`. Reviewers should accept the briefing's interpretation.
+- **Table names:** PascalCase singular (`User`, `Customer`) — no `@@map` to override. Postgres quotes identifiers safely; `user` is reserved-word-adjacent but `"User"` is unambiguous.
+- **`@unique` vs `@@unique`:** column-level `email String @unique` on User. Same DB index either way; column-level is more local.
+- **Field ordering within models:** identity → required core → optional personal → flags/counters → soft-delete → org → timestamps. Two compound indexes per model from the DECISIONS contract.
+- **Email utility location:** `src/features/auth/utils/normalise-email.ts` per CLAUDE.md §4.1 feature/layered convention. Pure string function, no Prisma dependency, no async.
+- **Email utility test (Vitest API, Vitest itself deferred to T-018):** co-located `normalise-email.test.ts`. Four test cases (lowercase, trim, combined, empty string). The `import { describe, it, expect } from "vitest"` line broke `tsc --noEmit` with TS2307 because `vitest` isn't yet a dependency.
+- **`tsconfig.json` adjustment:** added `**/*.test.ts` and `**/*.test.tsx` to `exclude`. Forward-looking — T-018+ will add many test files; excluding the `*.test.*` pattern keeps the Vitest import out of tsc's resolution until Vitest lands. Vitest itself loads test files with its own pipeline, so the exclusion does not block test execution.
+- **`eslint.config.mjs` adjustment:** added `src/generated/**` to global ignores. The Prisma-generated client (`src/generated/prisma/`) contains a wasm.js shim with 1,799+ rule violations under our strict config. The directory is gitignored and regenerated on every `db:generate`, so it must not be linted. Should arguably have been done in T-009 when the generator output path was set; lint never ran against it there because no other code yet imported from the generated path. Catching it now.
+- **ESLint `import/no-unresolved` on the vitest import:** did not fire — the canonical `eslint-plugin-import` v2.32 + flat config does not flag unresolved imports by default when resolver-typescript isn't configured. No suppression needed.
+- **Prisma Client generation verified:** `npm run db:generate` emitted `User` + `Customer` types into `src/generated/prisma/` cleanly (final run reported `Generated Prisma Client (v5.22.0) to .\src\generated\prisma in 232ms`). No DB connection needed.
+- **No migration in this PR.** `migrate dev` is T-013.
+- **No seed in this PR.** Seed is T-015.
+- **No `src/lib/db.ts` Prisma Client wrapper.** T-014.
+- **Husky hook fired on all six commits.** No `--no-verify`. CRLF normalisation warnings on `prisma/schema.prisma` / `TASKS.md` / `tsconfig.json` / `eslint.config.mjs` are `.gitattributes`-driven and expected on Windows.
+
+**Net top-level deps added:** none. All work is in existing toolchain.
+
+**Affected files:** `prisma/schema.prisma` (+5 enums, +User, +Customer), `src/features/auth/utils/normalise-email.ts` (new), `src/features/auth/utils/normalise-email.test.ts` (new), `tsconfig.json` (exclude `**/*.test.ts(x)`), `eslint.config.mjs` (ignore `src/generated/**`), `TASKS.md` (T-009 → ✅ Recently completed), `DECISIONS.md` (this entry).
+**Open question for the user:** —
