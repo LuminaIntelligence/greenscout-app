@@ -29,26 +29,6 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-012 Define GeneratedDocument + AuditLog + Setting models
-- **Status:** ⬜ TODO
-- **Feature:** db
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-013, T-031, T-032, T-033, T-034
-- **Blocked by:** T-010
-- **Description:**
-  Add `GeneratedDocument` (per SPEC §5.1) with FK to `Study` and `User`. Add `AuditLog` per SPEC §5.1 with indexes on `userId`, composite `entityType, entityId`, and `createdAt`; `changeSet` as `Json?`. Add `Setting` as `@id` on `key`, `value String`, `updatedAt`. Add a code-level comment near `AuditLog` declaring that the application layer must enforce append-only (no `UPDATE`/`DELETE` allowed) — actual enforcement happens in the repository layer (T-031).
-- **Acceptance criteria:**
-  - [ ] `GeneratedDocument` includes `format: DocFormat`, `generatedById` FK to `User`.
-  - [ ] `AuditLog` includes `action: String` (free text per SPEC enumeration), `changeSet: Json?`, `ipAddress`, `userAgent`.
-  - [ ] All three required indexes on `AuditLog` present.
-  - [ ] `Setting` uses `key` as primary key.
-  - [ ] `prisma validate` passes.
-- **Files likely touched:** `prisma/schema.prisma`.
-- **Pause-triggers anticipated:** none — additive.
-
----
-
 ### T-013 Initial Prisma migration + local DB apply
 - **Status:** ⬜ TODO
 - **Feature:** db
@@ -1089,6 +1069,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-012 ✅ Define GeneratedDocument + AuditLog + Setting models
+- **Merged:** 2026-05-20 via PR #13 (`f1c13a0`)
+- **Branch:** `chore/prisma-generated-document-audit-setting`
+- **Summary:** Three final Slice-2 models. `GeneratedDocument` (6 fields, **user-corrected cascades**: `studyId → Study Cascade/Cascade` so DSGVO hard-delete wipes DB rows AND physical PDFs under `./generated/studies/<studyId>/`, `generatedById String? → User SetNull/Cascade` so user hard-delete doesn't block on old generation history). `AuditLog` (10 fields, `changeSet Json?` as jsonb, `entityType`/`action` as String allow-list app-side, no `@updatedAt` append-only, `userId → User SetNull/Cascade`, four indexes incl. composite `(org, createdAt DESC)`). `Setting` (3 fields, key/value-store for SMTP encryption + retention config, no organizationId in MVP). User+Study extended with `generatedDocuments`/`auditLogs`/`documents` back-relations. Schema now feature-complete at 255 lines, 7 models, 5 enums. All gates 0; pragmatic write-then-split commit strategy (Husky doesn't validate intermediate states).
+- **Decisions:** see `DECISIONS.md` entry "T-012 silent decisions per §14 (consolidated)".
 
 ### T-011 ✅ Define Study + StudyImage models with constraints
 - **Merged:** 2026-05-20 via PR #12 (`9a15789`)

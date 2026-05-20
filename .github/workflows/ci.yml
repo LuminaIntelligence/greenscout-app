@@ -132,7 +132,7 @@ jobs:
           echo "Tracked: TASKS.md → T-051a/b (Playwright E2E for F1-F7)."
 
   prisma-migrate-check:
-    name: Prisma migrate (stub — T-013)
+    name: Prisma migrate
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -150,8 +150,17 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - name: Stub
-        run: |
-          echo "STUB: Prisma installation pending."
-          echo "Tracked: TASKS.md → T-013 (Initial Prisma migration + local DB apply)."
-          echo "When enabled: DATABASE_URL=postgresql://greenscout:greenscout_ci_only@localhost:5432/greenscout_ci npx prisma migrate deploy"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql://greenscout:greenscout_ci_only@localhost:5432/greenscout_ci?schema=public
+        run: npx prisma migrate deploy
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://greenscout:greenscout_ci_only@localhost:5432/greenscout_ci?schema=public
+        run: npx prisma generate
