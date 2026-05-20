@@ -609,3 +609,38 @@ T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each th
 
 **Affected files:** `prisma/schema.prisma` (+GeneratedDocument, +AuditLog, +Setting, +User back-relations, +Study back-relation), `TASKS.md` (T-011 → ✅ Recently completed), `DECISIONS.md` (this entry).
 **Open question for the user:** —
+
+## 2026-05-20 — T-013 silent decisions per §14 (consolidated)
+**Context:** T-013 closes Slice 2 by generating the `initial_schema` migration against the local Postgres dev DB and promoting the CI `prisma-migrate-check` job from stub to real.
+
+**Assumption / decision:**
+- **Pre-migrate sanity hard-gate verified:** `prisma format` idempotent (no diff on the 255-line clean schema), `prisma validate` exit 0. Re-ran post-migration; both still clean.
+- **Local DB setup:** `.env` populated from existing template by replacing the two `REPLACE_ME_LOCALLY_ONLY` placeholders with `greenscout_local_only` (gitignored — never committed). Host-side Postgres 17 was occupying `:5432` (process `postgres.exe` from `C:\Program Files\PostgreSQL\17\`), so `POSTGRES_PORT` and `DATABASE_URL` host-port were rewritten to `5433` (per briefing escape hatch). `docker compose up -d db` brought up `greenscout-db` (postgres:16-alpine) on `127.0.0.1:5433`; healthcheck reported `healthy` within ~15s; `pg_isready -U greenscout -d greenscout_dev` exit 0 ("accepting connections").
+- **Migration command:** `npx prisma migrate dev --name initial_schema --skip-seed`. `--skip-seed` because seed is T-015 per user-mandate.
+- **No `util.isError` CLI bug this time** — the same Node-24 + Prisma-5.22 pairing that broke `prisma init` in T-009 works fine for `migrate dev`. Migration applied cleanly in a single CLI invocation; `prisma generate` ran as a follow-up step (87ms).
+- **Migration file location:** `prisma/migrations/20260520074451_initial_schema/migration.sql` (225 lines) + `prisma/migrations/migration_lock.toml` (provider = postgresql).
+- **Generated SQL contents:** 5 `CREATE TYPE ... AS ENUM`, 7 `CREATE TABLE`, 14 `CREATE INDEX`, 2 `CREATE UNIQUE INDEX` (`User_email_key`, `StudyImage_study_id_type_key`), 6 foreign keys with correct ON DELETE per DECISIONS matrix. `@map` snake_case directives realised verbatim in column names (`password_hash`, `consultant_id`, `pacht_eur_pro_kwp`, `co2_fussballfelder_pro_jahr`, etc.). `Decimal(p, s)` precisions match the §7.7 matrix exactly. `JSONB` chosen by Prisma for `AuditLog.change_set` as expected.
+- **Cascade verification in migration SQL:**
+  - `Study.consultant_id` FK → User: `ON DELETE RESTRICT ON UPDATE CASCADE`
+  - `Study.customer_id` FK → Customer: `ON DELETE RESTRICT ON UPDATE CASCADE`
+  - `StudyImage.study_id` FK → Study: `ON DELETE CASCADE ON UPDATE CASCADE`
+  - `GeneratedDocument.study_id` FK → Study: `ON DELETE CASCADE ON UPDATE CASCADE`
+  - `GeneratedDocument.generated_by_id` FK → User: `ON DELETE SET NULL ON UPDATE CASCADE`
+  - `AuditLog.user_id` FK → User: `ON DELETE SET NULL ON UPDATE CASCADE`
+- **Post-migration verification:** `\dt` showed 8 tables (7 models + `_prisma_migrations`), `\dT+` showed 5 enums with all expected element labels, `SELECT current_user` returned `greenscout`, `SELECT COUNT(*) FROM "User"` returned 0, `npx prisma migrate status` reported "Database schema is up to date!" — matches T-013 acceptance criterion "in sync".
+- **`db:generate` after migration:** Prisma Client regenerated explicitly post-migration; 87ms; client now exposes full model accessors (User, Customer, Study, StudyImage, GeneratedDocument, AuditLog, Setting).
+- **CI promotion:**
+  - Renamed `Prisma migrate (stub — T-013)` → `Prisma migrate`. The status-check name visible in branch protection will change accordingly — user must update the required-status-check list post-merge.
+  - Replaced stub echo step with three real steps: `actions/setup-node@v4` (Node 24, npm cache keyed on `package-lock.json`), `npm ci`, `npx prisma migrate deploy`, `npx prisma generate`. The existing Postgres service container block (POSTGRES_USER=greenscout / POSTGRES_PASSWORD=greenscout_ci_only / POSTGRES_DB=greenscout_ci / healthcheck) was preserved verbatim from the T-008 stub.
+  - `DATABASE_URL` hard-coded inline as `postgresql://greenscout:greenscout_ci_only@localhost:5432/greenscout_ci?schema=public` on both migrate-deploy and generate steps. Not a secret — ephemeral container, dev-only credentials, never reaches anything real.
+- **Branch-protection promotion** — left to the user per CLAUDE.md §8.11 (agent cannot toggle branch protection). After PR merge, the user adds the renamed `Prisma migrate` check to required-status-checks in Settings → Branches → main rule. See "Branch protection on `main` activated" entry for the original promotion-TODOs list.
+- **No seed script in T-013** — confirmed deferred to T-015 per user-mandate from schema approval.
+- **`db:seed` package.json block** — not added; T-015's job. The existing `package.json` `prisma` section is absent (no `"prisma": { "seed": "..." }` entry yet); leaving as-is.
+- **`_prisma_migrations` table** — auto-created by Prisma; expected; no action.
+- **Commit-splitting strategy:** four commits in order: (1) T-012 status flip in TASKS.md; (2) migration files; (3) CI workflow promotion; (4) this DECISIONS entry.
+- **Husky pre-commit hook fired on all commits**, no `--no-verify`.
+
+**Net top-level deps added:** none.
+
+**Affected files:** `prisma/migrations/20260520074451_initial_schema/migration.sql` (new, 225 lines), `prisma/migrations/migration_lock.toml` (new), `.github/workflows/ci.yml` (prisma-migrate-check job: name + steps), `TASKS.md` (T-012 → ✅ Recently completed; T-013 will be marked complete by the post-merge job), `DECISIONS.md` (this entry).
+**Open question for the user:** Promote the renamed `Prisma migrate` job (was `Prisma migrate (stub — T-013)`) to required-status-check in branch protection (CLAUDE.md §8.11 — agent cannot do this).
