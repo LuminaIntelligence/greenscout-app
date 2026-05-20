@@ -63,10 +63,14 @@ model User {
   lockoutUntil       DateTime? @map("lockout_until")
   formPreference     FormPref  @default(WIZARD) @map("form_preference")
   active             Boolean   @default(true)
-  deletedAt          DateTime? @map("deleted_at")
-  organizationId     String    @default("greenscout") @map("organization_id")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Back-relations
+  consultantStudies Study[] @relation("ConsultantStudies")
+
+  deletedAt      DateTime? @map("deleted_at")
+  organizationId String    @default("greenscout") @map("organization_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@index([organizationId, role, active, deletedAt])
   @@index([organizationId, createdAt])
@@ -75,20 +79,24 @@ model User {
 /// External customer entity (the property owner who receives the feasibility study).
 /// See DECISIONS.md "Slice 2 schema design approved" for the field contract.
 model Customer {
-  id               String    @id @default(cuid())
-  contactFirstName String    @map("contact_first_name")
-  contactLastName  String    @map("contact_last_name")
-  companyName      String?   @map("company_name")
+  id               String  @id @default(cuid())
+  contactFirstName String  @map("contact_first_name")
+  contactLastName  String  @map("contact_last_name")
+  companyName      String? @map("company_name")
   email            String?
   phone            String?
-  billingAddress   String?   @map("billing_address")
-  billingZipCode   String?   @map("billing_zip_code")
-  billingCity      String?   @map("billing_city")
+  billingAddress   String? @map("billing_address")
+  billingZipCode   String? @map("billing_zip_code")
+  billingCity      String? @map("billing_city")
   notes            String?
-  deletedAt        DateTime? @map("deleted_at")
-  organizationId   String    @default("greenscout") @map("organization_id")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  // Back-relations
+  studies Study[] @relation("CustomerStudies")
+
+  deletedAt      DateTime? @map("deleted_at")
+  organizationId String    @default("greenscout") @map("organization_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@index([organizationId, deletedAt])
   @@index([organizationId, contactLastName])
@@ -146,6 +154,9 @@ model Study {
   co2TonnenProJahr         Decimal? @map("co2_tonnen_pro_jahr") @db.Decimal(10, 2)
   co2HektarMischwald       Decimal? @map("co2_hektar_mischwald") @db.Decimal(10, 2)
   co2FussballfelderProJahr Decimal? @map("co2_fussballfelder_pro_jahr") @db.Decimal(10, 2)
+
+  // Back-relations
+  images StudyImage[]
 
   // Soft-delete / org / timestamps
   deletedAt      DateTime? @map("deleted_at")
