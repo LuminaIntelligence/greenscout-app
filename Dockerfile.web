@@ -11,9 +11,12 @@ WORKDIR /app
 # Copy only the manifests so this layer caches across source-only changes.
 COPY package.json package-lock.json ./
 
-# `--omit=optional` keeps the install reproducible against the lockfile and
-# skips optional packages that aren't required to build.
-RUN npm ci --omit=optional
+# Optional dependencies are kept on purpose: `@node-rs/argon2` ships its
+# native bindings as platform-specific optional packages
+# (e.g. `@node-rs/argon2-linux-x64-musl` for alpine). Skipping optionals
+# would silently drop the runtime-required binary and break
+# `next build`'s page-data collection on the `[...nextauth]` route.
+RUN npm ci
 
 
 # ----- Stage 2: build the Next.js production bundle ---------------------------
@@ -25,6 +28,14 @@ COPY . .
 
 # Disable Next.js telemetry inside the image build.
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Build-only AUTH_SECRET — Auth.js v5 throws at module-load if AUTH_SECRET
+# is missing/empty/placeholder, and Next 15's page-data collection
+# instantiates the `[...nextauth]` route during `next build`. The value
+# here is a build-time-only ephemeral; the runtime AUTH_SECRET MUST be
+# injected via the runtime environment (docker run --env-file) and is
+# validated again on container start by `src/lib/auth.config.ts`.
+ENV AUTH_SECRET="build-time-ephemeral-do-not-use-at-runtime"
 
 # Prisma Client is gitignored (src/generated/prisma is regenerated on every
 # `db:generate`). The Next.js build imports the client via `src/lib/db.ts`,
