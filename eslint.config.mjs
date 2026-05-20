@@ -40,6 +40,8 @@ const eslintConfig = [
       "**/*.config.{js,mjs,ts}",
       // Python service venv ships bundled pyright JS that fails our rules.
       "services/python/.venv/**",
+      // Prisma-generated client (gitignored, regenerated on every `db:generate`).
+      "src/generated/**",
     ],
   },
 
