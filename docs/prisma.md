@@ -65,6 +65,45 @@ database only. Production migrations (`prisma migrate deploy`) are
 run those against the Hetzner production database outside this
 workflow.
 
+## Seeding the admin user
+
+The first time a fresh database comes up, run the admin seed to create
+the single privileged user (per `SPEC.md` §3.2):
+
+```bash
+npm run db:seed
+```
+
+The script is **idempotent**: if an admin row with the configured email
+already exists (even if soft-deleted), it logs and exits 0 without
+changes — `mustChangePassword` is never reset, the password is never
+overwritten.
+
+Required env vars (already templated in `.env.example`):
+
+| Var | Purpose |
+|---|---|
+| `SEED_ADMIN_EMAIL` | Admin email — `consulting@lumina-intelligence.ai` for the canonical GreenScout admin |
+| `SEED_ADMIN_TEMP_PASSWORD` | Temp password that the admin **must change on first login** |
+
+Optional env vars for tuning argon2id (defaults match SPEC §6.3):
+
+| Var | Default | Purpose |
+|---|---|---|
+| `PASSWORD_HASH_MEMORY_KIB` | `19456` | argon2id memory cost (KiB) |
+| `PASSWORD_HASH_TIME_COST` | `2` | argon2id iteration count |
+| `PASSWORD_HASH_PARALLELISM` | `1` | argon2id parallelism factor |
+
+What the seed creates on a fresh DB:
+
+- One `User` row: role `ADMIN`, `mustChangePassword=true`, `firstName="Admin"`, `lastName="GreenScout"`, `organizationId="greenscout"`.
+- One `AuditLog` row: `entityType=User`, `action=CREATE`, `userId=null` (system event), `changeSet` documenting the initial `email`, `role`, and `mustChangePassword` values. **`passwordHash` is never written to `changeSet`** — DECISIONS audit-log convention.
+
+The seed uses the repository layer (`createUser`, `findUserByEmail`,
+`createAuditEntry`) exclusively. Direct access to `@/lib/db` from
+`prisma/seed.ts` is limited to the final `prisma.$disconnect()` call so
+the Node process exits cleanly when `prisma db seed` finishes.
+
 ## Conventions
 
 - Model names: `PascalCase` (`User`, `Customer`, `Study`).
