@@ -162,3 +162,22 @@ model Study {
   @@index([organizationId, consultantId, deletedAt])
   @@index([organizationId, createdAt])
 }
+
+/// Per-study BEFORE/AFTER photos.
+/// Exactly one BEFORE + one AFTER per study enforced via @@unique([studyId, type]).
+model StudyImage {
+  id String @id @default(cuid())
+
+  studyId String @map("study_id")
+  study   Study  @relation(fields: [studyId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  type          ImageType
+  filename      String
+  mimeType      String    @map("mime_type")
+  widthPx       Int       @map("width_px")
+  heightPx      Int       @map("height_px")
+  fileSizeBytes Int       @map("file_size_bytes")
+  uploadedAt    DateTime  @default(now()) @map("uploaded_at")
+
+  @@unique([studyId, type])
+}
