@@ -1002,3 +1002,67 @@ Full mocking of `@/lib/repositories/*`. Cover every branch:
 **Affected files (T-017 implementation):**
 `package.json` (+`next-auth ^5` in `dependencies`), `package-lock.json`, `src/lib/auth.ts` (new), `src/middleware.ts` (new), `src/app/api/auth/[...nextauth]/route.ts` (new), `src/features/auth/types.ts` (new), `src/features/auth/schemas/login-schema.ts` (new), `src/features/auth/services/authorize-credentials.ts` (new), `src/features/auth/services/authorize-credentials.test.ts` (new), `src/features/auth/services/admin-alerts.ts` (new), `src/features/auth/services/admin-alerts.test.ts` (new), `src/features/auth/actions/sign-in.ts` (new), `src/i18n/de.ts` (extend +5 auth-error keys), `src/i18n/de.test.ts` (extend), `vitest.config.ts` (+2 per-pattern thresholds), `SPEC.md` (§4.1 precision edit), `TASKS.md` (T-016 → ✅ Recently completed + T-020 description rewritten — pre-staged dirty), `DECISIONS.md` (T-017 implementation entry).
 **Open question for the user:** —
+
+---
+
+## 2026-05-20 — T-017 implementation per §14 (consolidated)
+**Context:** T-017 implements the user-approved design from "T-017 Auth.js v5 Credentials + session config (user-confirmed, binding)". This entry captures concrete execution choices, deviations forced by reality, and the silent decisions taken during implementation.
+
+**Assumption / decision:**
+
+### Real-world deviation: `next-auth` is only published as `5.0.0-beta.X`
+The design contract specified "next-auth ^5 stable (NOT @beta)". npm registry shows **no stable v5 release exists** — only `5.0.0-beta.1` through `5.0.0-beta.31`. `npm install next-auth@^5` errors with `ETARGET`. Installed `next-auth@beta` (5.0.0-beta.31, latest) into `dependencies` to land the user-approved Auth.js v5 surface area. Auth.js v5 has been "beta" since 2023 but the project is widely deployed in production via beta tag. **User must acknowledge this deviation post-merge** — it crosses a stated assumption in the design contract. Mitigations: `^5.0.0-beta.31` in `package.json` allows future beta updates; switching to a stable `5.x.y` is a 1-line edit if/when one ships.
+
+### File structure landed
+- `src/features/auth/types.ts` — module augmentation for `next-auth` + `next-auth/jwt`. Required two empty `import "next-auth"` / `import "next-auth/jwt"` statements at the top so TypeScript resolves the augmented modules (TS2664 fix). ESLint trusted-path override extended to include this file (it imports `@/generated/prisma` for Role/FormPref types, type-only — no runtime access).
+- `src/features/auth/schemas/login-schema.ts` + co-located test — i18n-key error messages.
+- `src/features/auth/services/authorize-credentials.ts` + test — 100% coverage on the full counter-based state machine. Lockout constants are **hard-coded** to SPEC §4.1 values (5 → 15 min, 10 → 1 h) rather than env-overridable; the `LOCKOUT_*` env vars in `.env.example` remain advisory (T-020 SMTP wiring may still consume them). Choice documented in the module-level comment; re-wiring to env is a 5-line edit gated only by unit tests if ops flexibility is later required.
+- `src/features/auth/services/admin-alerts.ts` + test — no-op stub at 100% coverage. T-020 replaces the function body with a real SMTP send.
+- `src/features/auth/actions/sign-in.ts` — generic-error-only Server Action (see "Soft-distinguished UX" below).
+- `src/lib/auth.config.ts` (**new file, silent decision**) — edge-safe config (callbacks, pages, session, AUTH_SECRET fail-fast, no providers). Imported by `src/middleware.ts`.
+- `src/lib/auth.ts` — Node-runtime config that extends `authConfig` with the Credentials provider. Imported by the `[...nextauth]` route handler and any future Server Actions.
+- `src/app/api/auth/[...nextauth]/route.ts` — re-exports `{ GET, POST } = handlers`.
+- `src/middleware.ts` — combined auth-redirect + mustChangePassword-redirect + CSP. Matcher `["/((?!_next/static|_next/image|favicon.ico|fonts/).*)"]`.
+
+### Forced architectural split: edge-safe `authConfig` vs. Node `auth`
+The middleware runs on the Edge runtime, which can't load `@node-rs/argon2` native bindings (transitively imported via `password-policy.ts` → `hash-password.ts`). Without a split, `next build` fails with `Export hash doesn't exist in target module .../node-rs/argon2/browser.js [middleware-edge] (ecmascript)`. Auth.js v5's documented mitigation is to split the config in two: an edge-safe base config (no providers) for the middleware, and a Node-runtime extension that adds Credentials for the route handler / Server Actions. This is the **standard Auth.js v5 pattern** for Credentials providers and is silently adopted (§14.2 — implementation detail of "Auth.js v5 with Credentials" approval).
+
+### Forensic AuditLog row shape
+Repository signature uses `Prisma.AuditLogCreateInput` (the checked variant), so attaching a user requires `user: { connect: { id } }` instead of a bare `userId`. The contract's example `userId: null` form is achievable only when the user does not exist (the non-existent-user audit row simply omits the `user` relation). All other reasons use the `connect` form. Audit changeSet shape per DECISIONS: tuple `[oldValue, newValue]` per field, `reason` tuple-string for the categorical reason, `counterAfter` tuple only on the bad-password branch. AuditLog entry data is correctly forensic-only and never queried for lockout decisions.
+
+### Repository fix carried in this PR
+`resetFailedLoginCount` in `src/lib/repositories/user.repository.ts` previously only zeroed `failedLoginCount`, leaving any active `lockoutUntil` row untouched. The T-017 contract makes the success-path reset atomic over both columns. Fixed in this PR (separate commit `fix(repositories): resetFailedLoginCount also clears lockoutUntil`); the corresponding unit test was updated. Counter == 5 → 15-min-lockout user who waits past the timer and logs in successfully now has a fully clean User row, not a stale `lockoutUntil`.
+
+### Soft-distinguished UX deferred to T-018
+The DECISIONS contract envisions revealing "Konto temporär gesperrt" only after a successful password verify against a locked account. Auth.js's `CredentialsSignin` error type carries no metadata back through `authorize` → form action; `null` is `null`. Two viable T-018 implementations:
+- **(a)** Separate read-only Server Action `checkLockoutState(email)` that the login form calls after a `null` response — returns `{ lockedUntil: ISO | null }` for the banner.
+- **(b)** Side-channel via a tagged result type from `authorizeCredentials`, with a custom `CredentialsSignin` subclass throwing `code: "locked"` to leak the signal through Auth.js's URL `error=...&code=...` mechanism.
+
+T-017 lands **(neither yet)**. The login form (T-018) picks one. The i18n key `auth.error.locked-out` and the User table columns are in place to support both.
+
+### `next build` outcome
+Build succeeds. Middleware bundle is 91.9 kB (well under the Edge runtime ~1 MB limit). Generated routes: `/api/auth/[...nextauth]` (Function), `/` (Static), `/_not-found` (Static).
+
+### CSP verification (response-header level)
+`npm run start` followed by `curl -I` against `/`, `/login`, `/api/auth/session` confirms:
+- `Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` returns on every response.
+- Auth-redirect from `/` → 307 to `/login` (middleware route guard alive).
+- Auth.js GET endpoints (`/api/auth/session`, `/api/auth/csrf`) respond correctly.
+
+Browser-console CSP verification (Next 15 RSC streaming / hydration inline scripts) is **NOT** automatable from this implementer's harness and is **open for user verification** on the PR-branch deployment. If browser console shows CSP violations on `/`, `/login`, or after sign-in, the fallback documented in DECISIONS T-017 ③ is: nonce-based `script-src` via Next 15 middleware-generated nonce. Last-resort fallback: add `'unsafe-inline'` to `script-src` with explicit DECISIONS deviation.
+
+### Silent decisions (§14.2) batch
+- **ESLint trusted-path override** extended to include `src/features/auth/types.ts` (type-only Prisma import).
+- **No-op stub `admin-alerts.ts`** writes a `LOCKOUT` audit row immediately at counter==10 so T-020 can later add the SMTP-send half on the same hook without touching `authorize-credentials.ts`.
+- **`emailVerified: null`** populated on `session.user` because Auth.js's `AdapterUser` intersection requires the field. We don't use email verification (Credentials provider only).
+- **Lockout constants hard-coded** instead of env-overridable (see above).
+- **Vitest per-pattern 100% thresholds** added for `authorize-credentials.ts` + `admin-alerts.ts`.
+
+**Net top-level deps added**: 1 — `next-auth ^5.0.0-beta.31` (dependencies). +6 transitive (`@auth/core` and friends).
+
+**Affected files**: `package.json`, `package-lock.json`, `eslint.config.mjs`, `vitest.config.ts`, `SPEC.md`, `TASKS.md`, `DECISIONS.md`, `src/lib/auth.ts` (new), `src/lib/auth.config.ts` (new), `src/middleware.ts` (new), `src/app/api/auth/[...nextauth]/route.ts` (new), `src/features/auth/types.ts` (new), `src/features/auth/schemas/login-schema.ts` (new), `src/features/auth/schemas/login-schema.test.ts` (new), `src/features/auth/services/authorize-credentials.ts` (new), `src/features/auth/services/authorize-credentials.test.ts` (new), `src/features/auth/services/admin-alerts.ts` (new), `src/features/auth/services/admin-alerts.test.ts` (new), `src/features/auth/actions/sign-in.ts` (new), `src/i18n/de.ts` (extend), `src/i18n/de.test.ts` (extend), `src/lib/repositories/user.repository.ts` (resetFailedLoginCount fix), `src/lib/repositories/user.repository.test.ts` (test updated).
+
+**Open questions for the user:**
+1. **`next-auth@beta` deviation.** The design contract said "NOT @beta" but no stable v5 exists. Acknowledge the beta-tag install, or pivot to a different approach.
+2. **Browser-console CSP verification.** Manual check at `/`, `/login`, and the eventual post-login `/dashboard` route once T-018 / T-022 land. If violations appear, instruct: (a) nonce-based fallback or (b) `'unsafe-inline'` on script-src.
+3. **Soft-distinguished lockout UX** — decide T-018 path (a) standalone status Server Action, or (b) custom CredentialsSignin subclass with code routing.
