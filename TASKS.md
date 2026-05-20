@@ -27,29 +27,6 @@
 
 ---
 
-### Slice 2 — Data model & Prisma migrations
-
-### T-015b Vitest + RTL + coverage setup
-- **Status:** ⬜ TODO
-- **Feature:** chore (test infrastructure)
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** T-016, T-018, T-051a, T-051b
-- **Blocked by:** T-014, T-015
-- **Description:**
-  Inserted into the backlog per **DECISIONS.md** "T-015b inserted into backlog" entry — user's test-ordering correction during T-016 design review. Install `vitest`, `@vitejs/plugin-react`, `@vitest/coverage-v8`, `jsdom` (DOM environment for future React-component tests), `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. Create `vitest.config.ts` with `environment: jsdom`, coverage thresholds **80% global** + **100% on `src/lib/calculations/**`** (currently empty path, no-op until T-031 — SPEC §5.2). Re-include `**/*.test.ts(x)` in `tsconfig.json` (was excluded by T-010). Add npm scripts `test`, `test:watch`, `test:coverage`. Promote CI workflow's `web-tests` job from stub to real (rename `Vitest (stub — T-018)` → `Vitest`, run `npm run test:coverage`, upload coverage as artifact). **Verify all 12 pre-existing idle test files run and pass**: `normalise-email.test.ts` (T-010), `hash-password.test.ts` (T-015), `with-org.test.ts`, `transaction.test.ts`, 7 repository tests (T-014). If any fail, fix the test, not the source.
-- **Acceptance criteria:**
-  - [ ] `npm run test` exits 0 with all 12 existing test files reporting passing assertions.
-  - [ ] `npm run test:coverage` exits 0 and produces a coverage report.
-  - [ ] CI `Vitest` job (renamed from stub) is green on both push + pull_request events.
-  - [ ] `tsc --noEmit` exits 0 with test files re-included (Vitest types resolve).
-  - [ ] No `--no-verify` on any commit.
-- **Files likely touched:** `package.json`, `package-lock.json`, `vitest.config.ts` (new), `tsconfig.json`, `.github/workflows/ci.yml`, possibly minor test-fix adjustments.
-- **Pause-triggers anticipated:** None — Vitest, RTL, jsdom all named in SPEC §2 stack. Plugins-of-approved-framework per §14.3. User-mandated to "install before T-016".
-- **User action after merge:** Add `Vitest` (renamed from stub) to required-status-checks on `main` branch protection (§8.11 — admin-only). Same pattern as `Prisma migrate` promotion after T-013.
-
----
-
 ### Slice 3 — Auth feature
 
 ### T-016 Password-policy module (argon2id + rules)
@@ -1034,6 +1011,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-015b ✅ Vitest + RTL + coverage setup
+- **Merged:** 2026-05-20 via PR #17 (`6a9a5c1`)
+- **Branch:** `chore/vitest-rtl-coverage-setup`
+- **Summary:** Vitest 4.1.7 + @vitejs/plugin-react 6.0.2 + @vitest/coverage-v8 + jsdom 29.1.1 + @testing-library/{react,jest-dom,user-event} installed. `vitest.config.ts` + `vitest.setup.ts` at repo root. `tsconfig.json` re-includes `**/*.test.ts(x)` + adds `vitest/globals` + `@testing-library/jest-dom` types. npm scripts `test`, `test:watch`, `test:coverage`. CI `web-tests` stub promoted to real `Vitest` job (rename), runs `npx prisma generate → vitest run --coverage → upload coverage artifact`. **11/11 idle test files pass (69/69 assertions), zero test-side fixes needed.** Coverage 92.62%/89.71%/95.83%/92.98% on the narrowed business-logic surface (`src/lib/**` + `src/features/**/{services,utils,schemas,hooks}/**` + `src/features/**/*-policy.{ts,tsx}`, excluding `src/lib/db.ts` Prisma wiring + `**/example.ts` T-001 scaffolds + `src/i18n/**`). User-approved §14.2 coverage-scope-narrowing rationale: avoid the anti-pattern of trivial-tests-for-coverage on untested-by-design UI shells and route entries. User-action required: promote `Vitest` to 8th required check on `main` branch protection.
+- **Decisions:** see `DECISIONS.md` entry "T-015b silent decisions per §14 (consolidated)".
 
 ### T-015 ✅ Idempotent admin seed (`prisma db seed`)
 - **Merged:** 2026-05-20 via PR #16 (`49e908e`)

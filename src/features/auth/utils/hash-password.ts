@@ -6,9 +6,11 @@
  *   parallelism = 1
  *   algorithm  = Argon2id
  *
- * Parameters can be overridden at runtime via env vars
- * (PASSWORD_HASH_MEMORY_KIB, PASSWORD_HASH_TIME_COST, PASSWORD_HASH_PARALLELISM)
- * — they exist in `.env.example` from the original setup.
+ * Parameter constants live in `../password-constants.ts` (single
+ * source of truth). They default to the SPEC §6.3 baseline and can be
+ * overridden at runtime via env vars (PASSWORD_HASH_MEMORY_KIB,
+ * PASSWORD_HASH_TIME_COST, PASSWORD_HASH_PARALLELISM) — present in
+ * `.env.example` from the original setup.
  *
  * Backed by `@node-rs/argon2` (Rust bindings shipped as pre-built binaries
  * for every major platform — no node-gyp / Python build toolchain needed
@@ -16,9 +18,16 @@
  *
  * @see DECISIONS.md → "Password hashing algorithm & parameters (user-confirmed)"
  * @see DECISIONS.md → "T-015 silent decisions per §14 (consolidated)"
+ * @see DECISIONS.md → "T-016 password-policy module design (user-confirmed, binding)"
  */
 
 import { type Algorithm, hash, verify } from "@node-rs/argon2";
+
+import {
+  PASSWORD_HASH_MEMORY_KIB,
+  PASSWORD_HASH_PARALLELISM,
+  PASSWORD_HASH_TIME_COST,
+} from "@/features/auth/password-constants";
 
 // `Algorithm` from @node-rs/argon2 is a `declare const enum` — under
 // tsconfig `isolatedModules: true` we cannot reference its members,
@@ -34,20 +43,12 @@ interface Argon2Params {
   parallelism: number;
 }
 
-function parseIntEnv(name: string, fallback: number): number {
-  const raw = process.env[name];
-  if (raw === undefined || raw === "") return fallback;
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isNaN(parsed) || parsed <= 0) return fallback;
-  return parsed;
-}
-
 function getArgon2Params(): Argon2Params {
   return {
     algorithm: ARGON2ID,
-    memoryCost: parseIntEnv("PASSWORD_HASH_MEMORY_KIB", 19456),
-    timeCost: parseIntEnv("PASSWORD_HASH_TIME_COST", 2),
-    parallelism: parseIntEnv("PASSWORD_HASH_PARALLELISM", 1),
+    memoryCost: PASSWORD_HASH_MEMORY_KIB,
+    timeCost: PASSWORD_HASH_TIME_COST,
+    parallelism: PASSWORD_HASH_PARALLELISM,
   };
 }
 
