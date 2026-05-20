@@ -213,3 +213,29 @@ model GeneratedDocument {
 
   @@index([studyId, generatedAt(sort: Desc)])
 }
+
+/// Append-only audit trail. No `@updatedAt` — entries are immutable from the application layer.
+/// entityType / action are validated against allow-lists in code, not at the DB level, so new
+/// event types can be added without schema migrations.
+/// changeSet is jsonb (implicit via Prisma Json + Postgres). Application-layer convention is the
+/// per-field tuple format { "fieldName": [oldValue, newValue], ... } per DECISIONS.
+model AuditLog {
+  id String @id @default(cuid())
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id")
+  action         String
+  changeSet      Json?    @map("change_set")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  organizationId String   @default("greenscout") @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt(sort: Desc)])
+  @@index([organizationId, createdAt(sort: Desc)])
+}
