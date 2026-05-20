@@ -29,23 +29,24 @@
 
 ### Slice 2 — Data model & Prisma migrations
 
-### T-015 Idempotent admin seed (`prisma db seed`)
+### T-015b Vitest + RTL + coverage setup
 - **Status:** ⬜ TODO
-- **Feature:** db (seed)
-- **Type:** feat
-- **Effort:** S
-- **Blocks:** T-016, T-040
-- **Blocked by:** T-013, T-018
+- **Feature:** chore (test infrastructure)
+- **Type:** chore
+- **Effort:** M
+- **Blocks:** T-016, T-018, T-051a, T-051b
+- **Blocked by:** T-014, T-015
 - **Description:**
-  Implement `prisma/seed.ts` to provision the admin user per **DECISIONS.md decision #3**. Read env vars **`SEED_ADMIN_EMAIL`** and **`SEED_ADMIN_TEMP_PASSWORD`** (exact names — no variants). If a user with `role=ADMIN` already exists for `organizationId="greenscout"`: **do nothing** — never overwrite the password, never reset `mustChangePassword`. Else create with hashed temp password (argon2id via `src/features/auth/password-policy.ts`) and `mustChangePassword=true`. Register in `package.json` under `"prisma": { "seed": "tsx prisma/seed.ts" }`.
+  Inserted into the backlog per **DECISIONS.md** "T-015b inserted into backlog" entry — user's test-ordering correction during T-016 design review. Install `vitest`, `@vitejs/plugin-react`, `@vitest/coverage-v8`, `jsdom` (DOM environment for future React-component tests), `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`. Create `vitest.config.ts` with `environment: jsdom`, coverage thresholds **80% global** + **100% on `src/lib/calculations/**`** (currently empty path, no-op until T-031 — SPEC §5.2). Re-include `**/*.test.ts(x)` in `tsconfig.json` (was excluded by T-010). Add npm scripts `test`, `test:watch`, `test:coverage`. Promote CI workflow's `web-tests` job from stub to real (rename `Vitest (stub — T-018)` → `Vitest`, run `npm run test:coverage`, upload coverage as artifact). **Verify all 12 pre-existing idle test files run and pass**: `normalise-email.test.ts` (T-010), `hash-password.test.ts` (T-015), `with-org.test.ts`, `transaction.test.ts`, 7 repository tests (T-014). If any fail, fix the test, not the source.
 - **Acceptance criteria:**
-  - [ ] Fails fast with a clear error if either env var is missing.
-  - [ ] First run creates the admin; second run is a no-op (verified by test).
-  - [ ] Never logs the temp password.
-  - [ ] Test covers both "admin absent" and "admin already exists" paths.
-  - [ ] Uses `argon2id` with parameters from `password-policy.ts` (decision #1).
-- **Files likely touched:** `prisma/seed.ts`, `package.json`, `.env.example`, `prisma/seed.test.ts`.
-- **Pause-triggers anticipated:** §7.1 (`argon2`, `tsx` dev-dep). §7.3 (auth-adjacent — keep this aligned with the password-policy module).
+  - [ ] `npm run test` exits 0 with all 12 existing test files reporting passing assertions.
+  - [ ] `npm run test:coverage` exits 0 and produces a coverage report.
+  - [ ] CI `Vitest` job (renamed from stub) is green on both push + pull_request events.
+  - [ ] `tsc --noEmit` exits 0 with test files re-included (Vitest types resolve).
+  - [ ] No `--no-verify` on any commit.
+- **Files likely touched:** `package.json`, `package-lock.json`, `vitest.config.ts` (new), `tsconfig.json`, `.github/workflows/ci.yml`, possibly minor test-fix adjustments.
+- **Pause-triggers anticipated:** None — Vitest, RTL, jsdom all named in SPEC §2 stack. Plugins-of-approved-framework per §14.3. User-mandated to "install before T-016".
+- **User action after merge:** Add `Vitest` (renamed from stub) to required-status-checks on `main` branch protection (§8.11 — admin-only). Same pattern as `Prisma migrate` promotion after T-013.
 
 ---
 
@@ -56,18 +57,19 @@
 - **Feature:** auth
 - **Type:** feat
 - **Effort:** M
-- **Blocks:** T-015, T-017, T-018, T-019, T-020, T-021
-- **Blocked by:** T-001
+- **Blocks:** T-017, T-018, T-019, T-020, T-021
+- **Blocked by:** T-015b
 - **Description:**
-  Implement `src/features/auth/password-policy.ts` per **DECISIONS.md decision #1**. Export named constants `ARGON_MEMORY_COST_KIB = 19456`, `ARGON_TIME_COST = 2`, `ARGON_PARALLELISM = 1` with environment-variable overrides (`ARGON_MEMORY_COST_KIB`, `ARGON_TIME_COST`, `ARGON_PARALLELISM`). Export `hashPassword(plain): Promise<string>` and `verifyPassword(plain, hash): Promise<boolean>` using `argon2id`. Export `passwordRules` array with predicates for: ≥8 chars, has upper, has lower, has digit, has special — each returning `{ ok: boolean, label: string }` for the live UI checklist. 100% unit-test coverage on this module.
+  Implement `src/features/auth/password-policy.ts` per the user-approved design captured in **DECISIONS.md → "T-016 password-policy module design (user-confirmed, binding)"**. Export argon2id constants (`PASSWORD_HASH_MEMORY_KIB`/`TIME_COST`/`PARALLELISM` with env override matching `.env.example`) + `MIN_PASSWORD_LENGTH`. Re-export `hashPassword`/`verifyPassword` from the existing `src/features/auth/utils/hash-password.ts` (T-015 implementation stays; refactor `getArgon2Params()` to consume the policy constants — single source of truth). Export `passwordRules` (5 Unicode-aware rule predicates: `min-length`, `upper` via `\p{Lu}`, `lower` via `\p{Ll}`, `digit` via `[0-9]`, `special` via `/[^\p{L}\p{N}]/u`). Rule predicates carry only `key` + `test` — NO labels. German labels live in `src/i18n/de.ts` (new file with 5 password-rule keys, T-049 will extend). Export `validatePassword(input): { ok, rules: Array<{ key, ok }> }`. 100% unit-test coverage on the module (Vitest from T-015b).
 - **Acceptance criteria:**
-  - [ ] Algorithm hard-coded to `argon2id`; params come from constants with env override.
-  - [ ] Roundtrip test (`hash` → `verify`) passes.
-  - [ ] Each of the five password rule predicates has true/false test cases.
-  - [ ] Module coverage = 100%.
-  - [ ] Constants documented inline.
-- **Files likely touched:** `src/features/auth/password-policy.ts`, `src/features/auth/password-policy.test.ts`, `.env.example`.
-- **Pause-triggers anticipated:** §7.1 (`argon2` npm install — first time). §7.3 (security-critical module).
+  - [ ] Algorithm hard-coded to `argon2id`; params come from `password-policy.ts` constants with env override (`PASSWORD_HASH_*`).
+  - [ ] Roundtrip test (`hashPassword` → `verifyPassword`) passes via Vitest CI.
+  - [ ] Each of the 5 Unicode-aware rule predicates has true/false test cases — including ä/Ä/!/0 edge cases proving the Unicode classes work correctly.
+  - [ ] Module coverage = 100% (verified by CI `Vitest` job's coverage threshold).
+  - [ ] `password-policy.ts` is string-frei (zero German text); 5 i18n keys exist in `src/i18n/de.ts`.
+  - [ ] `hash-password.ts` refactored to consume policy constants; existing T-015 hash-password.test.ts still passes.
+- **Files likely touched:** `src/features/auth/password-policy.ts` (new), `src/features/auth/password-policy.test.ts` (new), `src/features/auth/utils/hash-password.ts` (refactor), `src/i18n/de.ts` (new, 5 keys).
+- **Pause-triggers anticipated:** None — design was approved as a §7.3 recap before this entry. `argon2` and `tsx` already installed in T-015. Implementer follows the approved design verbatim.
 
 ---
 
@@ -1025,11 +1027,19 @@
 - **PV-Sol-Output-Upload (PDF/CSV).** Phase 3 — per **DECISIONS.md decision #7**, MVP keeps Modulanzahl / Modulfläche / Eigenverbrauchsquote / Netzeinspeisung as manual numeric fields. Future scope: accept a PV-Sol export, parse it, prefill those fields. Any premature "small optional upload" idea during MVP is a Pause-Trigger §7.6 (external integration).
 - **SMTP-encryption key rotation with `encryption_key_version` column on `Setting`.** V2 — per **DECISIONS.md decision #4**, MVP uses a single static `SETTINGS_ENCRYPTION_KEY`. When this lands, add a versioned column and a re-encrypt-all-rows migration script.
 - **APScheduler persistence via `SQLAlchemyJobStore`.** V2 hardening — per **DECISIONS.md decision #8**, MVP uses in-memory jobs (dropped on container restart). When this lands, jobs survive restarts and missed-fire policy becomes explicit.
+- **Common-password blocklist as 6th password rule.** Phase 3 — per DECISIONS T-016 design (decision (c) Vorschlag), MVP relies on rule-based password validation only. Future: add a `commonPasswordsBlocklist` Set (offline, e.g. derived from Bitwarden's published Top-N list) as a 6th rule predicate. No external API call; bundle the wordlist at build time.
+- **Password-history (prevent reuse of last N passwords).** Phase 3 — per DECISIONS T-016 design (decision (d) Vorschlag), MVP allows password reuse on rotation. Future: new `PasswordHistory` table tracking last N argon2id hashes per user. **Schema-Änderung → §7-pause-trigger when picked up.** Cleanup policy: rolling window per user (keep latest N, delete older).
 
 ---
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-015 ✅ Idempotent admin seed (`prisma db seed`)
+- **Merged:** 2026-05-20 via PR #16 (`49e908e`)
+- **Branch:** `feat/admin-seed-script`
+- **Summary:** `prisma/seed.ts` provisions the `ADMIN`-role user idempotently. Reads `SEED_ADMIN_EMAIL`/`SEED_ADMIN_TEMP_PASSWORD` from env; normalises email; argon2id-hashes the temp password via `@node-rs/argon2 2.0.2` (chosen over `argon2` to avoid node-gyp build-tool requirements); creates with `mustChangePassword=true` if absent, no-op if exists (incl. soft-deleted). Audit entry written on creation only (`entityType=User`, `action=CREATE`, `userId=NULL` for system event). Uses repository-layer functions exclusively (`createUser`, `findUserByEmail`, `createAuditEntry`); only `@/lib/db` imported directly, for the final `prisma.$disconnect()`. New `src/features/auth/utils/hash-password.ts` with `hashPassword`/`verifyPassword` using SPEC §6.3 baseline + `PASSWORD_HASH_*` env overrides. Plan deviation: `Algorithm` const-enum + `isolatedModules` required `2 as Algorithm` cast. Two new top-level deps: `@node-rs/argon2` (deps), `tsx` (devDeps) — both pre-approved per user directive. **Slice 2 closes with this PR.**
+- **Decisions:** see `DECISIONS.md` entry "T-015 silent decisions per §14 (consolidated)".
 
 ### T-014 ✅ Implement repository helper layer with organizationId filter
 - **Merged:** 2026-05-20 via PR #15 (`09c8eac`)

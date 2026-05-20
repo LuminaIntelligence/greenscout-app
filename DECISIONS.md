@@ -717,3 +717,99 @@ T-014 (repository helper layer) and T-015 (admin seed) come after T-013, each th
 
 **Affected files:** `package.json` (deps + prisma block + db:seed script), `package-lock.json`, `prisma/seed.ts` (new), `src/features/auth/utils/hash-password.ts` (new), `src/features/auth/utils/hash-password.test.ts` (new), `docs/prisma.md` (new section), `TASKS.md` (T-014 → ✅ Recently completed), `DECISIONS.md` (this entry).
 **Open question for the user:** —
+
+---
+
+## 2026-05-20 — T-016 password-policy module design (user-confirmed, binding)
+**Context:** §7.3 pause-trigger — user-reviewed the agent's design proposal for the auth-security module before any code lands. Four explicit decision-points were resolved + one corrective directive on test ordering. This entry is the **binding contract** for T-016 implementation (which won't start until T-015b — Vitest-setup — has merged first).
+
+**Assumption / decision:**
+
+### Module structure
+- **Public surface**: `src/features/auth/password-policy.ts`. All auth-security consumers (T-017 Auth.js, T-018 Login UI, T-019 forced password change, T-020 lockout, T-041b admin reset) import exclusively from here.
+- **Re-exports** from existing `src/features/auth/utils/hash-password.ts` (T-015 implementation stays — single source of code, single source of constants).
+- **Refactor**: `getArgon2Params()` in `hash-password.ts` now consumes constants exported from `password-policy.ts` instead of carrying its own env-fallback logic. Result: one source of truth for argon2 parameters.
+- **Test coverage**: 100% required on `src/features/auth/password-policy.{ts,test.ts}` (acceptance criterion). Per the user's corrective directive, T-016 ships only when this is **CI-verified green** — see "Test-ordering correction" below.
+
+### Constants (one canonical export)
+```
+PASSWORD_HASH_MEMORY_KIB    // default 19456, env-overridable
+PASSWORD_HASH_TIME_COST     // default 2, env-overridable
+PASSWORD_HASH_PARALLELISM   // default 1, env-overridable
+MIN_PASSWORD_LENGTH         // 8
+```
+Env-var names match `.env.example` (not the stale `ARGON_*` names in T-016's TASKS description).
+
+### Rule predicates — Unicode-aware (decision (a) Alt)
+```
+SPECIAL_CHAR_RE = /[^\p{L}\p{N}]/u    // not letter, not number
+UPPER_RE        = /\p{Lu}/u            // any Unicode uppercase letter
+LOWER_RE        = /\p{Ll}/u            // any Unicode lowercase letter
+```
+Rationale: ä/ö/ü/ß etc. count as letters (not as special), and `Á`/`á` count as upper/lower respectively. Consistently Unicode-bewusst — no ASCII/Unicode mixing. Digit-rule stays `[0-9]` (digits are unambiguous).
+
+### Rule shape — i18n now (decision (b) Alt)
+- `password-policy.ts` is **string-frei**. `PasswordRule` carries only `key` (stable identifier) + `test` (predicate). NO `label`.
+- `validatePassword(input)` returns `{ ok, rules: Array<{ key, ok }> }` — no `label`.
+- German labels live in **`src/i18n/de.ts`** (newly created in T-016 if it doesn't exist by then — preempts T-049 partially). Five keys: `auth.password.rule.min-length`, `auth.password.rule.upper`, `auth.password.rule.lower`, `auth.password.rule.digit`, `auth.password.rule.special`. Values are the German strings from the original proposal.
+- UI maps `rule.key → t(rule.key)` to render. T-049 expands `src/i18n/de.ts` to the full dictionary later; the 5 password keys are an early seed.
+
+### Hashing API — re-exported verbatim from T-015
+- `hashPassword(plaintext: string): Promise<string>` — unchanged.
+- `verifyPassword(hash: string, plaintext: string): Promise<boolean>` — signature `(hash, plaintext)` retained from T-015 (matches `@node-rs/argon2` API + crypto-library convention). T-016's TASKS description had `(plaintext, hash)` reversed — IGNORED, stale text.
+
+### bulk validation
+```
+interface PasswordValidationResult {
+  ok: boolean;
+  rules: Array<{ key: PasswordRule["key"]; ok: boolean }>;
+}
+function validatePassword(input: string): PasswordValidationResult;
+```
+Pure sync (no async). Server-side gate calls `validatePassword(input).ok` before `hashPassword(input)`. UI maps `result.rules` for the live checklist (rot/grün).
+
+### Deferred to Phase 4 V2 / Phase 5 V3 (decisions (c) + (d) Vorschlag)
+- **No common-password blocklist** in MVP — added to TASKS.md `## Future (Phase 3+)` section.
+- **No password-history** in MVP — added to TASKS.md `## Future (Phase 3+)` section. Would require new `PasswordHistory` table → schema change → §7-pause. V2.
+
+### Lockout constants — NOT in T-016
+Stay with T-020 (Lockout state machine). The `LOCKOUT_*` env vars in `.env.example` are unused until T-020.
+
+### Test-ordering correction (user-mandated)
+T-016 may NOT ship non-running test files. Vitest + React Testing Library + coverage config must be installed and CI-active **before or with** T-016. User-approved §2-stack — installation is not a §7.1 trigger.
+
+**§14.2 silent decision**: insert **T-015b "Vitest + RTL + coverage setup"** as a separate PR **before** T-016 (instead of bundling). Rationale: 12 pre-written idle test files (normalise-email, hash-password, with-org, transaction, 7 repo tests) become live for the first time — a dedicated infra PR reviews cleaner than a mixed "infra + auth-module" PR. T-016 stays focused on auth-policy logic + the new password-policy.test.ts file. Sequence: T-015b → merge → T-016 → merge.
+
+**Affected files (when T-016 implements, post-T-015b):** `src/features/auth/password-policy.ts` (new), `src/features/auth/password-policy.test.ts` (new — 100% coverage), `src/features/auth/utils/hash-password.ts` (refactor to consume policy constants), `src/features/auth/utils/hash-password.test.ts` (adjust to refactor), `src/i18n/de.ts` (new — 5 password rule keys), `TASKS.md` (T-015b → ✅), `DECISIONS.md` (T-016 consolidated implementation entry).
+**Open question for the user:** —
+
+---
+
+## 2026-05-20 — T-015b inserted into backlog (Vitest + RTL + coverage setup)
+**Context:** User's test-ordering correction in the T-016 design review mandated that Vitest infrastructure must be CI-active before T-016 can ship its test file. User explicitly delegated the "insert separate vs bundle into T-016" choice to the agent (§14.2).
+
+**Assumption / decision:** New task **T-015b** inserted into TASKS.md between T-015 (current last DONE) and T-016 (next blocked). Scope:
+
+1. Install `vitest`, `@vitejs/plugin-react`, `@vitest/coverage-v8`, `jsdom` (or `happy-dom`), `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event` — all SPEC §2-named, plugins-of-approved-framework per §14.3.
+2. Create `vitest.config.ts` with:
+   - environment `jsdom`
+   - coverage provider `v8`
+   - global thresholds: **80% lines/branches/functions/statements** (SPEC §5.2)
+   - per-path threshold: **100% on `src/lib/calculations/**`** (SPEC §5.2 — currently empty path, no-op until T-031 lands calc module)
+   - includes setup file for `@testing-library/jest-dom` matchers
+3. Re-include `**/*.test.ts(x)` in `tsconfig.json` (T-010 had excluded these — Vitest's own resolution doesn't need tsconfig include, but `tsc --noEmit` needs to typecheck test files).
+4. `package.json` scripts: `test`, `test:watch`, `test:coverage`.
+5. Promote CI workflow's `web-tests` job: rename `Vitest (stub — T-018)` → `Vitest`, replace stub echo with real `npm run test:coverage` + coverage upload artifact.
+6. Verify all 12 existing idle test files run and pass:
+   - `src/features/auth/utils/normalise-email.test.ts` (T-010)
+   - `src/features/auth/utils/hash-password.test.ts` (T-015)
+   - `src/lib/repositories/with-org.test.ts` (T-014)
+   - `src/lib/repositories/transaction.test.ts` (T-014)
+   - 7 repository tests: user / customer / study / study-image / generated-document / audit-log / setting
+7. If any test fails, fix the test (not the source) — the source has shipped to main and is presumed correct. Surface fixes in DECISIONS.
+
+**Branch protection promotion required from user after T-015b merge**: add `Vitest` (renamed from stub) to required-status-checks. Same pattern as `Prisma migrate` promotion after T-013.
+
+**Affected files:** `package.json` (+8 devDeps), `package-lock.json`, `vitest.config.ts` (new), `tsconfig.json` (re-include tests), `.github/workflows/ci.yml` (job rename + real Vitest run + coverage artifact), `TASKS.md` (T-015 → ✅ + T-015b new + Future Phase-3+ entries for blocklist/history), `DECISIONS.md` (this + T-016 design entries land via the T-015b PR carry-forward).
+
+**Open question for the user:** — (a) The branch-protection promotion of `Vitest` to required-status-check (post-merge, §8.11 admin action). (b) Possible fix-test churn if any of the 12 idle tests fail on first real run.
