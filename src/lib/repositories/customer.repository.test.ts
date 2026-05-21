@@ -7,6 +7,7 @@ vi.mock("@/lib/db", () => {
     count: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
   };
   return { prisma: { customer } };
 });
@@ -89,14 +90,52 @@ describe("customer.repository — soft-delete filter", () => {
     );
   });
 
-  it("softDeleteCustomer sets deletedAt", async () => {
-    await softDeleteCustomer(ORG, "cust-1");
-    expect(prisma.customer.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "cust-1", organizationId: ORG },
-        data: expect.objectContaining({ deletedAt: expect.any(Date) }),
-      }),
-    );
+  it("softDeleteCustomer scopes updateMany to organizationId + deletedAt:null", async () => {
+    const stamp = new Date("2026-05-21T18:00:00.000Z");
+    vi.mocked(prisma.customer.updateMany).mockResolvedValueOnce({ count: 1 });
+    vi.mocked(prisma.customer.findFirst).mockResolvedValueOnce({
+      id: "cust-1",
+      organizationId: ORG,
+      deletedAt: stamp,
+    } as never);
+
+    const result = await softDeleteCustomer(ORG, "cust-1", stamp);
+
+    expect(prisma.customer.updateMany).toHaveBeenCalledWith({
+      where: { id: "cust-1", organizationId: ORG, deletedAt: null },
+      data: { deletedAt: stamp },
+    });
+    // Re-read uses `includeDeleted: true` so the freshly-soft-deleted
+    // row is visible (otherwise the default filter would drop it).
+    expect(prisma.customer.findFirst).toHaveBeenCalledWith({
+      where: { id: "cust-1", organizationId: ORG },
+    });
+    expect(result).toEqual(expect.objectContaining({ id: "cust-1", deletedAt: stamp }));
+  });
+
+  it("softDeleteCustomer returns null when no row matches (already deleted or wrong org)", async () => {
+    vi.mocked(prisma.customer.updateMany).mockResolvedValueOnce({ count: 0 });
+    const result = await softDeleteCustomer(ORG, "cust-cross-tenant", new Date());
+    expect(result).toBeNull();
+    expect(prisma.customer.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("softDeleteCustomer is idempotent — second call matches zero rows", async () => {
+    const stamp = new Date("2026-05-21T18:00:00.000Z");
+    // First call: row exists, gets soft-deleted.
+    vi.mocked(prisma.customer.updateMany).mockResolvedValueOnce({ count: 1 });
+    vi.mocked(prisma.customer.findFirst).mockResolvedValueOnce({
+      id: "cust-1",
+      organizationId: ORG,
+      deletedAt: stamp,
+    } as never);
+    const first = await softDeleteCustomer(ORG, "cust-1", stamp);
+    expect(first).not.toBeNull();
+
+    // Second call: `updateMany` filter `deletedAt: null` no longer matches.
+    vi.mocked(prisma.customer.updateMany).mockResolvedValueOnce({ count: 0 });
+    const second = await softDeleteCustomer(ORG, "cust-1", new Date());
+    expect(second).toBeNull();
   });
 });
 

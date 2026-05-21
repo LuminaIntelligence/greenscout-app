@@ -179,14 +179,36 @@ export async function updateCustomer(
   });
 }
 
+/**
+ * Race-safe, idempotent soft-delete.
+ *
+ * Uses `updateMany` with a `deletedAt: null` filter so a second call
+ * (concurrent click, replay, retry) matches zero rows and returns
+ * `null` instead of overwriting a previously-stamped `deletedAt`.
+ * The `deletedAt` timestamp is passed in by the caller so the
+ * Server Action can record the exact same value in the audit
+ * `changeSet` diff that lands in the database.
+ *
+ * Returns the persisted customer row when a write happened; returns
+ * `null` if no row matched (already deleted, wrong org, or unknown id).
+ */
 export async function softDeleteCustomer(
   organizationId: string,
   id: string,
+  deletedAt: Date,
   tx?: PrismaTransaction,
-): Promise<Customer> {
+): Promise<Customer | null> {
   const client: Client = tx ?? prisma;
-  return client.customer.update({
-    where: { id, organizationId },
-    data: { deletedAt: new Date() },
+  const result = await client.customer.updateMany({
+    where: { id, organizationId, deletedAt: null },
+    data: { deletedAt },
   });
+  if (result.count === 0) {
+    return null;
+  }
+  // Re-read so the caller has the persisted row (including the exact
+  // `deletedAt` written + `updatedAt` refreshed by Prisma). Must opt
+  // into `includeDeleted: true` — the just-soft-deleted row is
+  // invisible to the default soft-delete filter.
+  return findCustomerById(organizationId, id, { includeDeleted: true }, tx);
 }
