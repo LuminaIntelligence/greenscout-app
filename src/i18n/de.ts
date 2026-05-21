@@ -23,6 +23,16 @@ export const de = {
   "auth.error.inactive": "Konto deaktiviert. Bitte wende dich an den Administrator.",
   "auth.error.must-change-password": "Bitte ändere zunächst dein Passwort.",
   "auth.error.server": "Anmeldung fehlgeschlagen. Bitte versuche es später erneut.",
+  // ─── T-018 Login UI keys ───────────────────────────────────────────
+  "auth.page.login.title": "Melde dich an",
+  "auth.page.login.subtitle": "Willkommen zurück bei GreenScout",
+  "auth.page.login.forgot-password-hint":
+    "Passwort vergessen? Bitte wende dich an den Administrator.",
+  "auth.field.email": "E-Mail-Adresse",
+  "auth.field.password": "Passwort",
+  "auth.action.sign-in": "Anmelden",
+  "auth.action.signing-in": "Wird angemeldet…",
+  "auth.error.lockout-banner-title": "Konto gesperrt",
 } as const;
 
 export type TranslationKey = keyof typeof de;
