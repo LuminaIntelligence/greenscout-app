@@ -1777,3 +1777,70 @@ No new top-level deps.
 **Affected files**: per DECISIONS T-021 "Module structure" table — `src/middleware.ts`, `src/middleware.test.ts` (new), `docs/security.md` (new), `vitest.config.ts`, `SPEC.md` §6.3, `TASKS.md`, `DECISIONS.md` — PLUS the new `deploy/Caddyfile.example` and `docs/deployment.md` that pre-stage T-050b execution for the human operator.
 
 **Open question for the user:** Manual browser-console check at `/` and `/login` (or any reachable page once T-022 lands the dashboard) confirming all 5 security headers visible in DevTools Network tab. Same protocol as T-018 / T-019.
+
+---
+
+## 2026-05-21 — T-022 silent decisions per §14 (consolidated)
+**Context:** T-022 is the first Slice-4 business-feature task and the first §14.2-silent task since the auth-heavy Slice 3. Planner-provided implementation plan was followed verbatim. All decisions live within the SPEC §8 design system + CLAUDE.md §2 stack pins.
+
+**Assumption / decision:**
+
+- **Route group `(app)`** for authenticated business pages; sibling of the existing `(auth)` group. Pages under `(app)` are auth-gated by `src/middleware.ts` (T-017 redirect-unauth-to-/login) plus a defensive `auth() + redirect("/login")` belt-and-braces guard inside `src/app/(app)/layout.tsx`.
+- **App shell pattern: topbar-only** — no sidebar in MVP (we have 2–3 top-level routes and a Berater + Admin distinction that doesn't warrant a wide nav). Topbar `sticky top-0 z-50 h-14 bg-background border-b border-border`. Logo (left, text-only "GreenScout" in `font-heading text-xl text-forest-green`) + nav (center, hidden on `<sm`) + user dropdown (right, email + lucide `User` icon + `LogOut` menu item).
+- **TanStack Query v5 + TanStack Table v8** installed (CLAUDE.md §2 stack pins; this is the first slice that triggers their actual use). `QueryClient` in client provider component at `src/lib/query-client-provider.tsx` with defaults `staleTime: 30s`, `gcTime: 5min`, `refetchOnWindowFocus: false`. The provider is mounted inside `(app)/layout.tsx` so unauthenticated `(auth)` pages never instantiate a query client.
+- **Server Component + Client Component hybrid**: `src/app/(app)/customers/page.tsx` (Server Component) fetches the initial page directly via the repository, passes `initialData` + `initialPage` + `initialSearch` to the client `CustomerTable`. The client takes over via TanStack Query for filter/pagination interactions. Hydrates without flicker because `initialData` lines up with the queryKey at first render.
+- **API route at `GET /api/customers`** for client-side refetches. Auth-gated by `auth()`; returns 401 if no session. Read-only (no CSRF surface). The middleware already redirects unauthenticated requests to `/login` *before* the route handler sees them — the 401 path is defence-in-depth only.
+- **Repository extension**: `listCustomers(orgId, options, tx)` now accepts `includeStudyCount?: boolean`. When true, Prisma's `include: { _count: { select: { studies: true } } }` is added — single query, no N+1. Return type narrowed via TypeScript function overloads (`Customer[]` vs. `CustomerWithStudyCount[]`). New `countCustomers(orgId, options, tx)` exposes total-row count for pagination metadata. `buildWhere` helper extracted so both functions share the exact same filter predicate (search ILIKE on `contactLastName` OR `companyName`, soft-delete `deletedAt: null` by default).
+- **Pagination**: page-based, **25 per page** (`PAGE_SIZE` constant), URL-state in `?page=N&search=…` so refresh + share-link work. `useSearchParams` + `router.push` for "Weiter"/"Zurück", `router.replace` when search triggers (so search edits don't pollute browser history).
+- **Filter**: single search input, debounced 300ms via an inline `useEffect + setTimeout` (no extra dep). Repository filter is case-insensitive ILIKE across `contactLastName` OR `companyName`.
+- **Sort**: client-side via TanStack Table on the current page only. SPEC §6.2 caps the dataset at ~1000 customers; for MVP scale this is the right trade-off. Server-side sort revisits at T-040+ if needed.
+- **Action column**: dropdown with "Anzeigen" (Eye icon) + "Bearbeiten" (Pencil icon). BOTH are disabled `<DropdownMenuItem disabled aria-disabled="true">` items with the i18n suffix `(verfügbar in T-023)` / `(verfügbar in T-024)`. They light up when those tasks land.
+- **Empty state**: differentiated for "no customers ever" (`customers.empty.no-customers`) vs. "search yielded nothing" (`customers.empty.no-results`). Both render inside the table body as a single full-width cell.
+- **Empty-state CTA**: page-level "Neuer Kunde" button → `<Link href="/customers/new">`. The target 404s until T-023 lands — accepted interim state per the planner brief.
+- **Sign-out**: Server Action `signOutAction` in `src/features/auth/actions/sign-out.ts`, called via `<form action={signOutAction}>` inside the user-menu dropdown. Reuses `signOut` re-export from `@/lib/auth`. Server-Actions-only per DECISIONS T-017 ⑥ — no custom `/api/sign-out` route, no client `fetch`, no CSRF token plumbing.
+- **18 new i18n keys** (2 app-shell + 16 customers): `app.nav.customers`, `app.action.sign-out`, plus the customers cluster (`customers.page.*`, `customers.action.*`, `customers.column.*`, `customers.search.*`, `customers.empty.*`, `customers.pagination.*`).
+- **Skeleton primitive** added at `src/components/ui/skeleton.tsx` (standard shadcn implementation: muted background + `animate-pulse`). First instance of this primitive; reused as soon as T-023/T-024 land their own forms with loading affordances.
+- **ESLint scoped override** at `eslint.config.mjs` disables `react-hooks/incompatible-library` for files matching `src/features/**/components/**/*-table.tsx`. The rule fires (warning) on `useReactTable()` because React Compiler can't memoize its return — that's documented behaviour and the Compiler safely skips the component anyway. Scoped off only for the `*-table.tsx` pattern to keep the rule live everywhere else.
+- **Tests**: Vitest+RTL on CustomerTable (10 tests: column rendering, "—" fallbacks, empty states, pagination button states + summary interpolation, debounced search → URL replace), Topbar (7 tests: brand link, nav rendering, active-state attribution, user-email display, sign-out submit button), Sign-out action (2 tests: signOut wiring + error propagation), and the repository extension (6 new tests in `customer.repository.test.ts` covering includeStudyCount add/omit, search alongside studyCount, and the new `countCustomers` predicate parity). Total: +39 tests (from 187 → 226).
+- **Coverage**: global 90.54% (well above the 80% baseline). No new per-pattern thresholds — CustomerTable/Topbar are UI integration, not security-critical (those 100% slots are reserved for calculations, password-policy, change-password, authorize-credentials, admin-alerts, password-rule-checklist, middleware).
+- **No new top-level deps beyond the 2 TanStack packages**. Both are in SPEC §2 stack list — plugin-of-approved-framework per §14.3, not a new dependency. The 4 packages npm added = 2 declared + 2 transitives (`@tanstack/query-core`, `@tanstack/table-core`).
+- **T-021 marked Recently completed** in `TASKS.md` (commit 1) — carry-forward of the merged-PR-#23 status flip.
+
+**§14.2 silent choices applied:**
+
+- Route-group name: `(app)` (sibling of `(auth)`, per the planner brief).
+- Layout location: `src/app/(app)/layout.tsx` (App Router convention).
+- Shell pattern: topbar-only, sticky `h-14`, `bg-background border-b border-border`.
+- Mobile breakpoint: `<sm` (640px). Nav collapses; user menu stays.
+- Logout flow: Server Action in `src/features/auth/actions/sign-out.ts`, nested in `<form>` inside `<DropdownMenuItem asChild>`.
+- TanStack Query defaults: `staleTime: 30s`, `gcTime: 5min`, `refetchOnWindowFocus: false`.
+- Page size: 25.
+- Filter debounce: 300ms via inline `useEffect + setTimeout`.
+- Sort: client-side on current page only (MVP scale).
+- Disabled-action affordance: dropdown items with `aria-disabled` + i18n suffix (vs. tooltip).
+- Empty-state CTA target: `/customers/new` (404 until T-023).
+- Skeleton primitive: standard shadcn implementation (`bg-muted` + `animate-pulse`).
+- ESLint override for `react-hooks/incompatible-library`: scoped to `src/features/**/components/**/*-table.tsx`.
+- API route style: `NextResponse.json` directly; no zod schema wrapper (input is two simple query params, parsed inline).
+- Test scaffolding: co-located `*.test.tsx` alongside each component (T-018/T-019 precedent).
+- Debounced-search test: real timers + `setTimeout(400)` wait, instead of fake timers (which raced React-Query's internal scheduling).
+
+**Net top-level deps added**: 2 — `@tanstack/react-query@^5.100.11`, `@tanstack/react-table@^8.21.3`.
+
+**Affected files** (T-022 diff vs. `origin/main @ 73336d1`):
+- `TASKS.md` — T-021 status flip.
+- `package.json` + `package-lock.json` — TanStack deps.
+- `src/lib/query-client-provider.tsx` (new).
+- `src/lib/repositories/customer.repository.ts` + `customer.repository.test.ts` — extension + tests.
+- `src/features/auth/actions/sign-out.ts` + `sign-out.test.ts` (new).
+- `src/components/ui/skeleton.tsx` (new).
+- `src/features/app-shell/components/topbar.tsx` + `topbar.test.tsx` (new).
+- `src/app/(app)/layout.tsx` (new).
+- `src/features/customers/components/customer-table.tsx` + `customer-table.test.tsx` (new).
+- `src/app/(app)/customers/page.tsx` (new).
+- `src/app/api/customers/route.ts` (new).
+- `src/i18n/de.ts` + `de.test.ts` — 18 new keys + 2 new test cases.
+- `eslint.config.mjs` — `*-table.tsx` ESLint scoped override.
+- `DECISIONS.md` — this entry.
+
+**Open question for the user:** none under §14.2. Manual smoke after merge: log in with the seeded admin (`consulting@lumina-intelligence.ai`), confirm `/customers` renders with the topbar, empty state copy reads correctly (seed currently has zero customers), and the "Neuer Kunde" button visibly 404s until T-023 lands.

@@ -51,6 +51,28 @@ export const de = {
   "auth.error.same-as-current": "Neues Passwort darf nicht dem aktuellen entsprechen.",
   "auth.error.rules-not-satisfied": "Neues Passwort erfüllt nicht alle Anforderungen.",
   "auth.error.passwords-mismatch": "Passwörter stimmen nicht überein.",
+  // ─── T-022 App shell ───────────────────────────────────────────────
+  "app.nav.customers": "Kunden",
+  "app.action.sign-out": "Abmelden",
+  // ─── T-022 Customers list ──────────────────────────────────────────
+  "customers.page.title": "Kunden",
+  "customers.page.subtitle": "Verwalte deine Kundinnen und Kunden und ihre Machbarkeitsstudien.",
+  "customers.action.new": "Neuer Kunde",
+  "customers.action.view": "Anzeigen",
+  "customers.action.edit": "Bearbeiten",
+  "customers.action.pending-t023": "verfügbar in T-023",
+  "customers.action.pending-t024": "verfügbar in T-024",
+  "customers.column.company": "Firma",
+  "customers.column.contact": "Ansprechpartner",
+  "customers.column.city": "Stadt",
+  "customers.column.studies": "Studien",
+  "customers.search.placeholder": "Nach Name oder Firma suchen…",
+  "customers.empty.no-customers":
+    "Noch keine Kunden angelegt. Lege deine erste Kundin oder deinen ersten Kunden an, um zu starten.",
+  "customers.empty.no-results": "Keine Kunden gefunden, die deiner Suche entsprechen.",
+  "customers.pagination.summary": "{from}–{to} von {total}",
+  "customers.pagination.previous": "Zurück",
+  "customers.pagination.next": "Weiter",
 } as const;
 
 export type TranslationKey = keyof typeof de;

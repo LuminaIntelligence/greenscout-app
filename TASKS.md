@@ -49,25 +49,6 @@
 
 ---
 
-### T-021 CSRF middleware + Content-Security-Policy headers
-- **Status:** ⬜ TODO
-- **Feature:** auth (security)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-040
-- **Blocked by:** T-017
-- **Description:**
-  Auth.js handles its own CSRF; add a per-session CSRF token check to any custom POST/PUT/DELETE route. Add a Next.js middleware that emits Content-Security-Policy headers limiting `default-src 'self'`, `img-src 'self' data:`, `style-src 'self' 'unsafe-inline'` (tighten in T-040), `script-src 'self'`, `connect-src 'self' ${PYTHON_SERVICE_URL}`. Add other security headers: `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `Permissions-Policy` minimal.
-- **Acceptance criteria:**
-  - [ ] CSRF check on a sample state-changing custom route rejects mismatched tokens.
-  - [ ] Browser inspector confirms all five headers present on a dev request.
-  - [ ] CSP allows internal `PYTHON_SERVICE_URL` connections.
-  - [ ] No `unsafe-eval` anywhere.
-- **Files likely touched:** `src/middleware.ts`, `src/lib/security/csrf.ts`, `next.config.mjs` (header function fallback).
-- **Pause-triggers anticipated:** §7.3.
-
----
-
 ### Slice 4 — Customers CRUD
 
 ### T-022 Customer feature: schema + repository + list page
@@ -969,6 +950,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-021 ✅ Security headers hardening + applySecurityHeaders helper + docs/security.md
+- **Merged:** 2026-05-21 via PR #23 (`73336d1`)
+- **Branch:** `feat/t021-security-headers`
+- **Summary:** `applySecurityHeaders(response)` helper in `src/middleware.ts`, called on every response branch (pass-through + 2 redirects). 5 headers total: CSP (from T-017) + X-Frame-Options DENY + Referrer-Policy strict-origin-when-cross-origin + X-Content-Type-Options nosniff + Permissions-Policy "camera=(), microphone=(), geolocation=()". Deliberately omitted: X-XSS-Protection (deprecated), interest-cohort=() (FLoC dead), HSTS (lives at reverse-proxy per new T-050b task). 12 middleware tests, 100% coverage. New `docs/security.md` (150 lines, 9 sections) as canonical posture doc. `deploy/Caddyfile.example` authored for T-050b human-operator deployment. SPEC §6.3 clarified additively.
+- **Decisions:** see `DECISIONS.md` entries "T-021 Security headers hardening (user-confirmed, binding)" + "T-021 implementation per §14 (consolidated)".
 
 ### T-019 ✅ Forced first-login password change flow
 - **Merged:** 2026-05-21 via PR #22 (`56689c9`)

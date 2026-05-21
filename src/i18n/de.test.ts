@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { de, t } from "./de";
 
 describe("de translation dictionary", () => {
-  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI", () => {
+  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI + 2 T-022 app-shell + 16 T-022 customers", () => {
     expect(Object.keys(de).sort()).toEqual([
+      "app.action.sign-out",
+      "app.nav.customers",
       "auth.action.change-password",
       "auth.action.changing-password",
       "auth.action.sign-in",
@@ -38,7 +40,60 @@ describe("de translation dictionary", () => {
       "auth.password.rule.min-length",
       "auth.password.rule.special",
       "auth.password.rule.upper",
+      "customers.action.edit",
+      "customers.action.new",
+      "customers.action.pending-t023",
+      "customers.action.pending-t024",
+      "customers.action.view",
+      "customers.column.city",
+      "customers.column.company",
+      "customers.column.contact",
+      "customers.column.studies",
+      "customers.empty.no-customers",
+      "customers.empty.no-results",
+      "customers.page.subtitle",
+      "customers.page.title",
+      "customers.pagination.next",
+      "customers.pagination.previous",
+      "customers.pagination.summary",
+      "customers.search.placeholder",
     ]);
+  });
+
+  it("returns the German string for T-022 app-shell + customers keys", () => {
+    expect(t("app.nav.customers")).toBe("Kunden");
+    expect(t("app.action.sign-out")).toBe("Abmelden");
+    expect(t("customers.page.title")).toBe("Kunden");
+    expect(t("customers.page.subtitle")).toBe(
+      "Verwalte deine Kundinnen und Kunden und ihre Machbarkeitsstudien.",
+    );
+    expect(t("customers.action.new")).toBe("Neuer Kunde");
+    expect(t("customers.action.view")).toBe("Anzeigen");
+    expect(t("customers.action.edit")).toBe("Bearbeiten");
+    expect(t("customers.action.pending-t023")).toBe("verfügbar in T-023");
+    expect(t("customers.action.pending-t024")).toBe("verfügbar in T-024");
+    expect(t("customers.column.company")).toBe("Firma");
+    expect(t("customers.column.contact")).toBe("Ansprechpartner");
+    expect(t("customers.column.city")).toBe("Stadt");
+    expect(t("customers.column.studies")).toBe("Studien");
+    expect(t("customers.search.placeholder")).toBe("Nach Name oder Firma suchen…");
+    expect(t("customers.empty.no-customers")).toBe(
+      "Noch keine Kunden angelegt. Lege deine erste Kundin oder deinen ersten Kunden an, um zu starten.",
+    );
+    expect(t("customers.empty.no-results")).toBe(
+      "Keine Kunden gefunden, die deiner Suche entsprechen.",
+    );
+    expect(t("customers.pagination.summary")).toBe("{from}–{to} von {total}");
+    expect(t("customers.pagination.previous")).toBe("Zurück");
+    expect(t("customers.pagination.next")).toBe("Weiter");
+  });
+
+  it("preserves the {from}/{to}/{total} interpolation markers on customers.pagination.summary", () => {
+    const filled = t("customers.pagination.summary")
+      .replace("{from}", "1")
+      .replace("{to}", "25")
+      .replace("{total}", "100");
+    expect(filled).toBe("1–25 von 100");
   });
 
   it("returns the German string for a password-rule key", () => {
