@@ -1267,3 +1267,92 @@ Implementation of the T-017a verify-first corrective per the binding contract ab
 - Lockfile resolved `next-auth` to exact `5.0.0-beta.31`.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-21 — T-018 Login page design (user-confirmed, binding)
+**Context:** User reviewed the design-recap for `/login` — first user-visible screen. Six decision-points settled, one substantial **scope correction** (KORREKTUR), plus an MVP UX addition (forgot-password hint) and a follow-up polish task (logo SVG).
+
+**Assumption / decision:**
+
+### KORREKTUR — PasswordRuleChecklist OUT of T-018, MOVED to T-019
+
+T-018's original planner description included a "live checklist that turns each rule green/red as the user types". This contradicts:
+- DECISIONS T-016 explicitly: "validatePassword NOT used in login (only signup/reset)"
+- T-017 `loginSchema` uses `min(1)` only (no rule validation against the input).
+
+**Login verifies an existing password** against the stored hash — composition rules are irrelevant. Showing them on login misleads users into thinking the rules gate authentication, when they only gate password CREATION.
+
+**Moved to T-019** (forced password change, where the user actually composes a new password):
+- `PasswordRuleChecklist` component
+- a11y plumbing (`aria-live="polite"`, sr-only "erfüllt"/"nicht erfüllt" state announcements)
+- i18n keys: `auth.checklist.aria-label`, `auth.checklist.fulfilled`, `auth.checklist.unfulfilled`
+- Decision-points ① (not-passed icon: X vs Circle) and ② (render-trigger: always vs only-when-typing) deferred to T-019
+
+T-018's password field becomes a plain `<Input type="password">` with `loginSchema.password.min(1)` zod + standard `<FormMessage>` for invalid input.
+
+T-019's task description was rewritten to absorb the checklist scope. T-019 will require its own design-recap before implementation (consistent with T-018 pattern).
+
+### Approved design points
+
+- **③ Lockout-banner icon**: `<Lock>` from lucide-react. Semantically precise.
+- **④ Logo**: text-only "GreenScout" in `font-heading text-3xl text-forest-green`. NO Lucide icon (would introduce a non-brand glyph). Real SVG logo is **T-048b** (newly inserted polish task).
+- **⑤ Card subtitle stays**: "Willkommen zurück bei GreenScout" via `<CardDescription>`.
+- **⑥ Logo separate above Card**, not inside CardHeader. Clear visual hierarchy: Brand > Form-function.
+
+### Additional UX (user-requested)
+
+Below the submit button, a subtle helper note (NOT a link — MVP has no self-service reset per SPEC §2.2):
+> „Passwort vergessen? Bitte wende dich an den Administrator."
+
+Styling: `text-sm text-muted-foreground text-center mt-4`. New i18n key `auth.page.login.forgot-password-hint`. V2 replaces this hint with a real reset-flow link.
+
+### Final T-018 i18n keys (7 new — checklist keys excluded)
+
+- `auth.page.login.title` → „Melde dich an"
+- `auth.page.login.subtitle` → „Willkommen zurück bei GreenScout"
+- `auth.page.login.forgot-password-hint` → „Passwort vergessen? Bitte wende dich an den Administrator."
+- `auth.field.email` → „E-Mail-Adresse"
+- `auth.field.password` → „Passwort"
+- `auth.action.sign-in` → „Anmelden"
+- `auth.action.signing-in` → „Wird angemeldet…"
+- `auth.error.lockout-banner-title` → „Konto gesperrt"
+
+### Acceptance criterion: CSP-browser-verification = USER task
+
+Implementer builds + reports via `curl -I` header inspection. **Manual browser-console verification at `/login` (dev mode + `next build && next start`)** is the user's pre-merge step. Implementer-harness has no real browser.
+
+### TASKS.md updates pre-staged by the agent
+- **T-018** description rewritten (checklist OUT, soft-distinguished UX explicit, forgot-password hint, CSP-browser-verification acceptance).
+- **T-019** description rewritten to absorb PasswordRuleChecklist + a11y + i18n keys.
+- **T-048b** new task in Slice 15 Polish: "GreenScout SVG logo integration".
+
+### Final design summary (binding for T-018 implementer)
+
+| Section | Element | Choice |
+|---|---|---|
+| Page shell | Layout | `min-h-screen flex items-center justify-center bg-background p-6` |
+| Logo block | Position | Separate, above Card, centered |
+| Logo block | Style | `font-heading text-3xl text-forest-green`, text "GreenScout" |
+| Card | Component | shadcn `Card` (default styling) |
+| Card header | Title | "Melde dich an" — `font-heading text-2xl text-forest-green` |
+| Card header | Subtitle | "Willkommen zurück bei GreenScout" — default `<CardDescription>` |
+| Top conditional banner | Lockout | shadcn `<Alert variant="destructive">` + `<Lock>` icon + countdown |
+| Top conditional banner | Generic error | shadcn `<Alert variant="destructive">` (no icon) |
+| Banner exclusion | — | Lockout takes precedence; never both at once |
+| Email field | type/autocomplete | `type="email"` `autoComplete="email"` `required` |
+| Email field | Label | `<FormLabel>` „E-Mail-Adresse" via i18n |
+| Password field | type/autocomplete | `type="password"` `autoComplete="current-password"` `required` |
+| Password field | Schema | `loginSchema.password.min(1)` — NO checklist |
+| Password field | Below | `<FormMessage>` for zod errors only |
+| Submit button | Style | `w-full bg-plant-green text-white hover:bg-plant-green/90` |
+| Submit button | Text | "Anmelden" / "Wird angemeldet…" (isPending) |
+| Forgot-password hint | Style | `text-sm text-muted-foreground text-center mt-4` |
+| Forgot-password hint | Text | "Passwort vergessen? Bitte wende dich an den Administrator." (NOT a link) |
+| Responsive mobile | ≤375px | Card fits with `px-6 py-8`, viewport `p-6` |
+| Responsive desktop | ≥768px | `max-w-md` (28rem), centered |
+
+**Affected files (T-018 implementation):**
+`src/app/(auth)/layout.tsx` (new), `src/app/(auth)/login/page.tsx` (new), `src/features/auth/components/login-form.tsx` (new — NO PasswordRuleChecklist), `src/features/auth/components/login-form.test.tsx` (new), `src/i18n/de.ts` (+7 keys), `src/i18n/de.test.ts` (+ assertions), `TASKS.md` (T-017a → ✅ Recently completed + T-018 rewrite + T-019 absorbs checklist + T-048b polish task — all pre-staged by agent), `DECISIONS.md` (this entry + T-018 implementation entry post-impl).
+
+**Open question for the user:** —
