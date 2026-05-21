@@ -11,7 +11,7 @@ vi.mock("@/lib/repositories/user.repository", () => ({
 vi.mock("@/lib/repositories/audit-log.repository", () => ({
   createAuditEntry: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("@/features/auth/password-policy", () => ({
+vi.mock("@/features/auth/utils/hash-password", () => ({
   verifyPassword: vi.fn(),
 }));
 vi.mock("./admin-alerts", () => ({
@@ -19,7 +19,7 @@ vi.mock("./admin-alerts", () => ({
 }));
 
 import { AccountUnavailableError, LockedAccountError } from "@/features/auth/errors";
-import { verifyPassword } from "@/features/auth/password-policy";
+import { verifyPassword } from "@/features/auth/utils/hash-password";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import {
   findUserByEmail,

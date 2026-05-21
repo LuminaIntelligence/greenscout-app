@@ -32,15 +32,18 @@ vi.mock("@/lib/repositories/transaction", () => ({
   withTransaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({ __mock: "tx" })),
 }));
 vi.mock("@/features/auth/password-policy", () => ({
+  validatePassword: vi.fn(),
+}));
+vi.mock("@/features/auth/utils/hash-password", () => ({
   verifyPassword: vi.fn(),
   hashPassword: vi.fn(),
-  validatePassword: vi.fn(),
 }));
 vi.mock("./admin-alerts", () => ({
   emitAdminLockoutAlert: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { hashPassword, validatePassword, verifyPassword } from "@/features/auth/password-policy";
+import { validatePassword } from "@/features/auth/password-policy";
+import { hashPassword, verifyPassword } from "@/features/auth/utils/hash-password";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import { withTransaction } from "@/lib/repositories/transaction";
 import {

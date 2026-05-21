@@ -41,7 +41,8 @@
  * @see SPEC.md §4.1 (counter-based lockout — single source of truth)
  */
 
-import { hashPassword, validatePassword, verifyPassword } from "@/features/auth/password-policy";
+import { validatePassword } from "@/features/auth/password-policy";
+import { hashPassword, verifyPassword } from "@/features/auth/utils/hash-password";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import { withTransaction } from "@/lib/repositories/transaction";
 import {
