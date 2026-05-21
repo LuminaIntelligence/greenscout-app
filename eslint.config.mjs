@@ -137,6 +137,21 @@ const eslintConfig = [
     },
   },
 
+  // T-022 — TanStack Table v8's `useReactTable()` returns functions that
+  // React Compiler refuses to memoize. The compiler safely skips the
+  // component as a result, but the `react-hooks/incompatible-library`
+  // rule still emits a warning, which `--max-warnings 0` (CLAUDE.md §5.2)
+  // promotes to a build failure. Scoping the rule off for any
+  // `*-table.tsx` component file under `src/features/` accepts the
+  // documented React-Compiler-skip behaviour without disabling the rule
+  // anywhere it could surface a real footgun.
+  {
+    files: ["src/features/**/components/**/*-table.tsx"],
+    rules: {
+      "react-hooks/incompatible-library": "off",
+    },
+  },
+
   prettierConfig,
 ];
 
