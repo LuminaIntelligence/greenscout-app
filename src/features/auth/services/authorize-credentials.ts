@@ -34,7 +34,7 @@
  * @see SPEC.md §4.1
  */
 
-import { verifyPassword } from "@/features/auth/password-policy";
+import { verifyPassword } from "@/features/auth/utils/hash-password";
 import { normaliseEmail } from "@/features/auth/utils/normalise-email";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import {

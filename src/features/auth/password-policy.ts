@@ -25,8 +25,14 @@ export {
   PASSWORD_HASH_TIME_COST,
 } from "@/features/auth/password-constants";
 
-// Re-export hashing (single source of code).
-export { hashPassword, verifyPassword } from "@/features/auth/utils/hash-password";
+// NOTE: `hashPassword` / `verifyPassword` are NOT re-exported here.
+// They live in `@/features/auth/utils/hash-password` and back onto
+// `@node-rs/argon2` (a Node-only native binding). Re-exporting them
+// from this file would pull the argon2 binding into the client bundle
+// for any client component that imports `passwordRules` /
+// `PasswordRuleKey` / `validatePassword` (e.g. the T-019
+// PasswordRuleChecklist). Server-side consumers import directly from
+// `@/features/auth/utils/hash-password` instead. See DECISIONS T-019.
 
 import { MIN_PASSWORD_LENGTH } from "@/features/auth/password-constants";
 

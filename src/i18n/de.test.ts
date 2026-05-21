@@ -3,21 +3,36 @@ import { describe, expect, it } from "vitest";
 import { de, t } from "./de";
 
 describe("de translation dictionary", () => {
-  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI", () => {
+  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI", () => {
     expect(Object.keys(de).sort()).toEqual([
+      "auth.action.change-password",
+      "auth.action.changing-password",
       "auth.action.sign-in",
       "auth.action.signing-in",
+      "auth.checklist.aria-label",
+      "auth.checklist.fulfilled",
+      "auth.checklist.neutral",
+      "auth.checklist.unfulfilled",
       "auth.error.inactive",
       "auth.error.invalid-credentials",
       "auth.error.locked-out",
       "auth.error.lockout-banner-title",
       "auth.error.must-change-password",
+      "auth.error.passwords-mismatch",
+      "auth.error.rules-not-satisfied",
+      "auth.error.same-as-current",
       "auth.error.server",
+      "auth.error.wrong-current-password",
+      "auth.field.confirm-new-password",
+      "auth.field.current-password",
       "auth.field.email",
+      "auth.field.new-password",
       "auth.field.password",
       "auth.page.login.forgot-password-hint",
       "auth.page.login.subtitle",
       "auth.page.login.title",
+      "auth.page.password-change.subtitle",
+      "auth.page.password-change.title",
       "auth.password.rule.digit",
       "auth.password.rule.lower",
       "auth.password.rule.min-length",
@@ -59,6 +74,33 @@ describe("de translation dictionary", () => {
     expect(t("auth.action.sign-in")).toBe("Anmelden");
     expect(t("auth.action.signing-in")).toBe("Wird angemeldet…");
     expect(t("auth.error.lockout-banner-title")).toBe("Konto gesperrt");
+  });
+
+  it("returns the German string for T-019 PasswordRuleChecklist a11y keys", () => {
+    expect(t("auth.checklist.aria-label")).toBe("Passwort-Anforderungen");
+    expect(t("auth.checklist.fulfilled")).toBe("erfüllt");
+    expect(t("auth.checklist.unfulfilled")).toBe("nicht erfüllt");
+    expect(t("auth.checklist.neutral")).toBe("noch nicht geprüft");
+  });
+
+  it("returns the German string for T-019 change-password UI keys", () => {
+    expect(t("auth.page.password-change.title")).toBe("Passwort ändern");
+    expect(t("auth.page.password-change.subtitle")).toBe(
+      "Aus Sicherheitsgründen muss dein Passwort jetzt geändert werden.",
+    );
+    expect(t("auth.field.current-password")).toBe("Aktuelles Passwort");
+    expect(t("auth.field.new-password")).toBe("Neues Passwort");
+    expect(t("auth.field.confirm-new-password")).toBe("Neues Passwort bestätigen");
+    expect(t("auth.action.change-password")).toBe("Passwort ändern");
+    expect(t("auth.action.changing-password")).toBe("Wird geändert…");
+    expect(t("auth.error.wrong-current-password")).toBe("Aktuelles Passwort falsch.");
+    expect(t("auth.error.same-as-current")).toBe(
+      "Neues Passwort darf nicht dem aktuellen entsprechen.",
+    );
+    expect(t("auth.error.rules-not-satisfied")).toBe(
+      "Neues Passwort erfüllt nicht alle Anforderungen.",
+    );
+    expect(t("auth.error.passwords-mismatch")).toBe("Passwörter stimmen nicht überein.");
   });
 
   it("preserves the {minutes} interpolation marker on auth.error.locked-out", () => {
