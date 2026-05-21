@@ -64,6 +64,11 @@ export default defineConfig({
         "src/features/**/hooks/**/*.{ts,tsx}",
         "src/features/**/*-policy.{ts,tsx}",
         "src/features/auth/components/password-rule-checklist.tsx",
+        // T-021 security headers — middleware ships the
+        // `applySecurityHeaders` helper used by every response
+        // branch. 90% threshold below (per-pattern); routing
+        // branches are covered end-to-end by Playwright in T-051a.
+        "src/middleware.ts",
       ],
       exclude: [
         "src/generated/**",
@@ -141,6 +146,17 @@ export default defineConfig({
           branches: 100,
           functions: 100,
           statements: 100,
+        },
+        // 90% on the T-021 middleware. `applySecurityHeaders` is
+        // unit-tested in middleware.test.ts; the auth-routing branches
+        // (isPublicPath / session presence / mustChangePassword
+        // redirect) are exercised end-to-end by Playwright in T-051a,
+        // which is why the threshold is 90% rather than 100%.
+        "src/middleware.ts": {
+          lines: 90,
+          branches: 90,
+          functions: 90,
+          statements: 90,
         },
       },
     },
