@@ -51,26 +51,6 @@
 
 ### Slice 4 — Customers CRUD
 
-### T-022 Customer feature: schema + repository + list page
-- **Status:** ⬜ TODO
-- **Feature:** customers
-- **Type:** feat
-- **Effort:** L → split below
-- **Blocks:** T-023, T-024, T-025
-- **Blocked by:** T-014, T-019
-- **Description:**
-  Build the Customer list page at `/customers`: TanStack Query for fetch, TanStack Table for display (columns: company name | contact name | city | studies count | actions), filter by name, sort, pagination. zod schema `customerSchema` in `src/features/customers/schemas/`. Server actions / route handlers fetch via the customer repository (T-014). Soft-deleted excluded. German microcopy ("Du"-form).
-- **Acceptance criteria:**
-  - [ ] List page renders with mock data first, then real DB rows.
-  - [ ] Filter, sort, and pagination all functional via TanStack Table.
-  - [ ] Studies count joined efficiently (single query, no N+1).
-  - [ ] Playwright test covers list view as Berater and as Admin.
-  - [ ] All strings via `src/i18n/de.ts`.
-- **Files likely touched:** `src/features/customers/schemas/customer-schema.ts`, `src/features/customers/services/customer-service.ts`, `src/features/customers/components/customer-table.tsx`, `src/app/(app)/customers/page.tsx`.
-- **Pause-triggers anticipated:** §7.1 (`@tanstack/react-query`, `@tanstack/react-table` install).
-
----
-
 ### T-023 Customer create / edit form
 - **Status:** ⬜ TODO
 - **Feature:** customers
@@ -950,6 +930,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-022 ✅ Customer feature: schema + repository + list page
+- **Merged:** 2026-05-21 via PR #24 (`063633d`)
+- **Branch:** `feat/t022-customer-list`
+- **Summary:** First Slice-4 business-feature task. App-shell layout at `src/app/(app)/layout.tsx` with topbar (logo + "Kunden" nav + user dropdown with sign-out Server Action). TanStack Query v5 + Table v8 installed (SPEC §2 stack, §14.3 plugin-of-approved). `/customers` page: Server Component fetches initial 25 rows via `listCustomers(orgId, { includeStudyCount: true })`, hands off to `CustomerTable` client component. Search input debounced 300ms, page-based pagination 25/page, URL-state `?page=N&search=…` for refresh/share-link safety. Empty state differentiated (no-customers vs no-results). Repository extended with `includeStudyCount` overload + new `countCustomers`. `GET /api/customers` JSON endpoint for client refetches (auth-gated). Disabled "Anzeigen"/"Bearbeiten" actions with i18n suffix `(verfügbar in T-024/T-023)`. ESLint scoped override `react-hooks/incompatible-library` on `*-table.tsx` (TanStack Table memoization). 226 tests / 90.54% global coverage.
+- **Decisions:** see `DECISIONS.md` entry "T-022 silent decisions per §14 (consolidated)".
 
 ### T-021 ✅ Security headers hardening + applySecurityHeaders helper + docs/security.md
 - **Merged:** 2026-05-21 via PR #23 (`73336d1`)
