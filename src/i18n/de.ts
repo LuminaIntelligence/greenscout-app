@@ -38,6 +38,19 @@ export const de = {
   "auth.checklist.fulfilled": "erfüllt",
   "auth.checklist.unfulfilled": "nicht erfüllt",
   "auth.checklist.neutral": "noch nicht geprüft",
+  // ─── T-019 Forced password change UI keys ──────────────────────────
+  "auth.page.password-change.title": "Passwort ändern",
+  "auth.page.password-change.subtitle":
+    "Aus Sicherheitsgründen muss dein Passwort jetzt geändert werden.",
+  "auth.field.current-password": "Aktuelles Passwort",
+  "auth.field.new-password": "Neues Passwort",
+  "auth.field.confirm-new-password": "Neues Passwort bestätigen",
+  "auth.action.change-password": "Passwort ändern",
+  "auth.action.changing-password": "Wird geändert…",
+  "auth.error.wrong-current-password": "Aktuelles Passwort falsch.",
+  "auth.error.same-as-current": "Neues Passwort darf nicht dem aktuellen entsprechen.",
+  "auth.error.rules-not-satisfied": "Neues Passwort erfüllt nicht alle Anforderungen.",
+  "auth.error.passwords-mismatch": "Passwörter stimmen nicht überein.",
 } as const;
 
 export type TranslationKey = keyof typeof de;
