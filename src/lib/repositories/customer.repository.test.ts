@@ -4,6 +4,7 @@ vi.mock("@/lib/db", () => {
   const customer = {
     findFirst: vi.fn(),
     findMany: vi.fn(),
+    count: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
   };
@@ -13,6 +14,7 @@ vi.mock("@/lib/db", () => {
 import { prisma } from "@/lib/db";
 
 import {
+  countCustomers,
   createCustomer,
   findCustomerById,
   listCustomers,
@@ -121,5 +123,73 @@ describe("customer.repository — search + pagination", () => {
   it("listCustomers defaults to take=50 when unspecified", async () => {
     await listCustomers(ORG);
     expect(prisma.customer.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 50 }));
+  });
+});
+
+describe("customer.repository — T-022 includeStudyCount + countCustomers", () => {
+  it("listCustomers passes `include._count.studies` when includeStudyCount=true", async () => {
+    await listCustomers(ORG, { includeStudyCount: true });
+    expect(prisma.customer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: { _count: { select: { studies: true } } },
+      }),
+    );
+  });
+
+  it("listCustomers omits the include block when includeStudyCount is unset", async () => {
+    await listCustomers(ORG);
+    const callArg = vi.mocked(prisma.customer.findMany).mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(callArg).not.toHaveProperty("include");
+  });
+
+  it("listCustomers honours search alongside includeStudyCount", async () => {
+    await listCustomers(ORG, { includeStudyCount: true, search: "Müller" });
+    expect(prisma.customer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { contactLastName: { contains: "Müller", mode: "insensitive" } },
+            { companyName: { contains: "Müller", mode: "insensitive" } },
+          ],
+        }),
+        include: { _count: { select: { studies: true } } },
+      }),
+    );
+  });
+
+  it("countCustomers applies organizationId + soft-delete filter by default", async () => {
+    vi.mocked(prisma.customer.count).mockResolvedValueOnce(42);
+    const result = await countCustomers(ORG);
+    expect(result).toBe(42);
+    expect(prisma.customer.count).toHaveBeenCalledWith({
+      where: { organizationId: ORG, deletedAt: null },
+    });
+  });
+
+  it("countCustomers mirrors the listCustomers search predicate", async () => {
+    vi.mocked(prisma.customer.count).mockResolvedValueOnce(3);
+    const result = await countCustomers(ORG, { search: "hofgut" });
+    expect(result).toBe(3);
+    expect(prisma.customer.count).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        organizationId: ORG,
+        deletedAt: null,
+        OR: [
+          { contactLastName: { contains: "hofgut", mode: "insensitive" } },
+          { companyName: { contains: "hofgut", mode: "insensitive" } },
+        ],
+      }),
+    });
+  });
+
+  it("countCustomers includes soft-deleted rows when opted in", async () => {
+    vi.mocked(prisma.customer.count).mockResolvedValueOnce(7);
+    await countCustomers(ORG, { includeDeleted: true });
+    expect(prisma.customer.count).toHaveBeenCalledWith({
+      where: { organizationId: ORG },
+    });
   });
 });

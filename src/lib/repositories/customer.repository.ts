@@ -10,8 +10,15 @@
  *   - `search` filters by `companyName` OR `contactLastName` (case-
  *     insensitive `contains`).
  *
- * See DECISIONS.md → "Slice 2 schema design approved" and
- * "T-014 silent decisions per §14 (consolidated)".
+ * T-022 extension: `listCustomers` accepts `includeStudyCount?: boolean`.
+ * When true, the result rows carry a `_count: { studies: number }` field
+ * (Prisma's relation-count aggregate — single query, no N+1). Return
+ * type is narrowed via TypeScript overloads. The companion
+ * `countCustomers` provides the total-row count used by paginated UIs.
+ *
+ * See DECISIONS.md → "Slice 2 schema design approved",
+ * "T-014 silent decisions per §14 (consolidated)", and
+ * "T-022 silent decisions per §14 (consolidated)".
  */
 
 import type { Customer, Prisma } from "@/generated/prisma";
@@ -34,11 +41,47 @@ interface ListCustomersOptions extends FindOptions {
   skip?: number;
   search?: string;
   orderBy?: Prisma.CustomerOrderByWithRelationInput;
+  /**
+   * When true, each returned row includes a `_count: { studies: number }`
+   * aggregate. Used by the T-022 customer list page. Default false.
+   */
+  includeStudyCount?: boolean;
+}
+
+/**
+ * Customer row enriched with the Prisma relation-count aggregate for
+ * the `studies` back-relation. Returned by `listCustomers` when called
+ * with `includeStudyCount: true`.
+ */
+export type CustomerWithStudyCount = Customer & { _count: { studies: number } };
+
+interface CountCustomersOptions {
+  search?: string;
+  includeDeleted?: boolean;
 }
 
 function clampTake(take?: number): number {
   if (take === undefined) return DEFAULT_TAKE;
   return Math.min(Math.max(take, 1), MAX_TAKE);
+}
+
+function buildWhere(
+  organizationId: string,
+  options: { search?: string; includeDeleted?: boolean },
+): Prisma.CustomerWhereInput {
+  const search = options.search?.trim();
+  return {
+    organizationId,
+    ...(options.includeDeleted ? {} : { deletedAt: null }),
+    ...(search
+      ? {
+          OR: [
+            { contactLastName: { contains: search, mode: "insensitive" } },
+            { companyName: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
 }
 
 export async function findCustomerById(
@@ -57,29 +100,55 @@ export async function findCustomerById(
   });
 }
 
+// Overload signatures — TypeScript picks the narrower return type when
+// the caller statically asserts `includeStudyCount: true`.
+export async function listCustomers(
+  organizationId: string,
+  options: ListCustomersOptions & { includeStudyCount: true },
+  tx?: PrismaTransaction,
+): Promise<CustomerWithStudyCount[]>;
+export async function listCustomers(
+  organizationId: string,
+  options?: ListCustomersOptions,
+  tx?: PrismaTransaction,
+): Promise<Customer[]>;
 export async function listCustomers(
   organizationId: string,
   options: ListCustomersOptions = {},
   tx?: PrismaTransaction,
-): Promise<Customer[]> {
+): Promise<Customer[] | CustomerWithStudyCount[]> {
   const client: Client = tx ?? prisma;
-  const search = options.search?.trim();
+  const where = buildWhere(organizationId, options);
+  const orderBy = options.orderBy ?? { createdAt: "desc" };
+  const take = clampTake(options.take);
+  const skip = options.skip ?? 0;
+
+  if (options.includeStudyCount) {
+    return client.customer.findMany({
+      where,
+      orderBy,
+      take,
+      skip,
+      include: { _count: { select: { studies: true } } },
+    });
+  }
+
   return client.customer.findMany({
-    where: {
-      organizationId,
-      ...(options.includeDeleted ? {} : { deletedAt: null }),
-      ...(search
-        ? {
-            OR: [
-              { contactLastName: { contains: search, mode: "insensitive" } },
-              { companyName: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: options.orderBy ?? { createdAt: "desc" },
-    take: clampTake(options.take),
-    skip: options.skip ?? 0,
+    where,
+    orderBy,
+    take,
+    skip,
+  });
+}
+
+export async function countCustomers(
+  organizationId: string,
+  options: CountCustomersOptions = {},
+  tx?: PrismaTransaction,
+): Promise<number> {
+  const client: Client = tx ?? prisma;
+  return client.customer.count({
+    where: buildWhere(organizationId, options),
   });
 }
 
