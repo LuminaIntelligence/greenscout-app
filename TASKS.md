@@ -29,28 +29,6 @@
 
 ### Slice 3 — Auth feature
 
-### T-019 Forced first-login password change flow
-- **Status:** ⬜ TODO
-- **Feature:** auth
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-022
-- **Blocked by:** T-018
-- **Description:**
-  When `session.user.mustChangePassword === true`, the existing middleware (T-017) redirects every non-`/password-change` request to `/password-change`. Build the page: form with `currentPassword` + `newPassword` + `confirmNewPassword` fields. **This task ships the `PasswordRuleChecklist` component** (moved here from T-018 per design-review correction — composition needs the checklist, login does not). Live checklist below the new-password field updates per keystroke using `passwordRules` from T-016, with green checks for passed and **red Xs for not-passed per SPEC §4.1** ("green/red as the user types"). a11y: container `aria-live="polite"`, screen-reader-only "erfüllt"/"nicht erfüllt" state. New i18n keys: `auth.checklist.aria-label`, `auth.checklist.fulfilled`, `auth.checklist.unfulfilled`. Server Action validates: (a) currentPassword verifies against stored hash, (b) `validatePassword(newPassword).ok === true`, (c) newPassword !== currentPassword. On success: argon2 hash newPassword, `updatePasswordHash` (also sets `passwordChangedAt = now`), `setMustChangePassword(false)`, write `AuditLog action="PASSWORD_RESET"` entry (changeSet: no plaintext; just `{ initiator: "user-forced" }`), redirect to `/`. **PasswordRuleChecklist component is reusable** by T-041b (admin password reset) and any future signup flow. Decision-points for the checklist visual (icon choice for not-passed: X vs Circle vs AlertCircle; render-trigger: always-visible vs only-when-typing) will be settled in the T-019 §14.2-silent implementation phase per the implementer's judgment within SPEC §4.1's green/red mandate.
-- **Acceptance criteria:**
-  - [ ] Middleware redirect verified by Vitest middleware test (logged-in admin with mustChangePassword=true → redirects to /password-change). Playwright E2E deferred to T-051a.
-  - [ ] `PasswordRuleChecklist` component exists at `src/features/auth/components/password-rule-checklist.tsx` with 100% Vitest+RTL coverage. Reusable export.
-  - [ ] New password must satisfy all five rules (server-side `validatePassword(newPassword).ok`); reuse of current password rejected.
-  - [ ] `mustChangePassword` flips to `false` on success.
-  - [ ] `passwordChangedAt` set to `now` on success.
-  - [ ] AuditLog entry written with `action="PASSWORD_RESET"`, changeSet WITHOUT any plaintext or hash material.
-  - [ ] German microcopy throughout; SPEC §4.1 green/red color rule on the live checklist.
-- **Files likely touched:** `src/app/(auth)/password-change/page.tsx`, `src/features/auth/components/change-password-form.tsx`, `src/features/auth/components/password-rule-checklist.tsx` (new — moved from T-018 scope), `src/features/auth/components/password-rule-checklist.test.tsx` (new), `src/features/auth/services/change-password.ts`, `src/features/auth/actions/change-password.ts` (Server Action), `src/i18n/de.ts` (+3 `auth.checklist.*` keys + change-form labels).
-- **Pause-triggers anticipated:** §7.3 (auth flow — design-recap will be required before implementation, similar to T-018 design-review pattern).
-
----
-
 ### T-020 Wire SMTP admin-alert to the lockout-stub from T-017
 - **Status:** ⬜ TODO
 - **Feature:** auth
@@ -868,6 +846,26 @@
 
 ---
 
+### T-050b Production reverse-proxy hardening (HSTS + TLS termination)
+- **Status:** ⬜ TODO
+- **Feature:** chore (deployment)
+- **Type:** feat
+- **Effort:** S
+- **Blocks:** —
+- **Blocked by:** T-021
+- **Description:**
+  Configure the VPS reverse-proxy (likely Caddy given Hetzner conventions; Traefik or nginx also valid) to: (a) enforce HSTS via `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`, (b) terminate TLS at the proxy (Let's Encrypt cert), (c) force-redirect HTTP → HTTPS, (d) forward `X-Forwarded-For` + `X-Forwarded-Proto` to the upstream Next.js. Per DECISIONS T-021 corrective: HSTS lives at the proxy, NOT in middleware (dev-HTTP would otherwise leak the directive and lock the dev hostname into HTTPS-only for months). Agent authors the config snippets in `docs/deployment.md`; **production execution is human-only per §8.10**.
+- **Acceptance criteria:**
+  - [ ] `docs/deployment.md` contains a fully-formed Caddyfile (or equivalent for Traefik / nginx) ready to drop on the VPS.
+  - [ ] HSTS header value matches the SPEC §6.3 baseline (`max-age=63072000; includeSubDomains; preload`).
+  - [ ] HTTP → HTTPS redirect rule documented.
+  - [ ] X-Forwarded-* propagation documented so Auth.js v5 `trustHost` works correctly.
+  - [ ] §8.10 reminder explicit: agent never executes `caddy reload` or equivalent against the VPS.
+- **Files likely touched:** `docs/deployment.md` (new or extension), possibly a `deploy/Caddyfile.example` template.
+- **Pause-triggers anticipated:** §8.10 (production target — config is authored only, never applied).
+
+---
+
 ### T-051 Playwright E2E suite for F1–F7
 - **Status:** ⬜ TODO
 - **Feature:** test
@@ -971,6 +969,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-019 ✅ Forced first-login password change flow
+- **Merged:** 2026-05-21 via PR #22 (`56689c9`)
+- **Branch:** `feat/t019-password-change`
+- **Summary:** `/password-change` page with `currentPassword` + `newPassword` + `confirmNewPassword` + reusable `PasswordRuleChecklist` 3-state component (neutral/passed/not-passed, hasTyped sticky). Server Action runs lockout-first algorithm (post-auth, no enumeration concern — explicit contrast with T-017a verify-first). $transaction wraps the three success writes (updatePasswordHash + setMustChangePassword + resetFailedLoginCount). **JWT refresh via `unstable_update({})`** AFTER the transaction → jwt callback re-fetches from DB via `findUserById` → all 6 token fields refreshed → THEN redirect. JWT-update branch lives in `src/lib/auth.ts` (Node side, not auth.config.ts — Prisma can't run in Edge). New audit action `PASSWORD_CHANGE_FAIL` added to SPEC §5.1 allow-list. Plus an unexpected client-bundle fix: dropped `hashPassword`/`verifyPassword` re-export from `password-policy.ts` because the PasswordRuleChecklist (client component) was pulling `@node-rs/argon2` native bindings into the client bundle. 15 new i18n keys. 187 total tests, 100% coverage on change-password.ts + password-rule-checklist.tsx.
+- **Decisions:** see `DECISIONS.md` entries "T-019 Forced password change design (user-confirmed, binding)" + "T-019 implementation per §14 (consolidated)".
 
 ### T-018 ✅ Login page (email + password + lockout banner)
 - **Merged:** 2026-05-21 via PR #21 (`cf1fc8a`)
