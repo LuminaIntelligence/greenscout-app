@@ -18,8 +18,7 @@
  *   - TanStack Query for fetch lifecycle (initialData hydrates from the
  *     Server Component's pre-fetched first page)
  *   - skeleton loading rows during background refetches
- *   - disabled placeholder actions for "Anzeigen"/"Bearbeiten" until
- *     T-023 / T-024 land
+ *   - active "Anzeigen" + "Bearbeiten" links (T-023 + T-024 landed)
  *   - empty state differentiated for "no customers ever" vs.
  *     "search yielded nothing"
  *
@@ -153,11 +152,13 @@ export function CustomerTable({ initialData, initialPage, initialSearch }: Custo
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem disabled aria-disabled="true">
-                <Eye className="mr-2 size-4" />
-                {t("customers.action.view")} ({t("customers.action.pending-t024")})
+              {/* T-024 — "Anzeigen" goes live alongside the already-live "Bearbeiten" (T-023). */}
+              <DropdownMenuItem asChild>
+                <Link href={`/customers/${row.original.id}`}>
+                  <Eye className="mr-2 size-4" />
+                  {t("customers.action.view")}
+                </Link>
               </DropdownMenuItem>
-              {/* T-023 — "Bearbeiten" goes live; "Anzeigen" still gated on T-024. */}
               <DropdownMenuItem asChild>
                 <Link href={`/customers/${row.original.id}/edit`}>
                   <Pencil className="mr-2 size-4" />
