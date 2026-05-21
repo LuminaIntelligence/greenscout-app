@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { de, t } from "./de";
 
 describe("de translation dictionary", () => {
-  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI + 2 T-022 app-shell + 15 T-022 customers (T-023 retired pending-t023) + 25 T-023 customer form", () => {
+  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI + 2 T-022 app-shell + 14 T-022 customers (T-024 retired pending-t024) + 25 T-023 customer form + 16 T-024 detail-page + delete-dialog", () => {
     expect(Object.keys(de).sort()).toEqual([
       "app.action.sign-out",
       "app.nav.customers",
@@ -44,7 +44,6 @@ describe("de translation dictionary", () => {
       "customers.action.create",
       "customers.action.edit",
       "customers.action.new",
-      "customers.action.pending-t024",
       "customers.action.save",
       "customers.action.saving",
       "customers.action.view",
@@ -52,6 +51,22 @@ describe("de translation dictionary", () => {
       "customers.column.company",
       "customers.column.contact",
       "customers.column.studies",
+      "customers.delete.dialog.cancel",
+      "customers.delete.dialog.confirm",
+      "customers.delete.dialog.description",
+      "customers.delete.dialog.title",
+      "customers.delete.toast.error.not-found",
+      "customers.delete.toast.error.server",
+      "customers.delete.toast.success",
+      "customers.detail.action.delete",
+      "customers.detail.action.edit",
+      "customers.detail.field.empty",
+      "customers.detail.section.billing",
+      "customers.detail.section.company",
+      "customers.detail.section.contact",
+      "customers.detail.section.studies",
+      "customers.detail.studies.empty",
+      "customers.detail.title",
       "customers.empty.no-customers",
       "customers.empty.no-results",
       "customers.error.first-name-required",
@@ -96,7 +111,6 @@ describe("de translation dictionary", () => {
     expect(t("customers.action.new")).toBe("Neuer Kunde");
     expect(t("customers.action.view")).toBe("Anzeigen");
     expect(t("customers.action.edit")).toBe("Bearbeiten");
-    expect(t("customers.action.pending-t024")).toBe("verfügbar in T-024");
     expect(t("customers.column.company")).toBe("Firma");
     expect(t("customers.column.contact")).toBe("Ansprechpartner");
     expect(t("customers.column.city")).toBe("Stadt");
@@ -222,6 +236,45 @@ describe("de translation dictionary", () => {
     // Toasts
     expect(t("customers.toast.created")).toBe("Kunde angelegt");
     expect(t("customers.toast.updated")).toBe("Änderungen gespeichert");
+  });
+
+  it("returns the German string for T-024 detail-page + delete-dialog keys", () => {
+    // Detail page
+    expect(t("customers.detail.title")).toBe("Kundendetails");
+    expect(t("customers.detail.section.company")).toBe("Firma");
+    expect(t("customers.detail.section.contact")).toBe("Kontakt");
+    expect(t("customers.detail.section.billing")).toBe("Rechnungsadresse");
+    expect(t("customers.detail.section.studies")).toBe("Verknüpfte Studien");
+    expect(t("customers.detail.studies.empty")).toBe("Noch keine Studien für diesen Kunden.");
+    expect(t("customers.detail.action.edit")).toBe("Bearbeiten");
+    expect(t("customers.detail.action.delete")).toBe("Löschen");
+    expect(t("customers.detail.field.empty")).toBe("—");
+    // Soft-delete dialog
+    expect(t("customers.delete.dialog.title")).toBe("Kunde löschen?");
+    expect(t("customers.delete.dialog.description")).toBe(
+      "Soll {company} wirklich gelöscht werden? Der Eintrag verschwindet aus der Liste, die zugehörigen Studien bleiben erhalten.",
+    );
+    expect(t("customers.delete.dialog.confirm")).toBe("Endgültig löschen");
+    expect(t("customers.delete.dialog.cancel")).toBe("Abbrechen");
+    // Toasts
+    expect(t("customers.delete.toast.success")).toBe("{company} wurde gelöscht.");
+    expect(t("customers.delete.toast.error.not-found")).toBe("Kunde nicht gefunden.");
+    expect(t("customers.delete.toast.error.server")).toBe(
+      "Beim Löschen ist ein Fehler aufgetreten. Bitte erneut versuchen.",
+    );
+  });
+
+  it("preserves the {company} interpolation marker on customers.delete keys", () => {
+    // T-024 CustomerDeleteDialog replaces this token client-side. The
+    // token MUST stay intact in the source string — any edit here would
+    // surface as "{company}" leaking into the German UI.
+    expect(t("customers.delete.dialog.description")).toContain("{company}");
+    expect(t("customers.delete.toast.success")).toContain("{company}");
+    const filled = t("customers.delete.toast.success").replace(
+      "{company}",
+      "Hofgut Sonnenwiese GmbH",
+    );
+    expect(filled).toBe("Hofgut Sonnenwiese GmbH wurde gelöscht.");
   });
 
   it("preserves the {minutes} interpolation marker on auth.error.locked-out", () => {

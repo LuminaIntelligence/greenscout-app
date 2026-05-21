@@ -72,7 +72,7 @@
 ---
 
 ### T-024 Customer detail view + soft-delete action
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS
 - **Feature:** customers
 - **Type:** feat
 - **Effort:** M
@@ -87,6 +87,40 @@
   - [ ] Playwright covers soft-delete confirmation + dismissal paths.
 - **Files likely touched:** `src/app/(app)/customers/[id]/page.tsx`, `src/features/customers/services/delete-customer.ts`.
 - **Pause-triggers anticipated:** §7.11 (DSGVO-adjacent — but soft-delete only here, hard-delete is T-031 admin workflow).
+
+---
+
+### T-024b Coverage gate honesty — global denominator = whole `src` tree
+- **Status:** ⬜ TODO
+- **Feature:** tooling / quality-gate
+- **Type:** chore
+- **Effort:** S
+- **Blocks:** T-025 (Slice 5 must be built under an honest 80 % gate, not one with holes)
+- **Blocked by:** —
+- **Description:**
+  Tighten the Vitest coverage scope so the CLAUDE.md §5.2 / SPEC §5.2 "global 80 %" gate measures the entire `src/**` code surface as denominator, not the hand-curated opt-in allow-list currently configured in `vitest.config.ts`.
+
+  **Status quo (origin/main 1daee1c):** `coverage.include` is a curated allow-list — `src/lib/**`, `src/features/**/{services,utils,schemas,hooks}/**`, `src/features/customers/actions/**`, `src/features/**/*-policy.{ts,tsx}`, the single password-rule-checklist file, and `src/middleware.ts`. Everything else — `src/features/auth/actions/{sign-in,change-password,sign-out}.ts`, every component-side directory (auth/login-form, auth/change-password-form, customers/customer-table, customers/customer-form, app-shell/topbar), route shells under `src/app/**`, shadcn primitives in `src/components/ui/**` — does **not enter the denominator**. The "92.5 % global" reported after PR #25 is computed over the allow-list only, so untested files do not redden the gate; they just do not exist as far as v8 is concerned.
+
+  **Refactor:** switch `coverage.include` to `["src/**/*.{ts,tsx}"]`. Move every legitimately-excluded category into `coverage.exclude` with an inline comment justifying the exclusion. Allowed exclusion categories: Prisma generated client (`src/generated/**`), test files (`*.test.{ts,tsx}`), declaration files (`*.d.ts`), the i18n dictionary (`src/i18n/**` — strings, not logic), the Prisma singleton (`src/lib/db.ts` — wiring), shadcn-generated UI primitives (`src/components/ui/**` — vendored, not authored), Next.js route shells (`src/app/**` — exercised end-to-end by Playwright T-051a/b, kept out of the unit-coverage gate by design), config files (`*.config.{js,mjs,ts}`), scaffold placeholders (`**/example.ts`).
+
+  **Per-pattern thresholds stay enforced.** Every existing per-pattern 100 % / 90 % rule in `vitest.config.ts` must remain after the refactor (calculations, password-policy, authorize-credentials, admin-alerts, change-password service, password-rule-checklist, middleware @ 90 %, customer create/update actions). **Additionally**, add a per-pattern 100 % threshold for `src/features/auth/actions/{sign-in,change-password,sign-out}.ts` — those sit on the same trust boundary as `src/features/customers/actions/**` and deserve the same treatment. This will force `sign-in.test.ts` and `change-password.test.ts` (action-wrapper tests) to be written in this same PR, since the files currently have zero coverage.
+
+  **Expected effect:** the global lines/branches/functions/statements numbers will drop noticeably as previously-invisible files (auth actions, every `components/` directory currently outside the allow-list, app-shell, etc.) enter the denominator. If the post-refactor global drops below 80 %, the PR is responsible for either (a) adding the missing tests in-PR or (b) tightening the global threshold to a documented honest floor with a written plan in `DECISIONS.md` to recover. **The threshold itself does not move down.** Failing the 80 % gate is a pause-trigger to coordinate with the user, not a license to lower the floor.
+
+  Document the rationale + the new exclude list in a single `DECISIONS.md` entry (§14.5).
+- **Acceptance criteria:**
+  - [ ] `vitest.config.ts` `coverage.include` is `["src/**/*.{ts,tsx}"]` (or equivalent expressing the whole src tree).
+  - [ ] `coverage.exclude` lists each excluded path with an inline `//` comment naming the reason it stays outside.
+  - [ ] All pre-existing per-pattern thresholds remain enforced verbatim.
+  - [ ] New per-pattern 100 % thresholds added for `src/features/auth/actions/sign-in.ts`, `src/features/auth/actions/change-password.ts`, `src/features/auth/actions/sign-out.ts`.
+  - [ ] New tests `src/features/auth/actions/sign-in.test.ts` and `src/features/auth/actions/change-password.test.ts` ship in this same PR, covering every branch (schema-parse failure, signIn-throws-LockedAccountError with lockedUntil, signIn-throws-AccountUnavailableError "deleted"/"inactive", signIn-throws-AuthError, signIn-throws-generic, happy path; for change-password: schema-parse failure, no-session, service-returns-error, service-returns-ok → unstable_update invoked, header extraction with/without `x-forwarded-for`).
+  - [ ] `npm run test -- --coverage` exits 0 locally — every threshold (global + per-pattern) is met.
+  - [ ] `DECISIONS.md` entry under §14.5 records: (a) why include flips to the whole src tree, (b) why each excluded path is excluded, (c) the post-refactor coverage-report ASCII snapshot.
+  - [ ] PR body pastes the `text` reporter output so the reviewer sees the new denominator size.
+  - [ ] CI green on the new global denominator.
+- **Files likely touched:** `vitest.config.ts`, new `src/features/auth/actions/sign-in.test.ts`, new `src/features/auth/actions/change-password.test.ts`, `DECISIONS.md`.
+- **Pause-triggers anticipated:** none. Pure tooling refactor — no SPEC scope change, no auth-logic change, no schema change, no dependency change. Lowering the 80 % global floor WOULD be a pause-trigger (§5 quality-gate softening) — the implementer must not lower it unilaterally; instead add the missing tests in-PR.
 
 ---
 

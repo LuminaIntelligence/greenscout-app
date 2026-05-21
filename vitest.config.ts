@@ -184,6 +184,18 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // 100% on the T-024 soft-delete-customer Server Action.
+        // Multi-tenant ownership check + audit-log write + the
+        // idempotency short-circuit are all security-critical; every
+        // branch (zod-fail, no-session, not-found, already-deleted,
+        // happy path, repo race-loss, repo-throws, header absent) is
+        // covered by soft-delete-customer.test.ts.
+        "src/features/customers/actions/soft-delete-customer.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
       },
     },
   },
