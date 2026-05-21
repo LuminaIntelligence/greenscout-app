@@ -1741,3 +1741,39 @@ Additive clarification about `applySecurityHeaders` + HSTS-at-proxy.
 No new top-level deps.
 
 **Open question for the user:** none.
+
+---
+
+## 2026-05-21 — T-021 implementation per §14 (consolidated)
+**Context:** T-021 implements the security-headers hardening per the binding design contract above. Implementation is a strict subset of the contract — no scope drift, no new policy. All §14.2-acceptable choices were applied silently per the implementation plan provided by the planning agent.
+
+**Assumption / decision:**
+
+- **`applySecurityHeaders` helper** lives in `src/middleware.ts` (co-located with the routing closure, per §14.2 "same file"). Exported as a named export alongside the default `auth()`-wrapped middleware so `src/middleware.test.ts` can exercise it directly without dragging in `next-auth` at runtime.
+- **5 headers applied on every response branch**, verified by 12 Vitest assertions (6 `applySecurityHeaders` unit + 6 routing-closure integration) covering pass-through, unauth-redirect, mustChangePassword-redirect, anti-loop on `/password-change`, public paths (`/login`, `/api/auth/*`), idempotent return, deprecated-omissions (`X-XSS-Protection`, `interest-cohort`), and HSTS-omission.
+- **Permissions-Policy**: 3 directives (`camera=(), microphone=(), geolocation=()`). FLoC `interest-cohort=()` dropped per contract.
+- **`X-XSS-Protection`** deliberately omitted (deprecated). Negative-assertion test guards regression.
+- **HSTS not in middleware** — captured as T-050b. Negative-assertion test guards regression. `deploy/Caddyfile.example` + `docs/deployment.md` author the production-side config for the human operator to apply per §8.10.
+- **`docs/security.md`** authored at 150 lines covering 9 sections (CSP / CSRF / Other security headers / HSTS+TLS / Argon2 / Session / Lockout / Audit log / Secrets). Living document; future security work updates this.
+- **SPEC §6.3 clarified additively** per CLAUDE.md §6 (taste-level clarification, not scope change).
+- **Per-pattern Vitest threshold** added: `src/middleware.ts` 90% — actual coverage achieved is **100%** across lines / branches / functions / statements (`middleware.test.ts` covers both the helper and the routing closure via mocked `next-auth` + `@/lib/auth.config` imports).
+- **TASKS.md**: T-019 moved to "Recently completed" with PR #22 summary; T-050b new entry already present in Slice 15 (pre-staged by planner agent).
+- All Husky pre-commit hooks ran clean on every commit. No `--no-verify`. No `@ts-ignore`. No `any`. No `eslint-disable`.
+
+**§14.2 silent choices applied:**
+
+- Helper location: same file as middleware (per planner-provided plan).
+- Helper export: named export from `middleware.ts` (per plan).
+- Permissions-Policy directives: exactly `camera=(), microphone=(), geolocation=()` (per plan).
+- Test file location: `src/middleware.test.ts` co-located at `src/` (per plan; matches `src/middleware.ts` location).
+- Vitest threshold: 90% per-pattern (per plan; actual delivered 100%).
+- Docs tone: reference-style factual (per plan; 150 lines, within the 120-150 target).
+- `deploy/Caddyfile.example`: chose subdirectory `deploy/` over repo-root sibling (per plan).
+- Commit chunking: 8 commits per the plan's preferred split (carry-forward / refactor / feat / test / docs-security / docs-deploy / spec-clarify / decisions-record).
+- **Test-side adaptation (not anticipated in plan)**: the `next-auth` import in `src/middleware.ts` resolves `next/server` without an extension, which Vitest's Node resolver rejects. Plus `@/lib/auth.config` fail-fasts on missing `AUTH_SECRET` at module load. Both were shallow-mocked in `src/middleware.test.ts` (`vi.mock` of `next-auth` returning identity-wrapper + `vi.mock` of `@/lib/auth.config` returning empty config) so the helper + routing closure can be exercised without the full Auth.js boot. Documented inline in the test file. Per §14.2 ("test scaffolding is taste").
+
+**Net top-level deps added**: none.
+
+**Affected files**: per DECISIONS T-021 "Module structure" table — `src/middleware.ts`, `src/middleware.test.ts` (new), `docs/security.md` (new), `vitest.config.ts`, `SPEC.md` §6.3, `TASKS.md`, `DECISIONS.md` — PLUS the new `deploy/Caddyfile.example` and `docs/deployment.md` that pre-stage T-050b execution for the human operator.
+
+**Open question for the user:** Manual browser-console check at `/` and `/login` (or any reachable page once T-022 lands the dashboard) confirming all 5 security headers visible in DevTools Network tab. Same protocol as T-018 / T-019.
