@@ -29,32 +29,7 @@
 
 ### Slice 3 — Auth feature
 
-### T-017a Verify-first authorize + timing hardening + next-auth exact pin
-- **Status:** ⬜ TODO
-- **Feature:** auth
-- **Type:** fix
-- **Effort:** S
-- **Blocks:** T-018, T-019, T-020, T-022
-- **Blocked by:** T-017
-- **Description:**
-  Corrective PR fixing three bugs surfaced after T-017 PR #19 merged. Full binding contract in **DECISIONS.md** entry "T-017a Verify-First Korrektur per ④". Scope:
-  1. Reorder `authorize-credentials.ts` to **verify-first**: argon2 verify runs BEFORE all user-state checks (lockout / soft-deleted / inactive). Decision ④ (soft-distinguished error disclosure) requires this ordering.
-  2. **Timing hardening**: when user doesn't exist, run a dummy argon2 verify against a hardcoded `DUMMY_ARGON2_HASH` to eliminate email-enumeration via response-time differences.
-  3. Custom Auth.js error classes — `LockedAccountError(lockedUntil)` and `AccountUnavailableError("deleted"|"inactive")` — thrown from `authorize` only on password-correct paths. Propagated to the form via Auth.js error result.
-  4. `signInAction` updated to map AuthError → typed `errorCode` for the T-018 form.
-  5. **`next-auth` exact pin**: `"5.0.0-beta.31"` (no caret) — betas don't follow SemVer.
-- **Acceptance criteria:**
-  - [ ] `authorize-credentials.ts` runs argon2 verify exactly once per attempt regardless of user existence.
-  - [ ] Locked + correct-password path throws `LockedAccountError` WITHOUT incrementing `failedLoginCount` or modifying `lockoutUntil`.
-  - [ ] Locked + wrong-password path returns generic null + increments counter (no "locked" disclosure).
-  - [ ] All previous 9 test scenarios reshape + 3 new scenarios (non-existent timing, locked-correct-password, locked-wrong-password) — 12+ total at 100% coverage on `authorize-credentials.ts`.
-  - [ ] `package.json` records `"next-auth": "5.0.0-beta.31"` exactly (no caret).
-- **Files likely touched:** `src/features/auth/services/authorize-credentials.ts` (+ test), `src/features/auth/actions/sign-in.ts`, `src/features/auth/errors.ts` (new + test), `package.json`, `package-lock.json`, `TASKS.md`, `DECISIONS.md`.
-- **Pause-triggers anticipated:** none — design pre-approved as a §7.3 corrective in the DECISIONS contract.
-
----
-
-### T-018 Login page with live password-rule checklist
+### T-018 Login page (email + password + lockout banner)
 - **Status:** ⬜ TODO
 - **Feature:** auth
 - **Type:** feat
@@ -62,15 +37,17 @@
 - **Blocks:** T-019, T-022
 - **Blocked by:** T-003, T-017, T-017a
 - **Description:**
-  Build `/login` page with email + password fields, RHF + zod schema, shadcn/ui form components. Below the password field show a **live checklist** that turns each rule green/red as the user types (uses `passwordRules` from T-016). German microcopy ("Du"-form). Show inline form errors for invalid credentials with a single generic message ("E-Mail oder Passwort ist falsch") — never reveal which one. Show a banner if the account is locked (countdown to unlock).
+  Build `/login` page per the **user-approved design recap** captured in DECISIONS.md → "T-018 Login page design (user-confirmed, binding)". Two fields (email + password), `<Input type="password">` with `loginSchema` `min(1)` only — **NO live password-rule checklist** on Login (DECISIONS T-016 establishes "validatePassword NOT used in login"; the live checklist belongs to T-019 forced password change, where the user is *composing* a new password). German microcopy ("Du"-form). Soft-distinguished error UX via T-017a's typed `SignInResult`: generic "Email oder Passwort falsch" for invalid creds, specific countdown banner only on lockout (after password verifies correctly via the `LockedAccountError` path). Subtle "Passwort vergessen? Bitte wende dich an den Administrator." hint below the submit button (no link, MVP has no self-service reset — V2 territory). CSP-browser-verification is part of acceptance: implementer builds + reports; **user manually checks browser console at /login (dev + prod) before merge**.
 - **Acceptance criteria:**
-  - [ ] Live checklist updates on each keystroke and matches the five `passwordRules` predicates.
-  - [ ] Generic error on invalid credentials; specific banner on lockout.
-  - [ ] All strings via the (still-empty) i18n dictionary `src/i18n/de.ts`.
-  - [ ] a11y: every input has an associated `<label>`; checklist exposed via `aria-live="polite"`.
-  - [ ] Playwright test covers happy path + invalid-password path.
-- **Files likely touched:** `src/app/(auth)/login/page.tsx`, `src/features/auth/components/login-form.tsx`, `src/features/auth/schemas/login-schema.ts`, `src/i18n/de.ts`.
+  - [ ] `/login` route renders the form per the design-recap tabular spec (Card, Logo above, brand-token-conform).
+  - [ ] Generic "Email oder Passwort falsch" Alert for bad creds; countdown lockout Alert only when T-017a's `LockedAccountError` path fires.
+  - [ ] All strings via `src/i18n/de.ts` (7 new keys; existing 9 from T-016/T-017 reused).
+  - [ ] a11y: every input has `<FormLabel>` association; banners use `role="alert"`.
+  - [ ] Vitest RTL component tests for `LoginForm`: happy-path, generic-error, lockout-countdown. **Playwright E2E deferred to T-051a** (planner's stale line; T-018 ships unit-test coverage only).
+  - [ ] **User-side**: browser console at `/login` shows zero CSP violations in dev + prod build.
+- **Files likely touched:** `src/app/(auth)/layout.tsx`, `src/app/(auth)/login/page.tsx`, `src/features/auth/components/login-form.tsx`, `src/features/auth/components/login-form.test.tsx`, `src/i18n/de.ts`, `src/i18n/de.test.ts`.
 - **Pause-triggers anticipated:** §7.4 only if the implementer strays outside design tokens.
+- **NOT in T-018** (explicitly moved to T-019): `PasswordRuleChecklist` component, its a11y plumbing, `auth.checklist.*` i18n keys.
 
 ---
 
@@ -82,15 +59,17 @@
 - **Blocks:** T-022
 - **Blocked by:** T-018
 - **Description:**
-  When `session.user.mustChangePassword === true`, middleware redirects every non-`/change-password` request to `/change-password`. Page renders the same live checklist (T-016 rules) and requires current password + new password + confirm. On success: hash new password, clear `mustChangePassword`, write an `AuditLog` `PASSWORD_RESET` entry (`action`, `userId`, `ipAddress`, `userAgent`), redirect to `/dashboard`. Reject if new password equals current.
+  When `session.user.mustChangePassword === true`, the existing middleware (T-017) redirects every non-`/password-change` request to `/password-change`. Build the page: form with `currentPassword` + `newPassword` + `confirmNewPassword` fields. **This task ships the `PasswordRuleChecklist` component** (moved here from T-018 per design-review correction — composition needs the checklist, login does not). Live checklist below the new-password field updates per keystroke using `passwordRules` from T-016, with green checks for passed and **red Xs for not-passed per SPEC §4.1** ("green/red as the user types"). a11y: container `aria-live="polite"`, screen-reader-only "erfüllt"/"nicht erfüllt" state. New i18n keys: `auth.checklist.aria-label`, `auth.checklist.fulfilled`, `auth.checklist.unfulfilled`. Server Action validates: (a) currentPassword verifies against stored hash, (b) `validatePassword(newPassword).ok === true`, (c) newPassword !== currentPassword. On success: argon2 hash newPassword, `updatePasswordHash` (also sets `passwordChangedAt = now`), `setMustChangePassword(false)`, write `AuditLog action="PASSWORD_RESET"` entry (changeSet: no plaintext; just `{ initiator: "user-forced" }`), redirect to `/`. **PasswordRuleChecklist component is reusable** by T-041b (admin password reset) and any future signup flow. Decision-points for the checklist visual (icon choice for not-passed: X vs Circle vs AlertCircle; render-trigger: always-visible vs only-when-typing) will be settled in the T-019 §14.2-silent implementation phase per the implementer's judgment within SPEC §4.1's green/red mandate.
 - **Acceptance criteria:**
-  - [ ] Middleware redirect verified by Playwright test (logged-in admin → forced to `/change-password`).
-  - [ ] New password must satisfy all five rules; reuse of current password rejected.
+  - [ ] Middleware redirect verified by Vitest middleware test (logged-in admin with mustChangePassword=true → redirects to /password-change). Playwright E2E deferred to T-051a.
+  - [ ] `PasswordRuleChecklist` component exists at `src/features/auth/components/password-rule-checklist.tsx` with 100% Vitest+RTL coverage. Reusable export.
+  - [ ] New password must satisfy all five rules (server-side `validatePassword(newPassword).ok`); reuse of current password rejected.
   - [ ] `mustChangePassword` flips to `false` on success.
-  - [ ] Audit-log entry written with `action="PASSWORD_RESET"`.
-  - [ ] German microcopy throughout.
-- **Files likely touched:** `src/app/(auth)/change-password/page.tsx`, `src/features/auth/components/change-password-form.tsx`, `src/features/auth/services/change-password.ts`, `src/middleware.ts`.
-- **Pause-triggers anticipated:** §7.3 (auth flow).
+  - [ ] `passwordChangedAt` set to `now` on success.
+  - [ ] AuditLog entry written with `action="PASSWORD_RESET"`, changeSet WITHOUT any plaintext or hash material.
+  - [ ] German microcopy throughout; SPEC §4.1 green/red color rule on the live checklist.
+- **Files likely touched:** `src/app/(auth)/password-change/page.tsx`, `src/features/auth/components/change-password-form.tsx`, `src/features/auth/components/password-rule-checklist.tsx` (new — moved from T-018 scope), `src/features/auth/components/password-rule-checklist.test.tsx` (new), `src/features/auth/services/change-password.ts`, `src/features/auth/actions/change-password.ts` (Server Action), `src/i18n/de.ts` (+3 `auth.checklist.*` keys + change-form labels).
+- **Pause-triggers anticipated:** §7.3 (auth flow — design-recap will be required before implementation, similar to T-018 design-review pattern).
 
 ---
 
@@ -853,6 +832,25 @@
 
 ### Slice 15 — Polish
 
+### T-048b GreenScout SVG logo integration
+- **Status:** ⬜ TODO
+- **Feature:** chore (assets)
+- **Type:** feat
+- **Effort:** S
+- **Blocks:** —
+- **Blocked by:** T-018
+- **Description:**
+  Replace the text-only `"GreenScout"` placeholder in `src/app/(auth)/layout.tsx` and other brand-surfaces with the actual GreenScout SVG logo, extracted from the existing GreenScout-Stylesheet/Brand-Guide assets. Provide responsive sizing (mobile: h-8, desktop: h-10 typical) and ensure proper contrast on `bg-background`. Add the SVG as `public/brand/greenscout-logo.svg` (or `.tsx` if inline-stroke colour required for theming). Consider also adding a favicon variant if not already in place.
+- **Acceptance criteria:**
+  - [ ] `public/brand/greenscout-logo.svg` exists with the official logo glyph.
+  - [ ] `src/app/(auth)/layout.tsx` (and any other brand surfaces) use the SVG instead of the text placeholder.
+  - [ ] Logo renders crisp at 1x and 2x dpi.
+  - [ ] Tab title still reads "Anmeldung — GreenScout"; the visible h1 swap from text to SVG doesn't break aria semantics (alt text or sr-only fallback).
+- **Files likely touched:** `public/brand/greenscout-logo.svg` (new), `src/app/(auth)/layout.tsx`, possibly `src/app/layout.tsx` (root) for favicon.
+- **Pause-triggers anticipated:** §7.4 if the logo introduces colors outside the SPEC §8.1 palette — confirm before merging.
+
+---
+
 ### T-049 Centralised German i18n dictionary `src/i18n/de.ts`
 - **Status:** ⬜ TODO
 - **Feature:** i18n
@@ -995,6 +993,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-017a ✅ Verify-first authorize + timing hardening + next-auth exact pin
+- **Merged:** 2026-05-21 via PR #20 (`e66fc13`)
+- **Branch:** `fix/auth-verify-first-and-pin`
+- **Summary:** Reordered `authorize-credentials.ts` to verify-first: argon2 always runs (against `user.passwordHash` for existing users, against `DUMMY_ARGON2_HASH` for non-existent) — eliminates email-enumeration timing side-channel. Custom `CredentialsSignin` subclasses `LockedAccountError(lockedUntil)` + `AccountUnavailableError("deleted"|"inactive")` thrown only on password-correct paths. `signInAction` returns discriminated `SignInResult` union with typed `errorCode` + optional `lockedUntil`. Locked-correct-password leaves counter and lockoutUntil UNCHANGED. `next-auth` pinned exact to `5.0.0-beta.31` (no caret — betas don't follow SemVer). 19 test scenarios at 100% coverage on `authorize-credentials.ts`. **Deviation noted**: `CredentialsSignin` imported from `@auth/core/errors` (not `next-auth` barrel) because the barrel pulls `next/server` into Vitest. Same class.
+- **Decisions:** see `DECISIONS.md` entries "T-017a Verify-First Korrektur per ④" + "T-017a implementation per §14".
 
 ### T-017 ✅ Auth.js v5 Credentials provider + session config
 - **Merged:** 2026-05-20 via PR #19 (`dfbc176`)
