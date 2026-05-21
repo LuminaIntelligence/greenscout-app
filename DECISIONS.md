@@ -1652,3 +1652,92 @@ src/
 - `DECISIONS.md` (this entry)
 
 **Open question for the user:** Manual browser-console CSP verification at `/password-change` in dev + prod build before merge. Same protocol as T-018. The middleware redirects unauthenticated requests to `/login`, so direct `curl /password-change` returns 307 and the page itself can only be inspected after sign-in.
+
+---
+
+## 2026-05-21 — T-021 Security headers hardening (user-confirmed, binding)
+**Context:** §7.3 design-preview surfaced three decisions; user approved with three sharp corrections plus an `applySecurityHeaders` helper mandate and an HSTS-NOT-in-middleware constraint. Most of T-021's original scope (CSP base, Server-Action CSRF posture) was already shipped in T-017 — residual work is response-header hardening + posture documentation + a new TASKS entry for reverse-proxy production hardening.
+
+**Assumption / decision:**
+
+### Final Permissions-Policy value
+`camera=(), microphone=(), geolocation=()` — three directives. **`interest-cohort=()` DROPPED** per user-correction (Google killed FLoC in 2022; the directive is dead).
+
+### Four NEW response headers (in addition to existing CSP from T-017)
+
+| Header | Value |
+|---|---|
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+
+**X-XSS-Protection deliberately omitted** — deprecated by all major browsers (Chrome 78+ removed support). User-confirmed.
+
+### `applySecurityHeaders(response)` helper — REQUIRED on ALL response branches (user-mandated)
+
+```ts
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("Content-Security-Policy", CSP_HEADER);
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  return response;
+}
+```
+
+Called on EVERY response the middleware returns:
+- Pass-through (`NextResponse.next()`)
+- Unauth → `/login` redirect
+- mustChangePassword → `/password-change` redirect
+- Any future branch — never bypass
+
+### Tests (binding)
+
+`src/middleware.test.ts` (new file) — Vitest with mocked `NextRequest`:
+- Pass-through response carries all 5 headers
+- Unauth-redirect response carries all 5 headers
+- mustChangePassword-redirect response carries all 5 headers
+- `applySecurityHeaders` helper unit-tested for exact header values
+
+Coverage target: 90%+ on middleware. Per-pattern Vitest threshold added.
+
+### connect-src stays `'self'` (Vorschlag confirmed)
+Server-side fetches to the Python service happen outside the browser CSP sphere. T-035+ revisits if client-side fetch ever needed.
+
+### CSRF — Server-Actions-only posture (DECISIONS T-017 ⑥)
+No code change; documented in `docs/security.md`.
+
+### HSTS — explicitly NOT in middleware (user-mandated)
+
+Setting HSTS at the application layer leaks `Strict-Transport-Security` over plain HTTP in dev mode → browsers cache HSTS → single dev hit locks dev hostname into HTTPS-only for months. **Resolution**: HSTS lives at the production reverse-proxy on the Hetzner VPS. Captured as **new TASKS.md task T-050b** (production deployment work — agent authors config snippets; human operator executes per §8.10).
+
+### `docs/security.md` content (binding scope, ~120-150 lines)
+
+Nine sections covering: CSP / CSRF / Other security headers / HSTS+TLS / Argon2 / Session / Lockout / Audit log / Secrets. Living document; future security work updates this.
+
+### SPEC §6.3 clarification edit (per CLAUDE.md §6)
+
+Additive clarification about `applySecurityHeaders` + HSTS-at-proxy.
+
+### TASKS.md additions (pre-staged by agent)
+
+**New task T-050b** inserted in Slice 15 (Polish) adjacent to T-050:
+> Production reverse-proxy hardening (HSTS + TLS termination). Configure VPS reverse-proxy (likely Caddy) for HSTS, TLS termination via Let's Encrypt, HTTP→HTTPS force-redirect, X-Forwarded-* propagation. Agent authors config snippets in `docs/deployment.md`; production execution human-only per §8.10.
+
+### Module structure
+
+| File | Action |
+|---|---|
+| `src/middleware.ts` | EXTEND — extract `applySecurityHeaders(response)` helper, call on every branch |
+| `src/middleware.test.ts` | NEW — Vitest tests verify all 5 headers on pass-through + 2 redirect branches |
+| `docs/security.md` | NEW — full posture (9 sections) |
+| `SPEC.md` §6.3 | EXTEND — one-line additive clarification |
+| `TASKS.md` | T-019 → ✅ Recently completed + new T-050b entry in Slice 15 |
+| `DECISIONS.md` | T-021 implementation entry post-impl |
+| `vitest.config.ts` | +1 per-pattern threshold for middleware (90%) |
+
+No new top-level deps.
+
+**Open question for the user:** none.
