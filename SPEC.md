@@ -374,7 +374,7 @@ No application logic outside the repository layer should reference `organization
 - All app secrets read from environment variables; never logged.
 - SMTP password stored encrypted (symmetric, key from env) in the `Setting` table.
 - CSRF protection on all state-changing routes (Auth.js handles its own; custom routes use a per-session token).
-- Content-Security-Policy headers via Next.js middleware.
+- Content-Security-Policy headers via Next.js middleware, plus `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options`, and `Permissions-Policy` applied to every middleware response via an `applySecurityHeaders` helper for defense-in-depth. HSTS and TLS termination live at the production reverse-proxy (see T-050b), NOT in middleware — dev-HTTP traffic would otherwise leak the HSTS directive and lock the dev hostname into HTTPS-only.
 - File uploads served with `Content-Disposition: attachment` and a strict allow-list of MIME types.
 
 ### 6.4 Internationalisation
