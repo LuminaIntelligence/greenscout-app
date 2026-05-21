@@ -1066,3 +1066,204 @@ Browser-console CSP verification (Next 15 RSC streaming / hydration inline scrip
 1. **`next-auth@beta` deviation.** The design contract said "NOT @beta" but no stable v5 exists. Acknowledge the beta-tag install, or pivot to a different approach.
 2. **Browser-console CSP verification.** Manual check at `/`, `/login`, and the eventual post-login `/dashboard` route once T-018 / T-022 land. If violations appear, instruct: (a) nonce-based fallback or (b) `'unsafe-inline'` on script-src.
 3. **Soft-distinguished lockout UX** — decide T-018 path (a) standalone status Server Action, or (b) custom CredentialsSignin subclass with code routing.
+
+---
+
+## 2026-05-20 — T-017a Verify-First Korrektur per ④ (user-confirmed, binding)
+**Context:** Three real bugs surfaced after T-017 PR #19 merged:
+1. **Logic bug**: `authorize-credentials.ts` checks `lockoutUntil` BEFORE `verifyPassword`. Decision ④ (soft-distinguished error disclosure) requires the inverse — lockout signal must only emit AFTER the password verifies correctly. The current order makes soft-distinguished UX impossible; T-017's implementer noticed it ("deferred to T-018") but the correct fix is to reorder the algorithm.
+2. **Timing side-channel**: non-existent users get no argon2 verify → response is detectably faster than for existing users. This is a classic email-enumeration vector that undermines exactly the protection ④ exists for.
+3. **`next-auth` caret pin**: `^5.0.0-beta.31` allows any beta release ≥ 31, but **betas don't follow SemVer**. A breaking-change beta could ship and break the auth layer silently. Caret must go; exact pin required.
+
+User also rejected T-018 Option A (`checkLockoutState` Server Action) — that path was itself an enumeration vector via standalone email lookup. T-018 will use Option B: custom CredentialsSignin subclass with `code: "locked"` thrown from inside `authorize`, propagated to the form via Auth.js's error result.
+
+**Assumption / decision:**
+
+### Reordered authorize-credentials algorithm (verify-first)
+```
+on login attempt:
+  user = findUserByEmail(email)  # may return null
+
+  # TIMING HARDENING: always run argon2 verify, even for non-existent users
+  if user == null:
+    await verifyPassword(DUMMY_ARGON2_HASH, plain)   # constant-time dummy
+    passwordOk = false
+  else:
+    passwordOk = await verifyPassword(user.passwordHash, plain)
+
+  # Bad password path (covers non-existent users too — same generic response)
+  if NOT passwordOk:
+    if user != null:
+      counter = user.failedLoginCount + 1
+      incrementFailedLoginCount(user.id)
+      if counter == 5:   setLockoutUntil(user.id, now + 15min)
+      elif counter == 10: setLockoutUntil(user.id, now + 1h); emitAdminLockoutAlert()
+      elif counter > 10: setLockoutUntil(user.id, now + 1h)
+      audit LOGIN_FAIL { reason: "bad-password", counterAfter: counter }
+    else:
+      audit LOGIN_FAIL { reason: "non-existent" }   # userId: null
+    return null   # Auth.js translates to generic CredentialsSignin (invalid-credentials)
+
+  # Password is correct. Now check user-state flags.
+  # (These were BEFORE verify in T-017; moving them AFTER means the
+  #  ${attacker without correct password} sees only generic failure —
+  #  no enumeration of soft-deleted/inactive accounts.)
+
+  if user.deletedAt != null:
+    audit LOGIN_FAIL { reason: "soft-deleted-correct-password" }
+    throw new AccountUnavailableError("deleted")   # unified inactive-style error
+
+  if not user.active:
+    audit LOGIN_FAIL { reason: "inactive-correct-password" }
+    throw new AccountUnavailableError("inactive")
+
+  if user.lockoutUntil != null AND user.lockoutUntil > now:
+    audit LOGIN_FAIL { reason: "locked-correct-password" }
+    # Counter and lockoutUntil stay UNCHANGED — user typed correctly,
+    # they're just waiting out the timer. Neither increment nor reset.
+    throw new LockedAccountError(user.lockoutUntil)
+
+  # Full success path
+  resetFailedLoginCount(user.id)   # clears BOTH counter AND lockoutUntil
+  audit LOGIN_SUCCESS { reason: "credentials" }
+  return user
+```
+
+### Timing hardening — `DUMMY_ARGON2_HASH`
+
+A precomputed argon2id hash against the SPEC §6.3 parameters, hardcoded as a module constant in `authorize-credentials.ts`. The implementer generates it once via:
+
+```
+node -e "import('@node-rs/argon2').then(m => m.hash('greenscout-dummy-timing-hardening', { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 }).then(h => console.log(h)))"
+```
+
+Captures stdout; pastes as the const. Test: `verifyPassword(DUMMY_ARGON2_HASH, "wrong")` always returns `false`. The salt is random and committed — it's not a secret. **Critical: every login attempt now performs exactly one argon2 verify**, eliminating the existence side-channel.
+
+### Custom CredentialsSignin subclasses
+
+```ts
+import { CredentialsSignin } from "next-auth";
+
+export class LockedAccountError extends CredentialsSignin {
+  code = "locked";
+  constructor(public readonly lockedUntil: Date) {
+    super("Account locked");
+  }
+}
+
+export class AccountUnavailableError extends CredentialsSignin {
+  code: "deleted" | "inactive";
+  constructor(reason: "deleted" | "inactive") {
+    super(`Account ${reason}`);
+    this.code = reason;
+  }
+}
+```
+
+Both are thrown from `authorize-credentials.ts` only on the password-correct paths. Auth.js v5 propagates them; `signInAction` catches and returns the code + metadata to the form.
+
+### `signInAction` update (in T-017's `src/features/auth/actions/sign-in.ts`)
+
+```ts
+type SignInResult =
+  | { ok: true }
+  | { ok: false; errorCode: "invalid-credentials" | "locked" | "inactive" | "deleted" | "server"; lockedUntil?: string };
+
+// ... in the catch block:
+if (err instanceof LockedAccountError) {
+  return { ok: false, errorCode: "locked", lockedUntil: err.lockedUntil.toISOString() };
+}
+if (err instanceof AccountUnavailableError) {
+  return { ok: false, errorCode: err.code };
+}
+if (err instanceof AuthError) {
+  return { ok: false, errorCode: "invalid-credentials" };
+}
+return { ok: false, errorCode: "server" };
+```
+
+This replaces the current "always generic" return value. T-018 form consumes the new shape — see T-018 design recap (post-T-017a).
+
+### next-auth exact pin
+
+`package.json` change: `"next-auth": "5.0.0-beta.31"` (no caret, no tilde). `npm install` re-runs to update lockfile (lockfile will record the exact resolved version regardless of the package.json range — but the exact-pin in package.json prevents `npm install` on a fresh checkout from grabbing beta.32+ if it ships).
+
+### Updated test scenarios on `authorize-credentials.test.ts`
+
+The 9 scenarios from T-017 reshape:
+
+1. (same) Successful login → resetFailedLoginCount called, audit LOGIN_SUCCESS, returns user
+2. **(adjusted)** Bad password (user exists, counter < 5) → verifyPassword called against user.passwordHash, incrementFailedLoginCount, audit LOGIN_FAIL bad-password, returns null
+3. **(new)** Non-existent user → verifyPassword called against DUMMY_ARGON2_HASH (timing hardening), no counter operations, audit LOGIN_FAIL non-existent (userId: null), returns null
+4. **(adjusted)** Soft-deleted user + correct password → audit LOGIN_FAIL soft-deleted-correct-password, throws AccountUnavailableError("deleted")
+5. **(adjusted)** Soft-deleted user + wrong password → falls through bad-password path (generic), audit LOGIN_FAIL bad-password (since password mismatch comes first now)
+6. **(adjusted)** Inactive user + correct password → audit LOGIN_FAIL inactive-correct-password, throws AccountUnavailableError("inactive")
+7. **(adjusted)** Inactive user + wrong password → generic bad-password path
+8. **(adjusted)** Locked user + correct password → audit LOGIN_FAIL locked-correct-password, throws LockedAccountError(lockedUntil), **counter unchanged**, **lockoutUntil unchanged**
+9. **(adjusted)** Locked user + wrong password → generic bad-password path + counter increment (no "locked" disclosure)
+10. (same) Counter transitions: ==4 (no setLockoutUntil), ==5 (15min set), ==9 (no), ==10 (1h set + admin-alert called), ==11 (1h set, no alert)
+11. (same) Successful login resets BOTH counter AND lockoutUntil
+12. **(new)** Timing assertion: response time for non-existent user ≈ response time for existing user with bad password (within reasonable margin, both run one full argon2 verify)
+
+Coverage stays 100% on `authorize-credentials.ts` + `admin-alerts.ts`.
+
+### Status flip and PR sequencing
+
+T-017a is a corrective PR, not a new task — but for task-tracking clarity, add a new entry **T-017a** to TASKS.md under Open tasks (between T-017 status and T-018 entry), then flip it to ✅ on its own merge.
+
+T-018 (login UI) is **blocked by T-017a** because the new `signInAction` shape is what T-018 consumes.
+
+**Affected files (T-017a implementation):**
+- `src/features/auth/services/authorize-credentials.ts` (reorder logic + DUMMY_ARGON2_HASH + custom errors)
+- `src/features/auth/services/authorize-credentials.test.ts` (reshape 9 scenarios + add 3 new)
+- `src/features/auth/actions/sign-in.ts` (extend SignInResult + error-code routing)
+- `src/features/auth/errors.ts` (NEW — LockedAccountError, AccountUnavailableError)
+- `src/features/auth/errors.test.ts` (NEW — verify error-class instantiation + code values)
+- `package.json` (`"next-auth": "5.0.0-beta.31"` exact pin)
+- `package-lock.json`
+- `SPEC.md` — no edit needed; §4.1 (counter-based) wording stays correct under verify-first
+- `TASKS.md` (T-017a new entry + status flip on its commit)
+- `DECISIONS.md` (this entry + a T-017a implementation entry post-impl)
+
+**Open question for the user:** —
+
+---
+
+## 2026-05-21 — T-017a implementation per §14 (consolidated)
+
+Implementation of the T-017a verify-first corrective per the binding contract above. Per CLAUDE.md §14, the following taste-level decisions were taken silently — listed here as a batch:
+
+| Decision | Choice | Reason |
+|---|---|---|
+| Custom-error file location | `src/features/auth/errors.ts` (separate file) | Testability + reusability — keeps the domain-error vocabulary out of the algorithm module. |
+| Error class taxonomy | `LockedAccountError extends CredentialsSignin` (`code="locked"`, carries `lockedUntil: Date`); `AccountUnavailableError extends CredentialsSignin` (single class, `code: "deleted" \| "inactive"` via constructor variant) | Per pre-approved spec in the contract. |
+| `CredentialsSignin` import path | Import from `@auth/core/errors` (the underlying Auth.js core package) instead of `next-auth` | The `next-auth` barrel pulls in `next/server` initialisation which Vitest cannot resolve. `next-auth` re-exports `CredentialsSignin` from `@auth/core/errors` — same class, cleaner test surface. |
+| `DUMMY_ARGON2_HASH` value | `$argon2id$v=19$m=19456,t=2,p=1$8Cca+11osq7qn46+JqzGrQ$vCc2m7uSzav1vP/Ml+XfiNHJ6bEOq6k1hfzX+JIa9gQ` (committed plain in source) | Generated once via the contract-specified command. Salt is random and not a secret. Verified one-shot timing-hardened verify on the non-existent-user path. Regen command documented in the file's comment block. |
+| `DUMMY_ARGON2_HASH` placement | Top of `authorize-credentials.ts`, below imports, with explanatory comment block | Per pre-approved spec. |
+| `SignInResult` type shape | Discriminated union `{ ok: true } \| { ok: false; errorCode: "invalid-credentials" \| "locked" \| "inactive" \| "deleted" \| "server"; lockedUntil?: string }` | Per pre-approved spec. T-018 consumes this shape. |
+| `signInAction` catch order | `LockedAccountError` → `AccountUnavailableError` → `AuthError` → catch-all | Specific subclasses first; matters because both extend `AuthError` via `CredentialsSignin`. |
+| Algorithm structural choice | Branch `user === null` first (early-return after dummy verify + audit) so TypeScript narrows `user` to NonNull through the rest of the function | Equivalent to the contract pseudocode (one verify per attempt, generic null on bad-password), but avoids an unreachable defensive guard that would have created a 100% coverage hole. |
+| Test scaffolding | 19 scenarios across 5 describe-blocks: success path (3), timing-hardening (2), bad-password generic disclosure (8 — incl. soft-deleted + wrong pwd, inactive + wrong pwd, locked + wrong pwd), soft-distinguished signals on password-correct paths (4), null IP/UA forwarding (1) | Reshapes the 9 prior scenarios, adds 3 new mandated scenarios, and rounds to coverage-of-every-branch. Final coverage 100% lines / 100% branches / 100% functions / 100% statements on `authorize-credentials.ts`. |
+| `feat/login-page` salvage handling | Branch left local-only (5 commits, unpushed). Untracked `src/app/(auth)/` route fragment moved to `H:/tmp/t018-salvage/src/app/(auth)/` (out-of-repo) to clear the pre-commit `tsc --noEmit` scan; the future T-018 implementer decides whether to salvage `PasswordRuleChecklist`, `de.ts` i18n keys, or rebuild fresh against the new `SignInResult` shape | §8 forbids destructive ops on the local branch. Moving the untracked fragment out of the working tree is non-destructive. |
+| Commit chunking | 7 commits per the contract: (1) docs carry-forward + T-017 status flip; (2) custom error subclasses; (3) verify-first authorize; (4) signInAction routing; (5) next-auth exact pin; (6) reshaped tests; (7) this DECISIONS entry | Logical units; each commit independently lint+typecheck-clean. |
+
+**Affected files (actual):**
+- `src/features/auth/services/authorize-credentials.ts` (rewritten — verify-first algorithm, `DUMMY_ARGON2_HASH` constant, custom-error throws)
+- `src/features/auth/services/authorize-credentials.test.ts` (reshaped — 19 scenarios)
+- `src/features/auth/actions/sign-in.ts` (discriminated union `SignInResult`, error-code routing)
+- `src/features/auth/errors.ts` (NEW)
+- `src/features/auth/errors.test.ts` (NEW — 3 assertions across both classes)
+- `package.json` (`next-auth` exact-pin)
+- `package-lock.json` (lockfile-refresh)
+- `TASKS.md` (T-017 → Recently completed, T-017a inserted in Open tasks, T-018 blocked-by updated)
+- `DECISIONS.md` (this entry)
+
+**Verification:**
+- `npx vitest run` → 17 files / 125 tests pass.
+- `npx vitest run --coverage` → global 93.49% / authorize-credentials.ts **100% / 100% / 100% / 100%**.
+- `npx tsc --noEmit` → 0 errors.
+- `npx eslint . --max-warnings 0` → 0 errors.
+- `npx prettier . --check` → all formatted.
+- Lockfile resolved `next-auth` to exact `5.0.0-beta.31`.
+
+**Open question for the user:** —

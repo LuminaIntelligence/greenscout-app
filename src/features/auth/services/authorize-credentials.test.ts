@@ -18,6 +18,7 @@ vi.mock("./admin-alerts", () => ({
   emitAdminLockoutAlert: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { AccountUnavailableError, LockedAccountError } from "@/features/auth/errors";
 import { verifyPassword } from "@/features/auth/password-policy";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import {
@@ -31,6 +32,11 @@ import { emitAdminLockoutAlert } from "./admin-alerts";
 import { authorizeCredentials } from "./authorize-credentials";
 
 const ORG = "greenscout";
+
+// Must match the constant in authorize-credentials.ts. Asserted via the
+// timing-hardening tests so accidental drift fails loudly.
+const DUMMY_ARGON2_HASH =
+  "$argon2id$v=19$m=19456,t=2,p=1$8Cca+11osq7qn46+JqzGrQ$vCc2m7uSzav1vP/Ml+XfiNHJ6bEOq6k1hfzX+JIa9gQ";
 
 interface MockUserOverrides {
   id?: string;
@@ -54,7 +60,7 @@ function makeUser(overrides: MockUserOverrides = {}) {
     mustChangePassword: false,
     formPreference: "WIZARD" as const,
     organizationId: ORG,
-    passwordHash: "$argon2id$hash",
+    passwordHash: "$argon2id$user-real-hash",
     passwordChangedAt: null,
     firstName: "Test",
     lastName: "User",
@@ -127,84 +133,8 @@ describe("authorizeCredentials — success path", () => {
       includeDeleted: true,
     });
   });
-});
 
-describe("authorizeCredentials — denial paths", () => {
-  it("returns null and audits 'non-existent' when no user matches", async () => {
-    vi.mocked(findUserByEmail).mockResolvedValueOnce(null);
-
-    const result = await authorizeCredentials(CTX_BASE);
-
-    expect(result).toBeNull();
-    expect(createAuditEntry).toHaveBeenCalledWith(ORG, {
-      entityType: "Auth",
-      entityId: null,
-      action: "LOGIN_FAIL",
-      changeSet: { reason: ["", "non-existent"] },
-      ipAddress: "10.0.0.1",
-      userAgent: "Mozilla/5.0",
-    });
-    expect(verifyPassword).not.toHaveBeenCalled();
-  });
-
-  it("returns null and audits 'soft-deleted' when deletedAt is set", async () => {
-    vi.mocked(findUserByEmail).mockResolvedValueOnce(
-      makeUser({ deletedAt: new Date("2026-01-01T00:00:00Z") }),
-    );
-
-    const result = await authorizeCredentials(CTX_BASE);
-
-    expect(result).toBeNull();
-    expect(createAuditEntry).toHaveBeenCalledWith(ORG, {
-      user: { connect: { id: "user-1" } },
-      entityType: "Auth",
-      entityId: null,
-      action: "LOGIN_FAIL",
-      changeSet: { reason: ["", "soft-deleted"] },
-      ipAddress: "10.0.0.1",
-      userAgent: "Mozilla/5.0",
-    });
-    expect(verifyPassword).not.toHaveBeenCalled();
-  });
-
-  it("returns null and audits 'inactive' when active=false", async () => {
-    vi.mocked(findUserByEmail).mockResolvedValueOnce(makeUser({ active: false }));
-
-    const result = await authorizeCredentials(CTX_BASE);
-
-    expect(result).toBeNull();
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      ORG,
-      expect.objectContaining({
-        action: "LOGIN_FAIL",
-        changeSet: { reason: ["", "inactive"] },
-      }),
-    );
-    expect(verifyPassword).not.toHaveBeenCalled();
-  });
-
-  it("returns null and audits 'locked' when lockoutUntil is in the future, even with a correct password", async () => {
-    const future = new Date(Date.now() + 60 * 60 * 1000);
-    vi.mocked(findUserByEmail).mockResolvedValueOnce(
-      makeUser({ lockoutUntil: future, failedLoginCount: 7 }),
-    );
-    // verifyPassword should NEVER be called when locked.
-    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
-
-    const result = await authorizeCredentials(CTX_BASE);
-
-    expect(result).toBeNull();
-    expect(verifyPassword).not.toHaveBeenCalled();
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      ORG,
-      expect.objectContaining({
-        action: "LOGIN_FAIL",
-        changeSet: { reason: ["", "locked"] },
-      }),
-    );
-  });
-
-  it("ignores a stale lockoutUntil that is already in the past", async () => {
+  it("clears a stale lockoutUntil that is already in the past on success", async () => {
     const past = new Date(Date.now() - 60 * 1000);
     vi.mocked(findUserByEmail).mockResolvedValueOnce(
       makeUser({ lockoutUntil: past, failedLoginCount: 5 }),
@@ -218,8 +148,44 @@ describe("authorizeCredentials — denial paths", () => {
   });
 });
 
-describe("authorizeCredentials — counter transitions on bad-password path", () => {
-  it("counterAfter=1 (was 0): increments only, no lockout set", async () => {
+describe("authorizeCredentials — timing hardening (verify always runs once)", () => {
+  it("calls verifyPassword exactly once against DUMMY_ARGON2_HASH when the user does not exist", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(null);
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
+
+    const result = await authorizeCredentials(CTX_BASE);
+
+    expect(result).toBeNull();
+    expect(verifyPassword).toHaveBeenCalledTimes(1);
+    expect(verifyPassword).toHaveBeenCalledWith(DUMMY_ARGON2_HASH, CTX_BASE.password);
+    expect(incrementFailedLoginCount).not.toHaveBeenCalled();
+    expect(setLockoutUntil).not.toHaveBeenCalled();
+    expect(emitAdminLockoutAlert).not.toHaveBeenCalled();
+    expect(createAuditEntry).toHaveBeenCalledWith(ORG, {
+      entityType: "Auth",
+      entityId: null,
+      action: "LOGIN_FAIL",
+      changeSet: { reason: ["", "non-existent"] },
+      ipAddress: "10.0.0.1",
+      userAgent: "Mozilla/5.0",
+    });
+  });
+
+  it("calls verifyPassword exactly once against user.passwordHash when the user exists", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ passwordHash: "$argon2id$user-real-hash" }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
+
+    await authorizeCredentials(CTX_BASE);
+
+    expect(verifyPassword).toHaveBeenCalledTimes(1);
+    expect(verifyPassword).toHaveBeenCalledWith("$argon2id$user-real-hash", CTX_BASE.password);
+  });
+});
+
+describe("authorizeCredentials — bad-password path (generic disclosure)", () => {
+  it("counterAfter=1 (was 0): increments only, no lockout set, audits bad-password", async () => {
     vi.mocked(findUserByEmail).mockResolvedValueOnce(makeUser({ failedLoginCount: 0 }));
     vi.mocked(verifyPassword).mockResolvedValueOnce(false);
 
@@ -232,6 +198,7 @@ describe("authorizeCredentials — counter transitions on bad-password path", ()
     expect(createAuditEntry).toHaveBeenCalledWith(
       ORG,
       expect.objectContaining({
+        action: "LOGIN_FAIL",
         changeSet: { reason: ["", "bad-password"], counterAfter: [null, 1] },
       }),
     );
@@ -261,7 +228,6 @@ describe("authorizeCredentials — counter transitions on bad-password path", ()
     expect(callArgs[0]).toBe(ORG);
     expect(callArgs[1]).toBe("user-1");
     const until = callArgs[2] as Date;
-    // Lockout window is exactly 15 minutes.
     expect(until.getTime() - before).toBeGreaterThanOrEqual(15 * 60 * 1000);
     expect(until.getTime() - after).toBeLessThanOrEqual(15 * 60 * 1000);
     expect(emitAdminLockoutAlert).not.toHaveBeenCalled();
@@ -314,11 +280,157 @@ describe("authorizeCredentials — counter transitions on bad-password path", ()
     expect(until.getTime() - after).toBeLessThanOrEqual(60 * 60 * 1000);
     expect(emitAdminLockoutAlert).not.toHaveBeenCalled();
   });
+
+  it("soft-deleted user + WRONG password falls through generic bad-password (no soft-deleted disclosure)", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ deletedAt: new Date("2026-01-01T00:00:00Z"), failedLoginCount: 0 }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
+
+    const result = await authorizeCredentials(CTX_BASE);
+
+    expect(result).toBeNull();
+    expect(incrementFailedLoginCount).toHaveBeenCalledTimes(1);
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      ORG,
+      expect.objectContaining({
+        action: "LOGIN_FAIL",
+        changeSet: { reason: ["", "bad-password"], counterAfter: [null, 1] },
+      }),
+    );
+  });
+
+  it("inactive user + WRONG password falls through generic bad-password (no inactive disclosure)", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ active: false, failedLoginCount: 0 }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
+
+    const result = await authorizeCredentials(CTX_BASE);
+
+    expect(result).toBeNull();
+    expect(incrementFailedLoginCount).toHaveBeenCalledTimes(1);
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      ORG,
+      expect.objectContaining({
+        changeSet: { reason: ["", "bad-password"], counterAfter: [null, 1] },
+      }),
+    );
+  });
+
+  it("locked user + WRONG password falls through generic bad-password (counter increments, no 'locked' disclosure)", async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ lockoutUntil: future, failedLoginCount: 7 }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
+
+    const result = await authorizeCredentials(CTX_BASE);
+
+    expect(result).toBeNull();
+    // Counter increments — attacker cannot tell account was locked.
+    expect(incrementFailedLoginCount).toHaveBeenCalledTimes(1);
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      ORG,
+      expect.objectContaining({
+        changeSet: { reason: ["", "bad-password"], counterAfter: [null, 8] },
+      }),
+    );
+  });
+});
+
+describe("authorizeCredentials — soft-distinguished signals (password-correct paths)", () => {
+  it("soft-deleted user + CORRECT password throws AccountUnavailableError('deleted')", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ deletedAt: new Date("2026-01-01T00:00:00Z") }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
+
+    await expect(authorizeCredentials(CTX_BASE)).rejects.toBeInstanceOf(AccountUnavailableError);
+
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      ORG,
+      expect.objectContaining({
+        action: "LOGIN_FAIL",
+        changeSet: { reason: ["", "soft-deleted-correct-password"] },
+      }),
+    );
+    expect(incrementFailedLoginCount).not.toHaveBeenCalled();
+    expect(setLockoutUntil).not.toHaveBeenCalled();
+  });
+
+  it("soft-deleted user + correct password — error carries code='deleted'", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ deletedAt: new Date("2026-01-01T00:00:00Z") }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
+
+    try {
+      await authorizeCredentials(CTX_BASE);
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AccountUnavailableError);
+      expect((err as AccountUnavailableError).code).toBe("deleted");
+    }
+  });
+
+  it("inactive user + CORRECT password throws AccountUnavailableError('inactive')", async () => {
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(makeUser({ active: false }));
+    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
+
+    try {
+      await authorizeCredentials(CTX_BASE);
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AccountUnavailableError);
+      expect((err as AccountUnavailableError).code).toBe("inactive");
+    }
+
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      ORG,
+      expect.objectContaining({
+        action: "LOGIN_FAIL",
+        changeSet: { reason: ["", "inactive-correct-password"] },
+      }),
+    );
+    expect(incrementFailedLoginCount).not.toHaveBeenCalled();
+    expect(setLockoutUntil).not.toHaveBeenCalled();
+  });
+
+  it("locked user + CORRECT password throws LockedAccountError(lockedUntil), counter & lockoutUntil UNCHANGED", async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000);
+    vi.mocked(findUserByEmail).mockResolvedValueOnce(
+      makeUser({ lockoutUntil: future, failedLoginCount: 7 }),
+    );
+    vi.mocked(verifyPassword).mockResolvedValueOnce(true);
+
+    try {
+      await authorizeCredentials(CTX_BASE);
+      throw new Error("expected throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(LockedAccountError);
+      expect((err as LockedAccountError).lockedUntil).toBe(future);
+    }
+
+    // Counter UNCHANGED — user typed correctly, just waiting timer out.
+    expect(incrementFailedLoginCount).not.toHaveBeenCalled();
+    // lockoutUntil UNCHANGED — neither re-set nor cleared.
+    expect(setLockoutUntil).not.toHaveBeenCalled();
+    expect(resetFailedLoginCount).not.toHaveBeenCalled();
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      ORG,
+      expect.objectContaining({
+        action: "LOGIN_FAIL",
+        changeSet: { reason: ["", "locked-correct-password"] },
+      }),
+    );
+  });
 });
 
 describe("authorizeCredentials — null ipAddress / userAgent forwarding", () => {
-  it("preserves null IP / UA through every audit row", async () => {
+  it("preserves null IP / UA through the non-existent audit row", async () => {
     vi.mocked(findUserByEmail).mockResolvedValueOnce(null);
+    vi.mocked(verifyPassword).mockResolvedValueOnce(false);
 
     await authorizeCredentials({
       email: "ghost@example.com",

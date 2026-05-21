@@ -29,23 +29,28 @@
 
 ### Slice 3 — Auth feature
 
-### T-017 Auth.js v5 Credentials provider + session config
+### T-017a Verify-first authorize + timing hardening + next-auth exact pin
 - **Status:** ⬜ TODO
 - **Feature:** auth
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-018, T-019, T-020, T-021, T-022
-- **Blocked by:** T-014, T-016
+- **Type:** fix
+- **Effort:** S
+- **Blocks:** T-018, T-019, T-020, T-022
+- **Blocked by:** T-017
 - **Description:**
-  Configure Auth.js v5 with the Credentials provider authenticating against `User` via `verifyPassword`. Session strategy: JWT with **8-hour hard expiry** (no rolling refresh). Session payload includes `id`, `email`, `role`, `mustChangePassword`, `formPreference`. Wire `src/lib/auth.ts` and `src/app/api/auth/[...nextauth]/route.ts`. Reject login for soft-deleted (`deletedAt != null`) or inactive (`active=false`) users. Update `failedLoginCount` and `lockoutUntil` checks happen here (delegated to T-020).
+  Corrective PR fixing three bugs surfaced after T-017 PR #19 merged. Full binding contract in **DECISIONS.md** entry "T-017a Verify-First Korrektur per ④". Scope:
+  1. Reorder `authorize-credentials.ts` to **verify-first**: argon2 verify runs BEFORE all user-state checks (lockout / soft-deleted / inactive). Decision ④ (soft-distinguished error disclosure) requires this ordering.
+  2. **Timing hardening**: when user doesn't exist, run a dummy argon2 verify against a hardcoded `DUMMY_ARGON2_HASH` to eliminate email-enumeration via response-time differences.
+  3. Custom Auth.js error classes — `LockedAccountError(lockedUntil)` and `AccountUnavailableError("deleted"|"inactive")` — thrown from `authorize` only on password-correct paths. Propagated to the form via Auth.js error result.
+  4. `signInAction` updated to map AuthError → typed `errorCode` for the T-018 form.
+  5. **`next-auth` exact pin**: `"5.0.0-beta.31"` (no caret) — betas don't follow SemVer.
 - **Acceptance criteria:**
-  - [ ] Successful login returns a session with the expected payload fields.
-  - [ ] Session expires exactly 8h after issue (no rolling refresh on activity).
-  - [ ] Soft-deleted or inactive users cannot log in.
-  - [ ] No password ever logged.
-  - [ ] `NEXTAUTH_SECRET` required from env; absent secret fails the server start.
-- **Files likely touched:** `src/lib/auth.ts`, `src/app/api/auth/[...nextauth]/route.ts`, `src/middleware.ts` (basic guard), `.env.example`.
-- **Pause-triggers anticipated:** §7.1 (`next-auth@beta`, `@auth/prisma-adapter` install). §7.3 (auth core).
+  - [ ] `authorize-credentials.ts` runs argon2 verify exactly once per attempt regardless of user existence.
+  - [ ] Locked + correct-password path throws `LockedAccountError` WITHOUT incrementing `failedLoginCount` or modifying `lockoutUntil`.
+  - [ ] Locked + wrong-password path returns generic null + increments counter (no "locked" disclosure).
+  - [ ] All previous 9 test scenarios reshape + 3 new scenarios (non-existent timing, locked-correct-password, locked-wrong-password) — 12+ total at 100% coverage on `authorize-credentials.ts`.
+  - [ ] `package.json` records `"next-auth": "5.0.0-beta.31"` exactly (no caret).
+- **Files likely touched:** `src/features/auth/services/authorize-credentials.ts` (+ test), `src/features/auth/actions/sign-in.ts`, `src/features/auth/errors.ts` (new + test), `package.json`, `package-lock.json`, `TASKS.md`, `DECISIONS.md`.
+- **Pause-triggers anticipated:** none — design pre-approved as a §7.3 corrective in the DECISIONS contract.
 
 ---
 
@@ -55,7 +60,7 @@
 - **Type:** feat
 - **Effort:** M
 - **Blocks:** T-019, T-022
-- **Blocked by:** T-003, T-017
+- **Blocked by:** T-003, T-017, T-017a
 - **Description:**
   Build `/login` page with email + password fields, RHF + zod schema, shadcn/ui form components. Below the password field show a **live checklist** that turns each rule green/red as the user types (uses `passwordRules` from T-016). German microcopy ("Du"-form). Show inline form errors for invalid credentials with a single generic message ("E-Mail oder Passwort ist falsch") — never reveal which one. Show a banner if the account is locked (countdown to unlock).
 - **Acceptance criteria:**
@@ -990,6 +995,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-017 ✅ Auth.js v5 Credentials provider + session config
+- **Merged:** 2026-05-20 via PR #19 (`dfbc176`)
+- **Branch:** `feat/auth-credentials-provider`
+- **Summary:** Auth.js v5 (`next-auth@^5.0.0-beta.31` in `dependencies` — no stable v5 exists on npm). JWT strategy, 8h hard expiry. Token payload: 6 fields incl. `organizationId`. Edge/Node config split (`auth.config.ts` Edge-safe + `auth.ts` Node-runtime) for `@node-rs/argon2` native bindings. **T-017 shipped the complete counter-based lockout state machine** per user-corrective. Three latent bugs surfaced AFTER merge → corrective T-017a follows: (1) lockout-check ran BEFORE verify-password, breaking the soft-distinguished UX from decision ④; (2) timing side-channel — non-existent users skipped argon2 verify; (3) next-auth installed with caret, but betas don't follow SemVer.
+- **Decisions:** see `DECISIONS.md` entries "T-017 Auth.js v5 Credentials + session config (user-confirmed, binding)" + "T-017 implementation per §14 (consolidated)" + "T-017a Verify-First Korrektur per ④ (user-confirmed, binding)".
 
 ### T-016 ✅ Password-policy module (argon2id + rules)
 - **Merged:** 2026-05-20 via PR #18 (`f9fac3c`)
