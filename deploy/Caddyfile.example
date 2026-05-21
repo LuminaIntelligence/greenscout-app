@@ -1,0 +1,42 @@
+# GreenScout — Production reverse-proxy configuration (Caddy)
+#
+# Drop this file at /etc/caddy/Caddyfile on the Hetzner VPS, customise
+# the `app.greenscout.example.com` hostname + admin email, then run
+# `caddy reload` AS THE HUMAN OPERATOR.
+#
+# Per CLAUDE.md §8.10: the agent never executes `caddy reload` against
+# the VPS. Config is authored only.
+#
+# This file is the TLS terminator. Next.js runs plain HTTP on port 3000
+# inside the docker-compose network, behind this proxy.
+#
+# Strict-Transport-Security LIVES HERE, NOT in the Next.js middleware.
+# Setting HSTS at the app layer would leak the directive over dev-HTTP
+# and lock the dev hostname into HTTPS-only via browser caching for
+# the full max-age window. See docs/security.md §4 and DECISIONS.md
+# → T-021 "HSTS — explicitly NOT in middleware".
+
+app.greenscout.example.com {
+    # TLS via Let's Encrypt (automatic ACME). Replace with your
+    # operations email — used for cert-expiry notifications.
+    tls greenscout-ops@example.com
+
+    # HSTS — 2 years, includeSubDomains, preload-list-eligible.
+    # Value matches the SPEC §6.3 baseline.
+    header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+    # Reverse-proxy to the Next.js container in docker-compose.
+    # `localhost:3000` because Caddy runs on the VPS host and reaches
+    # the container via the docker-published port. If Caddy itself is
+    # containerised, swap for the compose service name (e.g. `web:3000`).
+    reverse_proxy localhost:3000 {
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up Host {host}
+    }
+}
+
+# Force HTTP → HTTPS redirect on the bare port-80 listener.
+:80 {
+    redir https://{host}{uri} permanent
+}
