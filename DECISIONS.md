@@ -1356,3 +1356,29 @@ Implementer builds + reports via `curl -I` header inspection. **Manual browser-c
 `src/app/(auth)/layout.tsx` (new), `src/app/(auth)/login/page.tsx` (new), `src/features/auth/components/login-form.tsx` (new — NO PasswordRuleChecklist), `src/features/auth/components/login-form.test.tsx` (new), `src/i18n/de.ts` (+7 keys), `src/i18n/de.test.ts` (+ assertions), `TASKS.md` (T-017a → ✅ Recently completed + T-018 rewrite + T-019 absorbs checklist + T-048b polish task — all pre-staged by agent), `DECISIONS.md` (this entry + T-018 implementation entry post-impl).
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-21 — T-018 implementation per §14 (consolidated)
+**Context:** T-018 builds `/login` per the user-approved design recap from "T-018 Login page design (user-confirmed, binding)". §14.2 silent implementation within that contract. **NO PasswordRuleChecklist** per the KORREKTUR — login doesn't compose passwords.
+
+**Assumption / decision:**
+- **No checklist rendered**: confirmed — `LoginForm` has no `PasswordRuleChecklist` import or reference. Tests explicitly assert checklist absence (`queryByText("Mindestens 8 Zeichen")` et al.) to prevent regression.
+- **`loginSchema` reused verbatim**: `email: z.string().email()`, `password: z.string().min(1)` — no rule validation against the input.
+- **`SignInResult` consumption**: `switch (result.errorCode)` maps the five `errorCode` variants from T-017a to the three UI states (generic alert, lockout banner with countdown, success redirect). `deleted` is mapped to the same "Konto deaktiviert" copy as `inactive` — both communicate "your account isn't usable, talk to the admin", and exposing the soft-delete distinction would leak account-state information beyond the soft-distinguished UX contract.
+- **`<Lock>` icon** in the lockout banner; **no icon** in the generic / inactive / server error banners. The shadcn `<Alert>` styles the `<svg>` child into a 2-column grid automatically — no extra wrapper markup needed.
+- **Logo placeholder**: text-only "GreenScout" in `font-heading text-3xl text-forest-green`. Real SVG to follow in T-048b.
+- **Forgot-password hint**: `<p>` with `mt-4 text-center text-sm text-muted-foreground`, German microcopy per i18n key. Not a link.
+- **Countdown**: `useEffect` + `setInterval(30_000)` updating remaining minutes; clears on unmount or when `remainingMs ≤ 0`. Banner auto-dismisses on expiry. Initial `remainingMinutes` floors to `1` to avoid a "0 minutes" flash when the action returns just before lockoutUntil.
+- **`startTransition` + `useTransition`**: idiomatic Next 15 pattern for Server Action submit; `isPending` drives the disabled button state and the button-label flip to "Wird angemeldet…".
+- **Default `errorCode` branch**: falls through to `invalid-credentials` — defensive against future enum additions; no user-visible disclosure.
+- **Tests**: 9 scenarios on `login-form.test.tsx`. Two explicitly negative (PasswordRuleChecklist absence + password-rule-label absence) to lock in the KORREKTUR. One asserts the lockout banner suppresses the generic message (precedence rule).
+- **i18n keys added**: 7 (per design recap) + `de.test.ts` expanded to cover all 18 keys + a regression test asserting the `{minutes}` interpolation marker stays intact.
+- **HTML verification**: `curl -I` confirmed CSP header presence with all expected directives. `curl -s /login` confirmed German microcopy in rendered HTML — `<title>Anmeldung — GreenScout</title>`, "Melde dich an", "Willkommen zurück bei GreenScout", "E-Mail-Adresse", "Passwort", "Anmelden", "Passwort vergessen? Bitte wende dich an den Administrator.", `<html lang="de">`. `/login` is statically prerendered (○ in build output).
+- **Build-env caveat**: local `.env` ships an `AUTH_SECRET` placeholder, so `npm run build` requires `AUTH_SECRET=$(openssl rand -base64 32) npm run build` for the prerender step. Not a code issue; CI provides its own secret via the workflow.
+- **USER action pending**: manual browser-console CSP check at `/login` (dev + prod build) before merge.
+- **No new top-level deps**: `lucide-react`, `@hookform/resolvers`, `zod` all present from prior tasks.
+
+**Affected files**: `src/app/(auth)/layout.tsx` (new), `src/app/(auth)/login/page.tsx` (new), `src/features/auth/components/login-form.tsx` (new), `src/features/auth/components/login-form.test.tsx` (new), `src/i18n/de.ts` (+7 keys), `src/i18n/de.test.ts` (+ assertions), `TASKS.md` (T-017a → ✅ Recently completed + carried T-018 rewrite / T-019 absorption / T-048b polish task), `DECISIONS.md` (this entry).
+
+**Open question for the user:** Manual browser-console CSP verification at `/login` in dev + prod before merge. If CSP violations break the page, fall-back paths from DECISIONS T-017 §③: nonce-based `script-src` (preferred) or `'unsafe-inline'` (last resort with explicit DECISIONS deviation).
