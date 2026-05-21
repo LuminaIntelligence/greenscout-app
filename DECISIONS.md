@@ -1226,3 +1226,44 @@ T-018 (login UI) is **blocked by T-017a** because the new `signInAction` shape i
 - `DECISIONS.md` (this entry + a T-017a implementation entry post-impl)
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-21 — T-017a implementation per §14 (consolidated)
+
+Implementation of the T-017a verify-first corrective per the binding contract above. Per CLAUDE.md §14, the following taste-level decisions were taken silently — listed here as a batch:
+
+| Decision | Choice | Reason |
+|---|---|---|
+| Custom-error file location | `src/features/auth/errors.ts` (separate file) | Testability + reusability — keeps the domain-error vocabulary out of the algorithm module. |
+| Error class taxonomy | `LockedAccountError extends CredentialsSignin` (`code="locked"`, carries `lockedUntil: Date`); `AccountUnavailableError extends CredentialsSignin` (single class, `code: "deleted" \| "inactive"` via constructor variant) | Per pre-approved spec in the contract. |
+| `CredentialsSignin` import path | Import from `@auth/core/errors` (the underlying Auth.js core package) instead of `next-auth` | The `next-auth` barrel pulls in `next/server` initialisation which Vitest cannot resolve. `next-auth` re-exports `CredentialsSignin` from `@auth/core/errors` — same class, cleaner test surface. |
+| `DUMMY_ARGON2_HASH` value | `$argon2id$v=19$m=19456,t=2,p=1$8Cca+11osq7qn46+JqzGrQ$vCc2m7uSzav1vP/Ml+XfiNHJ6bEOq6k1hfzX+JIa9gQ` (committed plain in source) | Generated once via the contract-specified command. Salt is random and not a secret. Verified one-shot timing-hardened verify on the non-existent-user path. Regen command documented in the file's comment block. |
+| `DUMMY_ARGON2_HASH` placement | Top of `authorize-credentials.ts`, below imports, with explanatory comment block | Per pre-approved spec. |
+| `SignInResult` type shape | Discriminated union `{ ok: true } \| { ok: false; errorCode: "invalid-credentials" \| "locked" \| "inactive" \| "deleted" \| "server"; lockedUntil?: string }` | Per pre-approved spec. T-018 consumes this shape. |
+| `signInAction` catch order | `LockedAccountError` → `AccountUnavailableError` → `AuthError` → catch-all | Specific subclasses first; matters because both extend `AuthError` via `CredentialsSignin`. |
+| Algorithm structural choice | Branch `user === null` first (early-return after dummy verify + audit) so TypeScript narrows `user` to NonNull through the rest of the function | Equivalent to the contract pseudocode (one verify per attempt, generic null on bad-password), but avoids an unreachable defensive guard that would have created a 100% coverage hole. |
+| Test scaffolding | 19 scenarios across 5 describe-blocks: success path (3), timing-hardening (2), bad-password generic disclosure (8 — incl. soft-deleted + wrong pwd, inactive + wrong pwd, locked + wrong pwd), soft-distinguished signals on password-correct paths (4), null IP/UA forwarding (1) | Reshapes the 9 prior scenarios, adds 3 new mandated scenarios, and rounds to coverage-of-every-branch. Final coverage 100% lines / 100% branches / 100% functions / 100% statements on `authorize-credentials.ts`. |
+| `feat/login-page` salvage handling | Branch left local-only (5 commits, unpushed). Untracked `src/app/(auth)/` route fragment moved to `H:/tmp/t018-salvage/src/app/(auth)/` (out-of-repo) to clear the pre-commit `tsc --noEmit` scan; the future T-018 implementer decides whether to salvage `PasswordRuleChecklist`, `de.ts` i18n keys, or rebuild fresh against the new `SignInResult` shape | §8 forbids destructive ops on the local branch. Moving the untracked fragment out of the working tree is non-destructive. |
+| Commit chunking | 7 commits per the contract: (1) docs carry-forward + T-017 status flip; (2) custom error subclasses; (3) verify-first authorize; (4) signInAction routing; (5) next-auth exact pin; (6) reshaped tests; (7) this DECISIONS entry | Logical units; each commit independently lint+typecheck-clean. |
+
+**Affected files (actual):**
+- `src/features/auth/services/authorize-credentials.ts` (rewritten — verify-first algorithm, `DUMMY_ARGON2_HASH` constant, custom-error throws)
+- `src/features/auth/services/authorize-credentials.test.ts` (reshaped — 19 scenarios)
+- `src/features/auth/actions/sign-in.ts` (discriminated union `SignInResult`, error-code routing)
+- `src/features/auth/errors.ts` (NEW)
+- `src/features/auth/errors.test.ts` (NEW — 3 assertions across both classes)
+- `package.json` (`next-auth` exact-pin)
+- `package-lock.json` (lockfile-refresh)
+- `TASKS.md` (T-017 → Recently completed, T-017a inserted in Open tasks, T-018 blocked-by updated)
+- `DECISIONS.md` (this entry)
+
+**Verification:**
+- `npx vitest run` → 17 files / 125 tests pass.
+- `npx vitest run --coverage` → global 93.49% / authorize-credentials.ts **100% / 100% / 100% / 100%**.
+- `npx tsc --noEmit` → 0 errors.
+- `npx eslint . --max-warnings 0` → 0 errors.
+- `npx prettier . --check` → all formatted.
+- Lockfile resolved `next-auth` to exact `5.0.0-beta.31`.
+
+**Open question for the user:** —
