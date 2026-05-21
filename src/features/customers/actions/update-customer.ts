@@ -24,7 +24,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { customerSchema, type CustomerInput } from "@/features/customers/schemas/customer-schema";
+import { customerSchema } from "@/features/customers/schemas/customer-schema";
 import { auth } from "@/lib/auth";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import { findCustomerById, updateCustomer } from "@/lib/repositories/customer.repository";
@@ -56,14 +56,13 @@ const TRACKED_FIELDS = [
   "notes",
 ] as const;
 
-function readField(source: unknown, field: string): DiffValue {
-  if (typeof source !== "object" || source === null) return null;
-  const value = (source as Record<string, unknown>)[field];
+function readField(source: Record<string, unknown>, field: string): DiffValue {
+  const value = source[field];
   if (typeof value === "string") return value;
   return null;
 }
 
-function buildDiff(existing: unknown, next: CustomerInput): ChangeSet {
+function buildDiff(existing: Record<string, unknown>, next: Record<string, unknown>): ChangeSet {
   const diff: ChangeSet = {};
   for (const field of TRACKED_FIELDS) {
     const oldValue = readField(existing, field);
@@ -86,13 +85,12 @@ export async function updateCustomerAction(
 
   const parsed = customerSchema.safeParse(rawData);
   if (!parsed.success) {
-    const fieldErrors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
-      const key = issue.path.join(".");
-      if (fieldErrors[key] === undefined) {
-        fieldErrors[key] = issue.message;
-      }
-    }
+    // Same single-issue-per-path assumption as create-customer.ts —
+    // see comment there for reasoning.
+    const fieldErrors = parsed.error.issues.reduce<Record<string, string>>((acc, issue) => {
+      acc[issue.path.join(".")] = issue.message;
+      return acc;
+    }, {});
     return { ok: false, errorCode: "validation", fieldErrors };
   }
 
@@ -103,7 +101,10 @@ export async function updateCustomerAction(
     return { ok: false, errorCode: "not-found" };
   }
 
-  const changeSet = buildDiff(existing, parsed.data);
+  const changeSet = buildDiff(
+    existing as unknown as Record<string, unknown>,
+    parsed.data as unknown as Record<string, unknown>,
+  );
 
   if (Object.keys(changeSet).length === 0) {
     // No-op edit — succeed without writing an audit row.

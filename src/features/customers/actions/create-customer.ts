@@ -41,18 +41,17 @@ export type CreateCustomerResult =
     };
 
 function buildChangeSet(data: CustomerInput): Record<string, [null, string]> {
-  // Every customer field on the schema resolves to `string` after
-  // `optionalString`'s empty-string-to-undefined transform, so the diff
-  // tuple's value is always a populated string. `Prisma.InputJsonValue`
-  // accepts string + null + nested records, so this narrower shape
-  // satisfies the AuditLog jsonb type without an `as` cast.
-  const entries: Array<[string, [null, string]]> = [];
+  // After `customerSchema.parse()`, every present field is a non-empty
+  // string (the optional-field transform replaces "" with undefined and
+  // Zod strips undefined values from the parsed object). So
+  // `Object.entries(data)` contains only `[string, string]` tuples and
+  // the per-field tuple becomes `[null, string]`, which satisfies
+  // `Prisma.InputJsonValue` (the AuditLog jsonb type) without a cast.
+  const changeSet: Record<string, [null, string]> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (typeof value === "string") {
-      entries.push([key, [null, value]]);
-    }
+    changeSet[key] = [null, value as string];
   }
-  return Object.fromEntries(entries);
+  return changeSet;
 }
 
 export async function createCustomerAction(rawData: unknown): Promise<CreateCustomerResult> {
@@ -63,13 +62,13 @@ export async function createCustomerAction(rawData: unknown): Promise<CreateCust
 
   const parsed = customerSchema.safeParse(rawData);
   if (!parsed.success) {
-    const fieldErrors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
-      const key = issue.path.join(".");
-      if (fieldErrors[key] === undefined) {
-        fieldErrors[key] = issue.message;
-      }
-    }
+    // `customerSchema` produces at most one issue per path (each field
+    // carries a single rule), so a plain reduce gives one fieldErrors
+    // entry per path without any dedup branching.
+    const fieldErrors = parsed.error.issues.reduce<Record<string, string>>((acc, issue) => {
+      acc[issue.path.join(".")] = issue.message;
+      return acc;
+    }, {});
     return { ok: false, errorCode: "validation", fieldErrors };
   }
 
