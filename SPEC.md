@@ -315,7 +315,7 @@ Constraint: `unique(studyId, type)` — at most one image per type per study.
 | `userId` | `String?` (FK `User`) | nullable for system events |
 | `entityType` | `String` | `User`, `Customer`, `Study`, `StudyImage`, `GeneratedDocument`, `Auth`, `System` |
 | `entityId` | `String?` | |
-| `action` | `String` | `CREATE`, `UPDATE`, `DELETE`, `SOFT_DELETE`, `LOGIN_SUCCESS`, `LOGIN_FAIL`, `LOCKOUT`, `PASSWORD_RESET`, `HANDOVER`, `GENERATE_DOCUMENT`, `RETENTION_NOTICE` |
+| `action` | `String` | `CREATE`, `UPDATE`, `DELETE`, `SOFT_DELETE`, `LOGIN_SUCCESS`, `LOGIN_FAIL`, `LOCKOUT`, `PASSWORD_RESET`, `PASSWORD_CHANGE_FAIL`, `HANDOVER`, `GENERATE_DOCUMENT`, `RETENTION_NOTICE` |
 | `changeSet` | `Json?` | diff |
 | `ipAddress` | `String?` | |
 | `userAgent` | `String?` | |
