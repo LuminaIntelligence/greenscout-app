@@ -2,35 +2,41 @@
 
 import { AuthError } from "next-auth";
 
+import { AccountUnavailableError, LockedAccountError } from "@/features/auth/errors";
 import { loginSchema } from "@/features/auth/schemas/login-schema";
 import { signIn } from "@/lib/auth";
 
 /**
  * Server Action for the T-018 login form submission.
  *
- * Returns a structured `SignInResult` instead of redirecting, so the
- * client form can render inline errors via react-hook-form. The
- * `errorKey` is an i18n key resolved by `src/i18n/de.ts`.
+ * Returns a typed discriminated `SignInResult` instead of redirecting,
+ * so the client form can render inline errors via react-hook-form. The
+ * `errorCode` is resolved to copy by the form via `src/i18n/de.ts`.
  *
- * Generic error disclosure: all failure modes (bad creds, locked,
- * inactive, soft-deleted, non-existent) collapse to
- * `auth.error.invalid-credentials`. The "soft-distinguished" lockout
- * UX (T-017 DECISIONS ④) cannot be surfaced via this Server Action
- * because Auth.js's `CredentialsSignin` error type doesn't carry
- * metadata back through the form action — the locked-out signal lives
- * on `User.lockoutUntil` and a future helper (separate read-only
- * server action invoked by the login form after a 401) can fetch it.
+ * Soft-distinguished error disclosure (per DECISIONS T-017a):
+ *   - `invalid-credentials` — generic catch-all returned for wrong
+ *     password AND non-existent users. Never leaks which it was.
+ *   - `locked` — emitted ONLY to a caller who supplied the correct
+ *     password but landed during a lockout window. Carries the
+ *     `lockedUntil` ISO timestamp for the countdown banner.
+ *   - `inactive` / `deleted` — emitted ONLY to a caller who supplied
+ *     the correct password for an admin-disabled or soft-deleted
+ *     account.
+ *   - `server` — unexpected non-Auth.js error path.
  *
- * Documented limitation: deferred to T-018 (login UI) where the form
- * can add an independent "check lockout state" call after a failure
- * to surface the countdown banner.
+ * The catch order matters: specific subclasses (`LockedAccountError`,
+ * `AccountUnavailableError`) must be checked before the generic
+ * `AuthError` because both extend it via `CredentialsSignin`.
  *
- * @see DECISIONS.md → "T-017 Auth.js v5 Credentials + session config"
+ * @see DECISIONS.md → "T-017a Verify-First Korrektur per ④"
  */
-export interface SignInResult {
-  ok: boolean;
-  errorKey?: string;
-}
+export type SignInResult =
+  | { ok: true }
+  | {
+      ok: false;
+      errorCode: "invalid-credentials" | "locked" | "inactive" | "deleted" | "server";
+      lockedUntil?: string;
+    };
 
 export async function signInAction(formData: FormData): Promise<SignInResult> {
   const parsed = loginSchema.safeParse({
@@ -38,7 +44,7 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
     password: formData.get("password"),
   });
   if (!parsed.success) {
-    return { ok: false, errorKey: "auth.error.invalid-credentials" };
+    return { ok: false, errorCode: "invalid-credentials" };
   }
 
   try {
@@ -49,9 +55,19 @@ export async function signInAction(formData: FormData): Promise<SignInResult> {
     });
     return { ok: true };
   } catch (err) {
-    if (err instanceof AuthError) {
-      return { ok: false, errorKey: "auth.error.invalid-credentials" };
+    if (err instanceof LockedAccountError) {
+      return {
+        ok: false,
+        errorCode: "locked",
+        lockedUntil: err.lockedUntil.toISOString(),
+      };
     }
-    return { ok: false, errorKey: "auth.error.server" };
+    if (err instanceof AccountUnavailableError) {
+      return { ok: false, errorCode: err.code };
+    }
+    if (err instanceof AuthError) {
+      return { ok: false, errorCode: "invalid-credentials" };
+    }
+    return { ok: false, errorCode: "server" };
   }
 }
