@@ -60,9 +60,6 @@ export const de = {
   "customers.action.new": "Neuer Kunde",
   "customers.action.view": "Anzeigen",
   "customers.action.edit": "Bearbeiten",
-  // T-024 will replace `customers.action.pending-t024` with a live link on
-  // "Anzeigen". T-023 dropped the corresponding `pending-t023` key.
-  "customers.action.pending-t024": "verfügbar in T-024",
   "customers.column.company": "Firma",
   "customers.column.contact": "Ansprechpartner",
   "customers.column.city": "Stadt",
@@ -107,6 +104,30 @@ export const de = {
   // ─── T-023 Customer form: toast messages ───────────────────────────
   "customers.toast.created": "Kunde angelegt",
   "customers.toast.updated": "Änderungen gespeichert",
+  // ─── T-024 Customer detail page ────────────────────────────────────
+  "customers.detail.title": "Kundendetails",
+  "customers.detail.section.company": "Firma",
+  "customers.detail.section.contact": "Kontakt",
+  "customers.detail.section.billing": "Rechnungsadresse",
+  "customers.detail.section.studies": "Verknüpfte Studien",
+  "customers.detail.studies.empty": "Noch keine Studien für diesen Kunden.",
+  "customers.detail.action.edit": "Bearbeiten",
+  "customers.detail.action.delete": "Löschen",
+  "customers.detail.field.empty": "—",
+  // ─── T-024 Customer soft-delete dialog ─────────────────────────────
+  "customers.delete.dialog.title": "Kunde löschen?",
+  // `{company}` is replaced by the caller (`<CustomerDeleteDialog>`)
+  // with the live customer label. Keep the marker intact.
+  "customers.delete.dialog.description":
+    "Soll {company} wirklich gelöscht werden? Der Eintrag verschwindet aus der Liste, die zugehörigen Studien bleiben erhalten.",
+  "customers.delete.dialog.confirm": "Endgültig löschen",
+  "customers.delete.dialog.cancel": "Abbrechen",
+  // ─── T-024 Customer soft-delete toasts ─────────────────────────────
+  // `{company}` is replaced by the caller before passing to sonner.
+  "customers.delete.toast.success": "{company} wurde gelöscht.",
+  "customers.delete.toast.error.not-found": "Kunde nicht gefunden.",
+  "customers.delete.toast.error.server":
+    "Beim Löschen ist ein Fehler aufgetreten. Bitte erneut versuchen.",
 } as const;
 
 export type TranslationKey = keyof typeof de;
