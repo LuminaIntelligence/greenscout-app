@@ -19,12 +19,26 @@
  * (sign-out must remain reachable).
  *
  * Security headers are applied to EVERY response (including redirects)
- * via the `applySecurityHeaders` helper. The policy follows DECISIONS
- * T-017 ③: 'self' default, with 'unsafe-inline' on style-src (Tailwind
- * + Radix portals) and 'wasm-unsafe-eval' on script-src (Prisma WASM
- * modules).
+ * via the `applySecurityHeaders` helper. The set:
+ *   - Content-Security-Policy (T-017 ③)
+ *   - X-Frame-Options: DENY (T-021)
+ *   - Referrer-Policy: strict-origin-when-cross-origin (T-021)
+ *   - X-Content-Type-Options: nosniff (T-021)
+ *   - Permissions-Policy: camera=(), microphone=(), geolocation=() (T-021)
+ *
+ * X-XSS-Protection is deliberately NOT set — deprecated by all major
+ * browsers (Chrome 78+ removed support). CSP is the canonical XSS
+ * defense.
+ *
+ * HSTS (Strict-Transport-Security) is deliberately NOT set here either.
+ * Setting it at the application layer would leak the directive over
+ * plain HTTP in dev mode, locking the dev hostname into HTTPS-only via
+ * browser caching. HSTS lives at the production reverse-proxy on the
+ * VPS — see `deploy/Caddyfile.example` and task T-050b.
  *
  * @see DECISIONS.md → "T-017 Auth.js v5 Credentials + session config"
+ * @see DECISIONS.md → "T-021 Security headers hardening"
+ * @see docs/security.md
  */
 
 import NextAuth from "next-auth";
@@ -60,6 +74,10 @@ const CSP_HEADER = [
  */
 export function applySecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Content-Security-Policy", CSP_HEADER);
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   return response;
 }
 
