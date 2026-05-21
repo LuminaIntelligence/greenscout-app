@@ -1604,3 +1604,50 @@ src/
 - `DECISIONS.md` (T-019 implementation entry post-impl)
 
 **Open question for the user:** Manual browser-console CSP verification at `/password-change` in dev + prod build before merge. Same protocol as T-018.
+
+---
+
+## 2026-05-21 — T-019 implementation per §14 (consolidated)
+**Context:** T-019 implements the forced password change flow per the binding design contract appended earlier today. JWT refresh via `unstable_update`, lockout-first algorithm (post-auth context), `$transaction`-wrapped success path, 3-state PasswordRuleChecklist, 11+4 new i18n keys, 100% coverage on the two pattern files mandated by the contract.
+
+**Assumption / decision:**
+
+- **JWT update mechanism**: `unstable_update({})` from `next-auth@5.0.0-beta.31` is exported from the NextAuth() instance in `src/lib/auth.ts` and re-exported from `@/lib/auth`. Verified present in `node_modules/next-auth/index.d.ts` at line 293. Empty `{}` payload triggers the jwt-callback re-fetch from DB; no shape changes required.
+- **JWT callback location for `trigger === "update"` branch**: lives in `src/lib/auth.ts` (Node-side), NOT in `src/lib/auth.config.ts` (Edge-safe). Reasoning: importing `findUserById` into `auth.config.ts` would pull Prisma into the Edge-runtime middleware bundle — same constraint that forced the authorize-callback split in T-017. The initial-sign-in branch is delegated to `authConfig.callbacks!.jwt!(...)` so both call paths use identical field population. Verified via `npm run build`: middleware bundle stays at 91.9 kB, no Prisma leakage.
+- **Lockout-first algorithm** intentional (post-auth context). Inline file-level comment in `change-password.ts` explicitly contrasts with T-017a's verify-first reasoning ("/login is unauthenticated → enumeration concern; /password-change is post-auth → no enumeration"). Reviewer guard: "must NOT fix this to match T-017a's pattern."
+- **Lockout constants reused vs extracted**: 4 lines duplicated between `authorize-credentials.ts` and `change-password.ts` rather than extracted to a shared module. Rationale: SPEC §4.1 thresholds (5/10, 15min/1h) are stable, and any future change touches both files regardless of indirection. Cheaper to maintain duplication than to grow another module.
+- **`withTransaction` wraps the three success writes** (`updatePasswordHash`, `setMustChangePassword(false)`, `resetFailedLoginCount`) — atomic guarantee per the contract's robustness mandate. Mocked in the test as a pass-through that delivers a stub `tx` object; assertions verify each write received it.
+- **`unstable_update({})` placement**: called by the Server Action AFTER `changePassword` returns `{ ok: true }` and BEFORE returning the result to the client. The fresh DB state is what the jwt callback reads — no race condition because step 7 ($transaction) has already committed.
+- **3-state checklist mechanic**: `hasTyped` boolean lives on the form (sticky, flipped by the newPassword input's onChange wrapper the first time the value becomes non-empty). The naive `useEffect(() => if (value && !hasTyped) setHasTyped(true))` shape trips the `react-hooks/set-state-in-effect` lint rule; reading/writing a `useRef` during render trips `react-hooks/refs`. The wrapped-onChange shape is the only path that satisfies both rules without a disable directive.
+- **`form.watch` vs `useWatch`**: switched to `useWatch({ control, name: "newPassword" }) ?? ""` because `form.watch("newPassword")` trips the `react-hooks/incompatible-library` rule. Functionally identical for our subscription pattern.
+- **`change-password.test.ts` scenarios** (14 total): non-existent user, locked (active + stale), wrong-current at counter 1/5/9/10/11, same-as-current, rules-not-satisfied, forced success, voluntary success, null IP/UA forwarding. 100% lines / branches / functions / statements on `change-password.ts` verified.
+- **`password-rule-checklist.test.tsx` scenarios** (18 total): initial neutral × 5 rules, all-passed × 5, all-failed × 5, per-rule independence × 4 mixed values, a11y plumbing (role, aria-live, aria-label, 5 listitems, aria-hidden icons, className override). 100% on `password-rule-checklist.tsx` verified.
+- **AuditLog `PASSWORD_CHANGE_FAIL`** action added to SPEC §5.1 allow-list (separate commit). Used for every failure branch (`locked`, `wrong-current`, `same-as-current`, `rules-not-satisfied`). `PASSWORD_RESET` is reserved for the success branch and carries `changeSet.initiator: "user-forced" | "user-voluntary"` distinguished by the `wasMustChangePassword` snapshot taken before the $transaction.
+- **Lockout banner** uses `<Lock>` icon (consistent with T-018 LoginForm) + 30s-interval countdown updater (same shape).
+- **Voluntary path** is allowed: a user with `mustChangePassword=false` can still navigate to `/password-change` and rotate their password. The middleware doesn't gate the route on `mustChangePassword=true`; it only redirects TO it. Audited as `initiator=user-voluntary`. The current page subtitle says "Aus Sicherheitsgründen muss dein Passwort jetzt geändert werden." — slightly forced-flavoured but still accurate for the voluntary case (a user opted in to rotate, and the page is about that action). T-041b admin-reset will own the truly customised copy.
+- **`change-password-schema.test.ts`** co-located (5 tests): happy path, three empty-field branches, mismatch, rule-leak guard. Covered by the existing `schemas/**` coverage glob; not gated at 100% (no DECISIONS requirement, but ends up 100% anyway).
+- **`change-password-form.test.tsx`** (12 tests): renders / neutral checklist / sticky flip / mismatch FormMessage / success / each errorCode (wrong-current, same-as-current, rules-not-satisfied, locked-with-countdown, locked-without-lockedUntil fallback, server) / loading state. Form is in `components/` (excluded from coverage glob by default) — covered by RTL tests only, no per-pattern threshold (the service + the Server Action carry the verification weight).
+- **All Husky pre-commit hooks fire clean** through all 10 commits. No `--no-verify`. Prettier and CRLF line-ending wrestling resolved by post-write `tr -d '\r'` normalisation in a few cases — the in-repo `prettier.config.mjs` `endOfLine: "lf"` enforces LF consistently.
+
+**Net top-level deps added**: none.
+
+**Affected files**:
+- `src/app/(auth)/password-change/page.tsx` (new)
+- `src/features/auth/components/change-password-form.tsx` (new)
+- `src/features/auth/components/change-password-form.test.tsx` (new)
+- `src/features/auth/components/password-rule-checklist.tsx` (new)
+- `src/features/auth/components/password-rule-checklist.test.tsx` (new)
+- `src/features/auth/schemas/change-password-schema.ts` (new)
+- `src/features/auth/schemas/change-password-schema.test.ts` (new)
+- `src/features/auth/services/change-password.ts` (new)
+- `src/features/auth/services/change-password.test.ts` (new)
+- `src/features/auth/actions/change-password.ts` (new — Server Action)
+- `src/lib/auth.ts` (extended — `unstable_update` export + `trigger === "update"` branch on jwt callback)
+- `src/i18n/de.ts` (+15 keys: 4 checklist a11y + 11 change-password UI)
+- `src/i18n/de.test.ts` (extended assertions + 2 new test blocks)
+- `vitest.config.ts` (+`password-rule-checklist.tsx` in include + 2 per-pattern 100% thresholds)
+- `SPEC.md` (§5.1 audit-action allow-list: added `PASSWORD_CHANGE_FAIL`)
+- `TASKS.md` (T-018 → Recently completed)
+- `DECISIONS.md` (this entry)
+
+**Open question for the user:** Manual browser-console CSP verification at `/password-change` in dev + prod build before merge. Same protocol as T-018. The middleware redirects unauthenticated requests to `/login`, so direct `curl /password-change` returns 307 and the page itself can only be inspected after sign-in.
