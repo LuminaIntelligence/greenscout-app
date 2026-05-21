@@ -1895,4 +1895,60 @@ No new top-level deps.
 - `TASKS.md` — T-022 moved to Recently completed; T-023 removed from Open (this PR ships it).
 - `DECISIONS.md` — this entry.
 
+---
+
+## 2026-05-21 — T-024 silent decisions per §14 (consolidated)
+
+**Context:** T-024 ships the customer detail page (`/customers/[id]`) + a soft-delete action wired into a confirmation dialog. The orchestrator pre-decided 8 items (binding); the remaining choices below are §14.2 silent — no §7 pause-triggers, no new top-level deps (`radix-ui`, `sonner`, `lucide-react`, `zod` all present from earlier slices; shadcn `AlertDialog` is added as a `radix-ui`-namespace primitive in `src/components/ui/`, which the AlertDialog primitive within the already-approved framework — taste-level per §14.2 "plugin selection within an already-approved framework").
+
+**Orchestrator-binding decisions (recorded for traceability):**
+
+- **Server Action lives in `actions/`, not `services/`** — T-023 already moved the Customer trust-boundary surface to `src/features/customers/actions/`. New file `soft-delete-customer.ts` follows that convention.
+- **Studies-list section is an empty-state with a `TODO(claude)` marker** — Slice 5 (T-025+) has not landed; no `Study` repo, no `/studies` routes. Rendering an empty section + the marker is the right move; bootstrapping a Studies repo here would be Slice-5 scope-creep.
+- **Soft-deleted customers `notFound()` on direct URL access** — the detail page calls `findCustomerById(orgId, id)` without `includeDeleted`, so a soft-deleted row returns `null` and triggers `notFound()`. Mirrors the existing edit-page guard.
+- **Idempotent already-deleted short-circuit** — the action's read-first check uses `findCustomerById(..., { includeDeleted: true })` to disambiguate "already-deleted" from "never-existed". Already-deleted returns `{ ok: true }` WITHOUT a second audit row and WITHOUT a second DB write. Protects against double-clicks / replay / race.
+- **Audit diff format** — `{ deletedAt: [null, <ISO-String>] }` tuple, matching the `[old, new]` convention from `update-customer.ts`.
+- **SPEC §5.1 audit-log allow-list** — `SOFT_DELETE` is already present in the `action` column documentation at SPEC line 318. No SPEC edit required.
+- **Per-pattern 100% threshold** — added for `src/features/customers/actions/soft-delete-customer.ts` in `vitest.config.ts`, alongside the existing create/update entries. The action file's `coverage.include` glob (`src/features/customers/actions/**`) already covers the new file, so no include change needed.
+- **Dialog in its own file** — `src/features/customers/components/customer-delete-dialog.tsx` (Client Component), co-located test. Detail page imports it and passes `customerId` + `customerCompanyName`.
+
+**Additional §14.2 silent decisions made during implementation:**
+
+- **Repository signature change** — `softDeleteCustomer(orgId, id)` → `softDeleteCustomer(orgId, id, deletedAt: Date)`. The caller now supplies the timestamp so the value persisted to the row and the value recorded in the audit `changeSet` are guaranteed identical. Return type widens from `Promise<Customer>` to `Promise<Customer | null>` because the race-safe implementation returns `null` when no row matched. The function uses `updateMany({ where: { id, organizationId, deletedAt: null } })` so a second call (concurrent click, replay) matches zero rows instead of overwriting the first stamp. Re-reads through `findCustomerById(..., { includeDeleted: true })` to return the persisted row.
+- **Race-window handling in the action** — if `softDeleteCustomer` returns `null` AFTER the read-first check passed (genuine race), the action returns `{ ok: true }` without writing an audit row. The user's intent is satisfied either way; the audit row was already written by whoever won the race.
+- **`AlertDialog` shadcn primitive added** — single new file `src/components/ui/alert-dialog.tsx`, structured identically to `dialog.tsx` (radix-ui namespace import, same styling tokens, same data-slot conventions). No npm dep added — `radix-ui` umbrella package re-exports `AlertDialog`.
+- **Destructive confirm button override** — `<AlertDialogAction>` defaults to `buttonVariants()` (primary). The dialog overrides with `className="bg-destructive text-destructive-foreground hover:bg-destructive/90"` so the confirm action visually reads as destructive without forking the primitive. Inline override is the smallest change that signals destructiveness.
+- **Confirm button blocks AlertDialog's default close** — `event.preventDefault()` inside the `onClick` handler. AlertDialog normally closes on Action click, but we want the dialog to stay open on errors so the user can retry. The dialog closes explicitly via `setOpen(false)` after a success toast fires.
+- **FormData payload, not direct args** — the action signature is `softDeleteCustomerAction(formData: FormData)` so future progressive-enhancement (uncontrolled `<form action={action}>` without JS) Just Works. The dialog builds the FormData inline; tests stub the action and inspect `mock.calls[0][0]` as a `FormData` instance.
+- **Toast copy with `{company}` placeholder** — the i18n entries for `customers.delete.dialog.description` and `customers.delete.toast.success` carry a literal `{company}` marker, replaced at the call site with the live customer label. Same pattern as `auth.error.locked-out` (`{minutes}`) and the pagination summary (`{from}/{to}/{total}`).
+- **Detail page DetailRow layout** — `grid grid-cols-1 sm:grid-cols-[200px_1fr]` with `<dt>` + `<dd>` semantic pair. Empty fields display the i18n `customers.detail.field.empty` mark (`—`). Container width `max-w-3xl` is one step wider than the form's `max-w-2xl` to accommodate the two-column DetailRow on desktop; mobile collapses to a single column.
+- **"Anzeigen" dropdown link activated in `customer-table.tsx`** — swaps the disabled placeholder for a real `<Link href={\`/customers/\${id}\`}>`. Retires the `customers.action.pending-t024` i18n key; the i18n test snapshot drops accordingly (15 → 14 T-022 customer keys; 16 new T-024 keys land alongside).
+- **16 new i18n keys** — 9 detail-page (title + 4 sections + studies-empty + 2 action labels + field-empty marker), 4 dialog (title + description + confirm + cancel), 3 toast (success + 2 errors).
+- **`customers.detail.title` used as subtitle, not h1** — the h1 carries the live customer label (companyName ?? "firstName lastName"). The i18n key is the page-purpose label below.
+- **Metadata title** — `"Kundendetails — GreenScout"`. Mirrors the edit-page's metadata-title pattern.
+- **Repo test idempotency assertion** — third new test case in `customer.repository.test.ts` invokes `softDeleteCustomer` twice with the second call hitting `count: 0` from the mock to prove the idempotent contract. Eight new test cases total across action + repo + dialog (3 repo + 8 action + 6 dialog + 2 i18n).
+- **Dialog tests stay above the unit-coverage gate even though the component file is not in `coverage.include`** — same scoping as `customer-form.test.tsx` (T-023). Component coverage is exercised by RTL tests but not gated on a per-pattern threshold; the action file is the security-critical surface and carries the 100% gate.
+- **`useState(open)` controls the dialog lifecycle** — needed because we override the Action click default. Without an explicit state binding, the dialog would close on click and reopen would require user re-trigger; the controlled-open pattern keeps the dialog visible on error.
+- **No new tracked-fields registry for soft-delete diff** — the SOFT_DELETE diff is a fixed `{ deletedAt: [null, ISO] }` shape, never multi-field. No need for the `TRACKED_FIELDS`-style allow-list that `update-customer.ts` uses.
+
+**Net top-level deps added**: none.
+
+**Affected files** (T-024 diff vs. `origin/main @ 1daee1c`):
+- `TASKS.md` — T-024 status flipped to 🟦 IN PROGRESS at the head of the branch (carry-forward pattern; next PR flips to ✅ DONE).
+- `src/lib/repositories/customer.repository.ts` — `softDeleteCustomer` signature change (race-safe `updateMany` + injected timestamp + nullable return). Tests updated, +3 new test cases.
+- `src/features/customers/actions/soft-delete-customer.ts` + `soft-delete-customer.test.ts` (new — 8 tests, 100% coverage).
+- `src/components/ui/alert-dialog.tsx` (new — shadcn primitive over `radix-ui`).
+- `src/features/customers/components/customer-delete-dialog.tsx` + `customer-delete-dialog.test.tsx` (new — 6 tests).
+- `src/features/customers/components/customer-table.tsx` — "Anzeigen" dropdown link activated; retired `pending-t024` placeholder.
+- `src/app/(app)/customers/[id]/page.tsx` (new — Server Component detail page).
+- `src/i18n/de.ts` + `de.test.ts` — 16 new keys + 2 new test cases; retired `customers.action.pending-t024`.
+- `vitest.config.ts` — per-pattern 100% threshold for `soft-delete-customer.ts`.
+- `DECISIONS.md` — this entry.
+
+**Open question for the user:** none under §14.2. Manual smoke after merge:
+1. Log in with the seeded admin (`consulting@lumina-intelligence.ai`), navigate `/customers`, click the row dropdown → "Anzeigen". Confirm the detail page renders with all three sections and the "Verknüpfte Studien" empty-state copy.
+2. Click "Löschen" → AlertDialog opens with the German title + description carrying the customer name. Click "Endgültig löschen" → green toast fires and the list page reloads with the customer removed.
+3. Navigate back to `/customers/<id-of-just-deleted>` directly via URL → expect a 404 page.
+4. **CSP browser verification (Nutzer-Manuelltest VOR Merge):** open `/customers/<id>`, open DevTools → Console. Confirm zero CSP violations, especially when the AlertDialog opens (Radix uses inline styles for portal positioning — the existing CSP from T-021 should already accommodate this, but the manual check is the final gate before merge).
+
 **Open question for the user:** none under §14.2. Manual smoke after merge: log in with the seeded admin, click "Neuer Kunde", confirm the form lays out per the grid above, submit a customer (e.g. "Anna Berger" + "Hofgut Sonnenwiese GmbH"), confirm the green toast + list-page row appears, click "Bearbeiten" on that row, change a field, confirm the green toast + updated row.
