@@ -60,7 +60,8 @@ export const de = {
   "customers.action.new": "Neuer Kunde",
   "customers.action.view": "Anzeigen",
   "customers.action.edit": "Bearbeiten",
-  "customers.action.pending-t023": "verfügbar in T-023",
+  // T-024 will replace `customers.action.pending-t024` with a live link on
+  // "Anzeigen". T-023 dropped the corresponding `pending-t023` key.
   "customers.action.pending-t024": "verfügbar in T-024",
   "customers.column.company": "Firma",
   "customers.column.contact": "Ansprechpartner",
@@ -73,6 +74,39 @@ export const de = {
   "customers.pagination.summary": "{from}–{to} von {total}",
   "customers.pagination.previous": "Zurück",
   "customers.pagination.next": "Weiter",
+  // ─── T-023 Customer form: pages ────────────────────────────────────
+  "customers.page.new.title": "Neuer Kunde",
+  "customers.page.new.subtitle": "Lege eine neue Kundin oder einen neuen Kunden an.",
+  "customers.page.edit.title": "Kunde bearbeiten",
+  // ─── T-023 Customer form: sections ─────────────────────────────────
+  "customers.section.company": "Firma",
+  "customers.section.contact": "Kontakt",
+  "customers.section.billing": "Rechnungsadresse",
+  // ─── T-023 Customer form: fields ───────────────────────────────────
+  "customers.field.company-name": "Firmenname",
+  "customers.field.first-name": "Vorname",
+  "customers.field.last-name": "Nachname",
+  "customers.field.email": "E-Mail-Adresse",
+  "customers.field.phone": "Telefon",
+  "customers.field.billing-address": "Straße + Hausnummer",
+  "customers.field.billing-zip": "Postleitzahl",
+  "customers.field.billing-city": "Stadt",
+  "customers.field.notes": "Notizen",
+  // ─── T-023 Customer form: actions ──────────────────────────────────
+  "customers.action.cancel": "Abbrechen",
+  "customers.action.create": "Anlegen",
+  "customers.action.save": "Änderungen speichern",
+  "customers.action.saving": "Wird gespeichert…",
+  // ─── T-023 Customer form: validation messages ──────────────────────
+  "customers.error.first-name-required": "Vorname ist erforderlich.",
+  "customers.error.last-name-required": "Nachname ist erforderlich.",
+  "customers.error.invalid-email": "Bitte gib eine gültige E-Mail-Adresse ein.",
+  "customers.error.not-found": "Kunde nicht gefunden.",
+  "customers.error.forbidden": "Du bist nicht berechtigt, diesen Kunden zu bearbeiten.",
+  "customers.error.server": "Speichern fehlgeschlagen. Bitte versuche es später erneut.",
+  // ─── T-023 Customer form: toast messages ───────────────────────────
+  "customers.toast.created": "Kunde angelegt",
+  "customers.toast.updated": "Änderungen gespeichert",
 } as const;
 
 export type TranslationKey = keyof typeof de;
