@@ -1844,3 +1844,55 @@ No new top-level deps.
 - `DECISIONS.md` — this entry.
 
 **Open question for the user:** none under §14.2. Manual smoke after merge: log in with the seeded admin (`consulting@lumina-intelligence.ai`), confirm `/customers` renders with the topbar, empty state copy reads correctly (seed currently has zero customers), and the "Neuer Kunde" button visibly 404s until T-023 lands.
+
+---
+
+## 2026-05-21 — T-023 silent decisions per §14 (consolidated)
+
+**Context:** T-023 ships the Customer create + edit form on top of Slice 4's list page (T-022). §14.2 silent — no §7 pause-triggers, no new top-level deps (sonner, RHF, zod, shadcn Form, lucide-react, Textarea, Separator all present from earlier slices).
+
+**Assumption / decision:**
+
+- **Routes**: `src/app/(app)/customers/new/page.tsx` (create) and `src/app/(app)/customers/[id]/edit/page.tsx` (edit). Both inside the authenticated `(app)` route group from T-022 — middleware + the layout's `auth()` guard cover authn; edit page does its own org-scoped lookup for authz.
+- **Shared `CustomerForm` component** with a discriminated `CustomerFormProps` union: `{ mode: "create"; initialData?: ... } | { mode: "edit"; customerId: string; initialData: ... }`. Single template; mode-specific behaviour gated on `props.mode`. The discriminated union makes "edit without `customerId`" a compile-time error.
+- **Zod schema** (`src/features/customers/schemas/customer-schema.ts`) uses an `optionalString` helper that `trim()`s then transforms empty-string → undefined; `optionalEmail` follows the same shape with a `superRefine` running `z.string().email()` only when present. Empty optional fields don't trigger validation; whitespace-only required fields fail (trim runs before `min(1)`). Error messages are i18n keys, resolved by `t()` at the consumer.
+- **Server Actions split into two files** (`actions/create-customer.ts`, `actions/update-customer.ts`) — clearer test boundaries, easier per-pattern 100% coverage threshold.
+- **Audit `changeSet` on UPDATE** computes per-field `[oldValue, newValue]` diffs using a `TRACKED_FIELDS` allow-list. Only changed fields appear. No-op edits (zero diff fields) short-circuit `{ ok: true }` without writing an audit row — acceptable per CLAUDE.md §11 (audit log captures intent, not idempotent re-saves).
+- **Audit `changeSet` on CREATE** is `{ field: [null, value] }` for every populated field. Matches the convention from the seed (`prisma/seed.ts`) and `admin-alerts.ts` (T-017).
+- **Multi-tenant safety**: update action calls `findCustomerById(orgId, id)` before writing. Even though `updateCustomer` already filters by `{ id, organizationId }` at the Prisma layer (a cross-tenant guess silently no-ops), the read-first pattern lets us return `not-found` for missing/cross-tenant rows AND compute the diff. Edit page does the same fetch + a defensive `customer.organizationId === session.user.organizationId` re-check; redundant in single-tenant MVP but kept as a Phase-3 surface.
+- **Discriminated result types**: `CreateCustomerResult` (`validation | forbidden | server`), `UpdateCustomerResult` (adds `not-found`). `fieldErrors?: Record<string, string>` carries i18n keys per-field on validation failure.
+- **No optimistic UI** — after success, `router.refresh()` + `router.push("/customers")`. `revalidatePath("/customers")` from the action invalidates the Server Component cache so the list re-runs the repository fetch on next render. No optimistic-rollback complexity for a CRUD pattern that doesn't need sub-second response masking.
+- **Toast notifications via sonner**: success → green toast (`"Kunde angelegt"` / `"Änderungen gespeichert"`), error → red toast keyed on `errorCode` (`"not-found"` / `"forbidden"` / `"server"`). `<Toaster />` is already mounted at the root `app/layout.tsx` (T-003) — no new mount needed.
+- **Server-Action validation errors → RHF `form.setError`**: each `fieldErrors[field]` key is resolved through `t()` and pushed onto the matching FormMessage via `form.setError(field, { type: "server", message })`. Allows server-side rules (future: uniqueness checks) to surface field-bound, not toast-bound.
+- **Field grouping**: 3 sections separated by shadcn `<Separator />` — Firma (companyName), Kontakt (firstName + lastName in 2-col grid; email + phone in 2-col grid), Rechnungsadresse (billingAddress full-width; ZIP + city in 1/3+2/3 grid; notes full-width Textarea). Notes uses `<Textarea rows={4} />`.
+- **No format validation on `phone` or `billingZipCode`**: SPEC §4.4 explicitly does not require either. A strict German PLZ regex would over-fit (multi-tenant Phase-3 will see non-DE addresses).
+- **Email validation**: `.email()` runs only when the field is non-empty (via `superRefine`). Empty optional email passes.
+- **Cancel button**: `router.push("/customers")` in both modes. Sensible default in absence of a detail page (T-024).
+- **After create/edit**: redirect to `/customers` list. T-024 will introduce a detail page that may become the natural landing — until then the list is canonical.
+- **"Bearbeiten" menu item activated**: `src/features/customers/components/customer-table.tsx` swaps its disabled placeholder for a real `<Link href={\`/customers/\${id}/edit\`}>`. Retired the `customers.action.pending-t023` i18n key in the same edit (kept `pending-t024` for "Anzeigen").
+- **`customers.action.pending-t023` i18n key removed**: no longer reachable. T-022's expected-key snapshot test count drops to 15 customers keys + 25 new T-023 keys = 75 total.
+- **25 new i18n keys** grouped: 3 pages + 3 sections + 9 fields + 4 actions + 6 error/validation + 2 toast.
+- **Page metadata titles**: `"Neuer Kunde — GreenScout"` / `"Kunde bearbeiten — GreenScout"`.
+- **Subtitle on edit page**: `customer.companyName ?? \`${firstName} ${lastName}\`` — visible identity reminder.
+- **Coverage threshold scope**: only `src/features/customers/actions/**` added to the include (NOT the broader `src/features/**/actions/**`). The broader glob would pull in `change-password.ts` + `sign-in.ts` (auth Server Actions without unit tests yet) and drop global below the 80% baseline. T-019/T-018 wrote those without unit tests because they're heavily covered by Playwright in T-051a — keeping them out of the include set preserves the prior scope decision.
+- **Per-pattern 100% threshold** on the two customer Server Action files. Multi-tenant + audit-critical surface.
+- **Dead defensive guards removed**: `buildChangeSet`'s `typeof value === "string"` check (zod guarantees it after parse), `buildDiff`'s `typeof source !== "object" || source === null` (caller invariant), and both actions' `fieldErrors[key] === undefined` dedup (zod produces one issue per path in this schema). Removing them gets to 100% coverage without padding tests with unreachable inputs.
+- **Auth mock typing**: `vi.mocked(auth)` collides with NextAuth's overloaded `auth` (middleware variant + Server Action variant). Cast via `vi.mocked(auth) as unknown as ReturnType<typeof vi.fn<() => Promise<unknown>>>` — minimal seam, no `@ts-ignore`.
+- **Zod 4.x `email()` confirmed**: both `z.email()` and `z.string().email()` work; we stayed on `z.string().email()` for consistency with `login-schema.ts`.
+
+**Net top-level deps added**: none.
+
+**Affected files**:
+- `src/features/customers/schemas/customer-schema.ts` + `customer-schema.test.ts` (new — 20 tests).
+- `src/features/customers/actions/create-customer.ts` + `create-customer.test.ts` (new — 6 tests, 100% coverage).
+- `src/features/customers/actions/update-customer.ts` + `update-customer.test.ts` (new — 9 tests, 100% coverage).
+- `src/features/customers/components/customer-form.tsx` + `customer-form.test.tsx` (new — 12 tests).
+- `src/features/customers/components/customer-table.tsx` — "Bearbeiten" menu item activated.
+- `src/app/(app)/customers/new/page.tsx` (new).
+- `src/app/(app)/customers/[id]/edit/page.tsx` (new).
+- `src/i18n/de.ts` + `de.test.ts` — 25 new keys + 1 new test case; retired `customers.action.pending-t023`.
+- `vitest.config.ts` — include adds `src/features/customers/actions/**`; thresholds add 100% on both action files.
+- `TASKS.md` — T-022 moved to Recently completed; T-023 removed from Open (this PR ships it).
+- `DECISIONS.md` — this entry.
+
+**Open question for the user:** none under §14.2. Manual smoke after merge: log in with the seeded admin, click "Neuer Kunde", confirm the form lays out per the grid above, submit a customer (e.g. "Anna Berger" + "Hofgut Sonnenwiese GmbH"), confirm the green toast + list-page row appears, click "Bearbeiten" on that row, change a field, confirm the green toast + updated row.

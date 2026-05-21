@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { de, t } from "./de";
 
 describe("de translation dictionary", () => {
-  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI + 2 T-022 app-shell + 16 T-022 customers", () => {
+  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y + 11 T-019 change-password UI + 2 T-022 app-shell + 15 T-022 customers (T-023 retired pending-t023) + 25 T-023 customer form", () => {
     expect(Object.keys(de).sort()).toEqual([
       "app.action.sign-out",
       "app.nav.customers",
@@ -40,10 +40,13 @@ describe("de translation dictionary", () => {
       "auth.password.rule.min-length",
       "auth.password.rule.special",
       "auth.password.rule.upper",
+      "customers.action.cancel",
+      "customers.action.create",
       "customers.action.edit",
       "customers.action.new",
-      "customers.action.pending-t023",
       "customers.action.pending-t024",
+      "customers.action.save",
+      "customers.action.saving",
       "customers.action.view",
       "customers.column.city",
       "customers.column.company",
@@ -51,12 +54,35 @@ describe("de translation dictionary", () => {
       "customers.column.studies",
       "customers.empty.no-customers",
       "customers.empty.no-results",
+      "customers.error.first-name-required",
+      "customers.error.forbidden",
+      "customers.error.invalid-email",
+      "customers.error.last-name-required",
+      "customers.error.not-found",
+      "customers.error.server",
+      "customers.field.billing-address",
+      "customers.field.billing-city",
+      "customers.field.billing-zip",
+      "customers.field.company-name",
+      "customers.field.email",
+      "customers.field.first-name",
+      "customers.field.last-name",
+      "customers.field.notes",
+      "customers.field.phone",
+      "customers.page.edit.title",
+      "customers.page.new.subtitle",
+      "customers.page.new.title",
       "customers.page.subtitle",
       "customers.page.title",
       "customers.pagination.next",
       "customers.pagination.previous",
       "customers.pagination.summary",
       "customers.search.placeholder",
+      "customers.section.billing",
+      "customers.section.company",
+      "customers.section.contact",
+      "customers.toast.created",
+      "customers.toast.updated",
     ]);
   });
 
@@ -70,7 +96,6 @@ describe("de translation dictionary", () => {
     expect(t("customers.action.new")).toBe("Neuer Kunde");
     expect(t("customers.action.view")).toBe("Anzeigen");
     expect(t("customers.action.edit")).toBe("Bearbeiten");
-    expect(t("customers.action.pending-t023")).toBe("verfügbar in T-023");
     expect(t("customers.action.pending-t024")).toBe("verfügbar in T-024");
     expect(t("customers.column.company")).toBe("Firma");
     expect(t("customers.column.contact")).toBe("Ansprechpartner");
@@ -156,6 +181,47 @@ describe("de translation dictionary", () => {
       "Neues Passwort erfüllt nicht alle Anforderungen.",
     );
     expect(t("auth.error.passwords-mismatch")).toBe("Passwörter stimmen nicht überein.");
+  });
+
+  it("returns the German string for T-023 customer-form keys", () => {
+    // Sections + pages
+    expect(t("customers.page.new.title")).toBe("Neuer Kunde");
+    expect(t("customers.page.new.subtitle")).toBe(
+      "Lege eine neue Kundin oder einen neuen Kunden an.",
+    );
+    expect(t("customers.page.edit.title")).toBe("Kunde bearbeiten");
+    expect(t("customers.section.company")).toBe("Firma");
+    expect(t("customers.section.contact")).toBe("Kontakt");
+    expect(t("customers.section.billing")).toBe("Rechnungsadresse");
+    // Fields
+    expect(t("customers.field.company-name")).toBe("Firmenname");
+    expect(t("customers.field.first-name")).toBe("Vorname");
+    expect(t("customers.field.last-name")).toBe("Nachname");
+    expect(t("customers.field.email")).toBe("E-Mail-Adresse");
+    expect(t("customers.field.phone")).toBe("Telefon");
+    expect(t("customers.field.billing-address")).toBe("Straße + Hausnummer");
+    expect(t("customers.field.billing-zip")).toBe("Postleitzahl");
+    expect(t("customers.field.billing-city")).toBe("Stadt");
+    expect(t("customers.field.notes")).toBe("Notizen");
+    // Actions
+    expect(t("customers.action.cancel")).toBe("Abbrechen");
+    expect(t("customers.action.create")).toBe("Anlegen");
+    expect(t("customers.action.save")).toBe("Änderungen speichern");
+    expect(t("customers.action.saving")).toBe("Wird gespeichert…");
+    // Validation messages
+    expect(t("customers.error.first-name-required")).toBe("Vorname ist erforderlich.");
+    expect(t("customers.error.last-name-required")).toBe("Nachname ist erforderlich.");
+    expect(t("customers.error.invalid-email")).toBe("Bitte gib eine gültige E-Mail-Adresse ein.");
+    expect(t("customers.error.not-found")).toBe("Kunde nicht gefunden.");
+    expect(t("customers.error.forbidden")).toBe(
+      "Du bist nicht berechtigt, diesen Kunden zu bearbeiten.",
+    );
+    expect(t("customers.error.server")).toBe(
+      "Speichern fehlgeschlagen. Bitte versuche es später erneut.",
+    );
+    // Toasts
+    expect(t("customers.toast.created")).toBe("Kunde angelegt");
+    expect(t("customers.toast.updated")).toBe("Änderungen gespeichert");
   });
 
   it("preserves the {minutes} interpolation marker on auth.error.locked-out", () => {

@@ -62,6 +62,13 @@ export default defineConfig({
         "src/features/**/utils/**/*.{ts,tsx}",
         "src/features/**/schemas/**/*.{ts,tsx}",
         "src/features/**/hooks/**/*.{ts,tsx}",
+        // T-023 — Customer Server Actions sit on the trust boundary
+        // between the client form and the repository layer. They embed
+        // the auth session lookup + audit-log writes, which we treat
+        // as security-critical surface and gate at 100% per-pattern
+        // coverage (see thresholds below). Other features' action
+        // folders join this include set as they pick up coverage tests.
+        "src/features/customers/actions/**/*.{ts,tsx}",
         "src/features/**/*-policy.{ts,tsx}",
         "src/features/auth/components/password-rule-checklist.tsx",
         // T-021 security headers — middleware ships the
@@ -157,6 +164,25 @@ export default defineConfig({
           branches: 90,
           functions: 90,
           statements: 90,
+        },
+        // 100% on the T-023 customer Server Actions per DECISIONS
+        // T-023 ("per-pattern Vitest thresholds"). Multi-tenant
+        // safety (the `findCustomerById` ownership check) +
+        // audit-log writes are critical paths; every branch (no
+        // session, validation, not-found, no-op diff, happy path,
+        // repo-throws, header-absent) is covered by the co-located
+        // *.test.ts.
+        "src/features/customers/actions/create-customer.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/features/customers/actions/update-customer.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
         },
       },
     },
