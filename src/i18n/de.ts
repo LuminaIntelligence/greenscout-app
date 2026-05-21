@@ -33,6 +33,11 @@ export const de = {
   "auth.action.sign-in": "Anmelden",
   "auth.action.signing-in": "Wird angemeldet…",
   "auth.error.lockout-banner-title": "Konto gesperrt",
+  // ─── T-019 PasswordRuleChecklist a11y keys ─────────────────────────
+  "auth.checklist.aria-label": "Passwort-Anforderungen",
+  "auth.checklist.fulfilled": "erfüllt",
+  "auth.checklist.unfulfilled": "nicht erfüllt",
+  "auth.checklist.neutral": "noch nicht geprüft",
 } as const;
 
 export type TranslationKey = keyof typeof de;

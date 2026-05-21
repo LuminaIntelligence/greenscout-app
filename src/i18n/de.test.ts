@@ -3,10 +3,14 @@ import { describe, expect, it } from "vitest";
 import { de, t } from "./de";
 
 describe("de translation dictionary", () => {
-  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI", () => {
+  it("contains all expected keys: 5 password-rule + 5 auth-error + 8 T-018 login UI + 4 T-019 checklist a11y", () => {
     expect(Object.keys(de).sort()).toEqual([
       "auth.action.sign-in",
       "auth.action.signing-in",
+      "auth.checklist.aria-label",
+      "auth.checklist.fulfilled",
+      "auth.checklist.neutral",
+      "auth.checklist.unfulfilled",
       "auth.error.inactive",
       "auth.error.invalid-credentials",
       "auth.error.locked-out",
@@ -59,6 +63,13 @@ describe("de translation dictionary", () => {
     expect(t("auth.action.sign-in")).toBe("Anmelden");
     expect(t("auth.action.signing-in")).toBe("Wird angemeldet…");
     expect(t("auth.error.lockout-banner-title")).toBe("Konto gesperrt");
+  });
+
+  it("returns the German string for T-019 PasswordRuleChecklist a11y keys", () => {
+    expect(t("auth.checklist.aria-label")).toBe("Passwort-Anforderungen");
+    expect(t("auth.checklist.fulfilled")).toBe("erfüllt");
+    expect(t("auth.checklist.unfulfilled")).toBe("nicht erfüllt");
+    expect(t("auth.checklist.neutral")).toBe("noch nicht geprüft");
   });
 
   it("preserves the {minutes} interpolation marker on auth.error.locked-out", () => {
