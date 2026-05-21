@@ -1382,3 +1382,225 @@ Implementer builds + reports via `curl -I` header inspection. **Manual browser-c
 **Affected files**: `src/app/(auth)/layout.tsx` (new), `src/app/(auth)/login/page.tsx` (new), `src/features/auth/components/login-form.tsx` (new), `src/features/auth/components/login-form.test.tsx` (new), `src/i18n/de.ts` (+7 keys), `src/i18n/de.test.ts` (+ assertions), `TASKS.md` (T-017a → ✅ Recently completed + carried T-018 rewrite / T-019 absorption / T-048b polish task), `DECISIONS.md` (this entry).
 
 **Open question for the user:** Manual browser-console CSP verification at `/login` in dev + prod before merge. If CSP violations break the page, fall-back paths from DECISIONS T-017 §③: nonce-based `script-src` (preferred) or `'unsafe-inline'` (last resort with explicit DECISIONS deviation).
+
+---
+
+## 2026-05-21 — T-019 Forced password change design (user-confirmed, binding)
+**Context:** §7.3 pause-trigger — user reviewed the `/password-change` design recap. Seven decision-points settled, one **critical addition** (JWT token refresh after success), one **security confirmation** (lockout-first ordering is correct for post-auth context, NOT verify-first), and one **robustness mandate** ($transaction wrap on success-path writes).
+
+**Assumption / decision:**
+
+### KRITISCH — JWT Token Refresh after success (user-mandated, NEW)
+
+Without this, the success path enters an **infinite redirect loop** (DB-update flips `mustChangePassword=false` but middleware reads the stale JWT and keeps redirecting back to `/password-change`).
+
+**Required flow:**
+1. DB writes (in a single `$transaction`):
+   - `updatePasswordHash(user.id, newHash, tx)` (also sets `passwordChangedAt = now`)
+   - `setMustChangePassword(user.id, false, tx)`
+   - `resetFailedLoginCount(user.id, tx)` (clears counter + `lockoutUntil`)
+2. Auth.js v5 update trigger: `await unstable_update({})` (empty payload → jwt callback re-fetches from DB)
+3. JWT callback handles `trigger === "update"`: re-fetch user via `findUserById`, refresh ALL 6 token fields (id, email, role, mustChangePassword, formPreference, organizationId) — single source of truth, idempotent
+4. ONLY AFTER step 3 succeeds: `router.push("/")` / `redirect("/")`
+
+**Implementation requirements:**
+- `src/lib/auth.ts` must include `unstable_update` in its destructured NextAuth() exports
+- JWT callback extended with `trigger === "update"` branch (possibly moved to `auth.ts` Node-runtime side if repository import would break Edge-runtime — implementer's §14.2 call)
+- If `unstable_update` symbol name changes in a beta.32+ release, adapt — user-mandated contract is "refresh JWT before redirect"
+
+### Three-state PasswordRuleChecklist (replaces my single ①+② Vorschlag)
+
+User-corrective: SPEC §4.1 says "green/red **as the user types**" — always-red on page-load would show a red wall before any interaction (hostile UX, arguable spec violation).
+
+| State | Trigger | Icon | Icon color | Label color |
+|---|---|---|---|---|
+| Neutral | hasTyped === false (initial) | `<Circle>` | `text-muted-foreground` | `text-muted-foreground` |
+| Passed | hasTyped && rule.test(value) | `<Check>` | `text-plant-green` | `text-foreground` |
+| Not-passed | hasTyped && !rule.test(value) | `<X>` | `text-destructive` | `text-destructive` |
+
+**Mechanik:** `hasTyped` boolean — once true, never reverts (first keystroke is sticky). Empty value after typing → all rules show red (correctly: empty newPassword is invalid).
+
+**sr-only state announcements** via 3 new i18n keys: `auth.checklist.neutral` → "noch nicht geprüft", `auth.checklist.fulfilled` → "erfüllt", `auth.checklist.unfulfilled` → "nicht erfüllt".
+
+`aria-live="polite"` on the container; the screen-reader announces state changes as the user types.
+
+### ③ confirmNewPassword via zod `.refine()` (Vorschlag — confirmed)
+`(data) => data.newPassword === data.confirmNewPassword` → "Passwörter stimmen nicht überein." in standard `<FormMessage>` on submit.
+
+### ④ Submit button always-enabled except `isPending` (Vorschlag — confirmed)
+
+### ⑤ New audit-action `PASSWORD_CHANGE_FAIL` (Vorschlag — confirmed)
+Additively extend SPEC §5.1 allow-list. Implementer edits SPEC.md in this PR. The current line:
+> `action` ∈ {`CREATE`, `UPDATE`, `DELETE`, `SOFT_DELETE`, `LOGIN_SUCCESS`, `LOGIN_FAIL`, `LOCKOUT`, `PASSWORD_RESET`, `HANDOVER`, `GENERATE_DOCUMENT`, `RETENTION_NOTICE`}
+
+Becomes:
+> `action` ∈ {`CREATE`, `UPDATE`, `DELETE`, `SOFT_DELETE`, `LOGIN_SUCCESS`, `LOGIN_FAIL`, `LOCKOUT`, `PASSWORD_RESET`, **`PASSWORD_CHANGE_FAIL`**, `HANDOVER`, `GENERATE_DOCUMENT`, `RETENTION_NOTICE`}
+
+### ⑥ Redirect via `router.push("/")` AFTER JWT refresh (Vorschlag — confirmed, sequenced after KRITISCH)
+
+### ⑦ Voluntary password change allowed at /password-change for `mustChangePassword=false` users (Vorschlag — confirmed)
+Same form, same Server Action, same audit — distinguish forensically via `changeSet.initiator: "user-forced" | "user-voluntary"`. The voluntary-vs-forced state is captured at the START of the request (step 2 in the algorithm) before step 7 mutates `mustChangePassword`.
+
+### Security — lockout-first ordering (user-confirmed CORRECT, do NOT change)
+
+T-017a's verify-first algorithm exists to defeat email-enumeration via timing on the UNAUTHENTICATED `/login` endpoint. `/password-change` is **post-auth** (session.user.id is known). No enumeration vector. Lockout-first is correct here and more efficient (no expensive argon2 verify when already locked).
+
+**Implementer must NOT "fix" this to match T-017a's pattern.** Document the contrast explicitly in code comments.
+
+### Shared lockout counter (security-confirmed)
+Same `failedLoginCount` + `lockoutUntil` columns track both login and password-change failures. Same 5/15min, 10/1h thresholds. Counter resets on:
+- Successful login (T-017a, already implemented)
+- Successful password change (T-019 — `resetFailedLoginCount` in the success $transaction)
+
+### Robustness — $transaction wrap on success path (user-mandated)
+
+The three writes are atomic:
+1. `updatePasswordHash(user.id, newHash, tx)`
+2. `setMustChangePassword(user.id, false, tx)`
+3. `resetFailedLoginCount(user.id, tx)`
+
+… all in one `prisma.$transaction()` via the T-014 `withTransaction` helper. If any fails, all roll back. Never end up with hash-updated-but-mustChangePassword-still-true (or any other partial state).
+
+### CSP browser verification (carry from T-018 pattern, user task pre-merge)
+Manual browser-console check at `/password-change` in `npm run dev` and `npm run build && npm run start`. Implementer provides `curl -I` + HTML excerpts; user does final inspection before merge.
+
+### Final algorithm (binding)
+
+```
+on submit (server-action):
+  1. session = await auth()
+     if !session: throw Unauthorized
+  2. user = await findUserById(orgId, session.user.id)
+     if !user: throw Unauthorized
+     wasForced = user.mustChangePassword   # capture before mutation
+  3. LOCKOUT CHECK FIRST (post-auth, lockout-first is correct)
+     if user.lockoutUntil && user.lockoutUntil > now:
+       audit PASSWORD_CHANGE_FAIL { reason: "locked" }
+       return { ok: false, errorCode: "locked", lockedUntil: ISO }
+  4. verifyPassword(user.passwordHash, currentPassword)
+     if !ok:
+       counterAfter = user.failedLoginCount + 1
+       incrementFailedLoginCount(user.id)
+       if counterAfter == 5:   setLockoutUntil(now + 15min)
+       elif counterAfter == 10: setLockoutUntil(now + 1h) + emitAdminLockoutAlert()
+       elif counterAfter > 10: setLockoutUntil(now + 1h)
+       audit PASSWORD_CHANGE_FAIL { reason: "wrong-current", counterAfter }
+       return { ok: false, errorCode: "wrong-current-password" }
+  5. if newPassword == currentPassword:
+       audit PASSWORD_CHANGE_FAIL { reason: "same-as-current" }
+       return { ok: false, errorCode: "same-as-current" }
+  6. if !validatePassword(newPassword).ok:
+       audit PASSWORD_CHANGE_FAIL { reason: "rules-not-satisfied" }
+       return { ok: false, errorCode: "rules-not-satisfied" }
+  7. newHash = await hashPassword(newPassword)
+     await withTransaction(async (tx) => {
+       await updatePasswordHash(user.id, newHash, tx)
+       await setMustChangePassword(user.id, false, tx)
+       await resetFailedLoginCount(user.id, tx)
+     })
+  8. await unstable_update({})   # JWT refresh — jwt callback re-fetches from DB
+  9. audit PASSWORD_RESET { initiator: wasForced ? "user-forced" : "user-voluntary" }
+  10. return { ok: true }
+  # Client: on { ok: true } → router.push("/") (middleware routes from fresh JWT)
+```
+
+### JWT callback extension (binding)
+
+```ts
+async jwt({ token, user, trigger }) {
+  if (user) {
+    // initial sign-in path (T-017 unchanged)
+    token.id = user.id;
+    token.email = user.email;
+    token.role = user.role;
+    token.mustChangePassword = user.mustChangePassword;
+    token.formPreference = user.formPreference;
+    token.organizationId = user.organizationId;
+    return token;
+  }
+  if (trigger === "update" && token.id) {
+    const fresh = await findUserById(token.organizationId, token.id);
+    if (fresh !== null) {
+      token.email = fresh.email;
+      token.role = fresh.role;
+      token.mustChangePassword = fresh.mustChangePassword;
+      token.formPreference = fresh.formPreference;
+      token.organizationId = fresh.organizationId;
+    }
+  }
+  return token;
+}
+```
+
+**Edge-runtime caveat:** importing `findUserById` may pull `@/lib/db` (Prisma client) into the Edge-runtime side of the config split. T-017's split exists because `@node-rs/argon2` doesn't work in Edge — Prisma's situation is similar. If the import causes Edge-runtime issues, move the `trigger === "update"` branch into the Node-runtime `auth.ts` (NextAuth() lives there with the actual callbacks). `auth.config.ts` keeps the Edge-safe stub. §14.2 implementation detail — implementer decides, documents.
+
+### Module structure (binding)
+
+```
+src/
+  app/(auth)/password-change/
+    page.tsx                          (NEW)
+  features/auth/
+    components/
+      change-password-form.tsx        (NEW — "use client")
+      change-password-form.test.tsx   (NEW)
+      password-rule-checklist.tsx     (NEW — 3-state, reusable)
+      password-rule-checklist.test.tsx (NEW)
+    schemas/
+      change-password-schema.ts       (NEW — zod + .refine())
+    services/
+      change-password.ts              (NEW — pure-function service)
+      change-password.test.ts         (NEW — 100% coverage)
+    actions/
+      change-password.ts              (NEW — Server Action)
+  lib/
+    auth.ts                            (extend — export unstable_update + possibly absorb jwt-update branch from auth.config)
+    auth.config.ts                     (extend — jwt callback handles trigger === "update")
+  i18n/
+    de.ts                              (extend +15 keys)
+    de.test.ts                         (extend)
+```
+
+### i18n keys (15 new)
+
+- `auth.page.password-change.title` → „Passwort ändern"
+- `auth.page.password-change.subtitle` → „Aus Sicherheitsgründen muss dein Passwort jetzt geändert werden."
+- `auth.field.current-password` → „Aktuelles Passwort"
+- `auth.field.new-password` → „Neues Passwort"
+- `auth.field.confirm-new-password` → „Neues Passwort bestätigen"
+- `auth.action.change-password` → „Passwort ändern"
+- `auth.action.changing-password` → „Wird geändert…"
+- `auth.error.wrong-current-password` → „Aktuelles Passwort falsch."
+- `auth.error.same-as-current` → „Neues Passwort darf nicht dem aktuellen entsprechen."
+- `auth.error.rules-not-satisfied` → „Neues Passwort erfüllt nicht alle Anforderungen."
+- `auth.error.passwords-mismatch` → „Passwörter stimmen nicht überein."
+- `auth.checklist.aria-label` → „Passwort-Anforderungen"
+- `auth.checklist.fulfilled` → „erfüllt"
+- `auth.checklist.unfulfilled` → „nicht erfüllt"
+- `auth.checklist.neutral` → „noch nicht geprüft"
+
+### Vitest per-pattern thresholds (binding)
+- `src/features/auth/services/change-password.ts`: 100% (auth-security critical)
+- `src/features/auth/components/password-rule-checklist.tsx`: 100% (component reusable across T-019, T-041b, future signup)
+
+### Affected files (T-019 implementation)
+
+- `src/app/(auth)/password-change/page.tsx` (new)
+- `src/features/auth/components/change-password-form.tsx` (new)
+- `src/features/auth/components/change-password-form.test.tsx` (new)
+- `src/features/auth/components/password-rule-checklist.tsx` (new — MOVED FROM T-018 KORREKTUR scope)
+- `src/features/auth/components/password-rule-checklist.test.tsx` (new)
+- `src/features/auth/schemas/change-password-schema.ts` (new)
+- `src/features/auth/services/change-password.ts` (new)
+- `src/features/auth/services/change-password.test.ts` (new)
+- `src/features/auth/actions/change-password.ts` (new — Server Action)
+- `src/lib/auth.ts` (extend — export unstable_update + possibly absorb jwt-update branch)
+- `src/lib/auth.config.ts` (extend — jwt callback handles trigger === "update")
+- `src/i18n/de.ts` (extend +15 keys)
+- `src/i18n/de.test.ts` (extend)
+- `vitest.config.ts` (+2 per-pattern thresholds)
+- `SPEC.md` (§5.1 allow-list: add `PASSWORD_CHANGE_FAIL`)
+- `TASKS.md` (T-018 → ✅ Recently completed)
+- `DECISIONS.md` (T-019 implementation entry post-impl)
+
+**Open question for the user:** Manual browser-console CSP verification at `/password-change` in dev + prod build before merge. Same protocol as T-018.

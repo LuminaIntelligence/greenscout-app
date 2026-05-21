@@ -29,28 +29,6 @@
 
 ### Slice 3 — Auth feature
 
-### T-018 Login page (email + password + lockout banner)
-- **Status:** ⬜ TODO
-- **Feature:** auth
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-019, T-022
-- **Blocked by:** T-003, T-017, T-017a
-- **Description:**
-  Build `/login` page per the **user-approved design recap** captured in DECISIONS.md → "T-018 Login page design (user-confirmed, binding)". Two fields (email + password), `<Input type="password">` with `loginSchema` `min(1)` only — **NO live password-rule checklist** on Login (DECISIONS T-016 establishes "validatePassword NOT used in login"; the live checklist belongs to T-019 forced password change, where the user is *composing* a new password). German microcopy ("Du"-form). Soft-distinguished error UX via T-017a's typed `SignInResult`: generic "Email oder Passwort falsch" for invalid creds, specific countdown banner only on lockout (after password verifies correctly via the `LockedAccountError` path). Subtle "Passwort vergessen? Bitte wende dich an den Administrator." hint below the submit button (no link, MVP has no self-service reset — V2 territory). CSP-browser-verification is part of acceptance: implementer builds + reports; **user manually checks browser console at /login (dev + prod) before merge**.
-- **Acceptance criteria:**
-  - [ ] `/login` route renders the form per the design-recap tabular spec (Card, Logo above, brand-token-conform).
-  - [ ] Generic "Email oder Passwort falsch" Alert for bad creds; countdown lockout Alert only when T-017a's `LockedAccountError` path fires.
-  - [ ] All strings via `src/i18n/de.ts` (7 new keys; existing 9 from T-016/T-017 reused).
-  - [ ] a11y: every input has `<FormLabel>` association; banners use `role="alert"`.
-  - [ ] Vitest RTL component tests for `LoginForm`: happy-path, generic-error, lockout-countdown. **Playwright E2E deferred to T-051a** (planner's stale line; T-018 ships unit-test coverage only).
-  - [ ] **User-side**: browser console at `/login` shows zero CSP violations in dev + prod build.
-- **Files likely touched:** `src/app/(auth)/layout.tsx`, `src/app/(auth)/login/page.tsx`, `src/features/auth/components/login-form.tsx`, `src/features/auth/components/login-form.test.tsx`, `src/i18n/de.ts`, `src/i18n/de.test.ts`.
-- **Pause-triggers anticipated:** §7.4 only if the implementer strays outside design tokens.
-- **NOT in T-018** (explicitly moved to T-019): `PasswordRuleChecklist` component, its a11y plumbing, `auth.checklist.*` i18n keys.
-
----
-
 ### T-019 Forced first-login password change flow
 - **Status:** ⬜ TODO
 - **Feature:** auth
@@ -993,6 +971,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-018 ✅ Login page (email + password + lockout banner)
+- **Merged:** 2026-05-21 via PR #21 (`cf1fc8a`)
+- **Branch:** `feat/t018-login-page`
+- **Summary:** `/login` page per the user-approved design recap. Email + password fields, no checklist (per KORREKTUR — login verifies existing passwords, doesn't compose), soft-distinguished error UX via T-017a's typed `SignInResult` (generic for invalid, lockout banner with `<Lock>` icon + countdown for the locked-with-correct-password path). Logo text-only "GreenScout" above Card. Subtle "Passwort vergessen?" hint below submit. 7 new i18n keys. 136 total tests / 9 LoginForm tests / coverage 93.78% global. CSP header verified live via `curl -I`. Browser-console CSP verification was the user's manual pre-merge step.
+- **Decisions:** see `DECISIONS.md` entries "T-018 Login page design (user-confirmed, binding)" + "T-018 implementation per §14 (consolidated)".
 
 ### T-017a ✅ Verify-first authorize + timing hardening + next-auth exact pin
 - **Merged:** 2026-05-21 via PR #20 (`e66fc13`)
