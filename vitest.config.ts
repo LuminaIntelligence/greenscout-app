@@ -49,6 +49,13 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov", "json-summary"],
       // Scope: business-logic surface (see file-level comment above).
+      // Components are normally excluded — they get covered piece-by-piece
+      // by their own RTL tests as features land. EXCEPT: any
+      // `-checklist.tsx` / `-policy-*.tsx` pattern files that ship as
+      // reusable auth-security primitives (T-019 password-rule-checklist
+      // is the first; T-041b admin-reset reuses it; future signup too).
+      // We pull those into the include set so the per-pattern 100%
+      // threshold below has files to measure.
       include: [
         "src/lib/**/*.{ts,tsx}",
         "src/features/**/services/**/*.{ts,tsx}",
@@ -56,6 +63,7 @@ export default defineConfig({
         "src/features/**/schemas/**/*.{ts,tsx}",
         "src/features/**/hooks/**/*.{ts,tsx}",
         "src/features/**/*-policy.{ts,tsx}",
+        "src/features/auth/components/password-rule-checklist.tsx",
       ],
       exclude: [
         "src/generated/**",
@@ -107,6 +115,28 @@ export default defineConfig({
         // body with a real SMTP send; the threshold catches any
         // regression in shape of the audit row at that point.
         "src/features/auth/services/admin-alerts.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // 100% on the T-019 change-password service per DECISIONS T-019
+        // ("Vitest per-pattern thresholds (binding)") — auth-security
+        // critical, every branch (locked, counter 1/5/9/10/11,
+        // same-as-current, rules-not-satisfied, forced-success,
+        // voluntary-success) is covered by change-password.test.ts.
+        "src/features/auth/services/change-password.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // 100% on the T-019 password-rule-checklist component per
+        // DECISIONS T-019 — reusable across T-019 / T-041b / future
+        // signup. All three states (neutral / passed / not-passed) and
+        // every rule branch are covered by
+        // password-rule-checklist.test.tsx.
+        "src/features/auth/components/password-rule-checklist.tsx": {
           lines: 100,
           branches: 100,
           functions: 100,
