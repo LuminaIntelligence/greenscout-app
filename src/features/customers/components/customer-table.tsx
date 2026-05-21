@@ -35,6 +35,7 @@ import {
   type ColumnDef,
 } from "@tanstack/react-table";
 import { Eye, MoreHorizontal, Pencil } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -144,7 +145,7 @@ export function CustomerTable({ initialData, initialPage, initialSearch }: Custo
       {
         id: "actions",
         header: "",
-        cell: () => (
+        cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" aria-label="Aktionen">
@@ -156,9 +157,12 @@ export function CustomerTable({ initialData, initialPage, initialSearch }: Custo
                 <Eye className="mr-2 size-4" />
                 {t("customers.action.view")} ({t("customers.action.pending-t024")})
               </DropdownMenuItem>
-              <DropdownMenuItem disabled aria-disabled="true">
-                <Pencil className="mr-2 size-4" />
-                {t("customers.action.edit")} ({t("customers.action.pending-t023")})
+              {/* T-023 — "Bearbeiten" goes live; "Anzeigen" still gated on T-024. */}
+              <DropdownMenuItem asChild>
+                <Link href={`/customers/${row.original.id}/edit`}>
+                  <Pencil className="mr-2 size-4" />
+                  {t("customers.action.edit")}
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
