@@ -1,6 +1,6 @@
 /**
  * Next.js middleware — combines auth route protection,
- * mustChangePassword redirect, and CSP headers.
+ * mustChangePassword redirect, and security response headers.
  *
  * Uses the edge-safe `authConfig` from `src/lib/auth.config.ts`. The
  * full provider config (which imports argon2 native bindings) lives
@@ -18,10 +18,11 @@
  * `/password-change` page itself (anti-loop) and `/api/auth/*`
  * (sign-out must remain reachable).
  *
- * CSP is applied to EVERY response, including redirects. The policy
- * follows DECISIONS T-017 ③: 'self' default, with 'unsafe-inline' on
- * style-src (Tailwind + Radix portals) and 'wasm-unsafe-eval' on
- * script-src (Prisma WASM modules).
+ * Security headers are applied to EVERY response (including redirects)
+ * via the `applySecurityHeaders` helper. The policy follows DECISIONS
+ * T-017 ③: 'self' default, with 'unsafe-inline' on style-src (Tailwind
+ * + Radix portals) and 'wasm-unsafe-eval' on script-src (Prisma WASM
+ * modules).
  *
  * @see DECISIONS.md → "T-017 Auth.js v5 Credentials + session config"
  */
@@ -45,6 +46,23 @@ const CSP_HEADER = [
   "form-action 'self'",
 ].join("; ");
 
+/**
+ * Apply the GreenScout response-security header set to a NextResponse.
+ *
+ * Called on EVERY response branch of the middleware (pass-through,
+ * unauth-redirect, mustChangePassword-redirect, and any future
+ * branch). Never bypass this — defense-in-depth requires the headers
+ * to ride along with every response, including 3xx redirects.
+ *
+ * Exported for direct unit-testing via `src/middleware.test.ts`.
+ *
+ * @see DECISIONS.md → "T-021 Security headers hardening"
+ */
+export function applySecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("Content-Security-Policy", CSP_HEADER);
+  return response;
+}
+
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/login") return true;
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
@@ -67,8 +85,7 @@ export default auth((request) => {
     response = NextResponse.next();
   }
 
-  response.headers.set("Content-Security-Policy", CSP_HEADER);
-  return response;
+  return applySecurityHeaders(response);
 });
 
 export const config = {
