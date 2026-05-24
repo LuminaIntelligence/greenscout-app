@@ -841,6 +841,34 @@
 
 ---
 
+### T-050a Production deploy infrastructure (deploy.sh + nginx + compose + Anleitung)
+- **Status:** 🟦 IN PROGRESS
+- **Feature:** ops / deployment
+- **Type:** chore
+- **Effort:** M
+- **Blocks:** —
+- **Blocked by:** —
+- **Description:**
+  Schafft die erste deploybare Produktions-Instanz auf einem Hetzner-VPS unter
+  `greenscout.lumina-intelligence.ai`. Liefert: `deploy.sh` (Bash, idempotent,
+  deutsche Meldungen), `docker-compose.prod.yml` (web/api/db, benannte Volumes,
+  Web nur auf 127.0.0.1:4000), `.env.production.example` (Platzhalter ohne
+  Werte), `docs/deploy-anleitung.md` (Schritt-für-Schritt für Nicht-Entwickler).
+  nginx + certbot statt Caddy (T-050b's Caddyfile bleibt als Referenz).
+- **Acceptance criteria:**
+  - [ ] `deploy.sh` ist mehrfach idempotent ausführbar.
+  - [ ] Swap-Anlage prüft Soll-Zustand.
+  - [ ] nginx-Config wird nur angelegt wenn nicht vorhanden.
+  - [ ] `nginx -t` läuft VOR jedem reload.
+  - [ ] certbot wird nur bei fehlendem Cert getriggert.
+  - [ ] `.env.production`-Absenz → klare Fehlermeldung mit Variablen-Liste, exit 1.
+  - [ ] Skript läuft auf einer frisch installierten Ubuntu-LTS-VPS mit den
+        dokumentierten apt-Paketen sauber durch.
+- **Files likely touched:** `deploy.sh`, `docker-compose.prod.yml`, `.env.production.example`, `docs/deploy-anleitung.md`, `docs/deployment.md` (Banner-Update), `TASKS.md`.
+- **Pause-triggers anticipated:** §7.10 (Architektur — Reverse-Proxy-Switch Caddy→nginx). Vom Orchestrator vorab freigegeben.
+
+---
+
 ### T-050b Production reverse-proxy hardening (HSTS + TLS termination)
 - **Status:** ⬜ TODO
 - **Feature:** chore (deployment)
