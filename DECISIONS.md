@@ -1951,4 +1951,54 @@ No new top-level deps.
 3. Navigate back to `/customers/<id-of-just-deleted>` directly via URL → expect a 404 page.
 4. **CSP browser verification (Nutzer-Manuelltest VOR Merge):** open `/customers/<id>`, open DevTools → Console. Confirm zero CSP violations, especially when the AlertDialog opens (Radix uses inline styles for portal positioning — the existing CSP from T-021 should already accommodate this, but the manual check is the final gate before merge).
 
+---
+
+## 2026-05-24 — T-050a Production deploy infrastructure
+**Context:** User braucht die erste deploybare Produktions-Instanz auf einem Hetzner-VPS unter `greenscout.lumina-intelligence.ai`. Bisher gab es keine Staging/Prod-Umgebung; CI macht nur PR-Gates, kein Deploy. `docs/deployment.md` skizzierte eine Caddy-Topologie, aber nichts lief tatsächlich. Der Nutzer will einen einzigen Bash-Lauf per PuTTY auf dem Server.
+
+**Decisions (vom Orchestrator vorgegeben, hier zur Nachvollziehbarkeit verschriftlicht):**
+
+- **Reverse-Proxy-Switch Caddy → nginx + certbot.** Grund: VPS hat bereits nginx laufen für andere Projekte. SPEC §6.3 (HSTS) bleibt erfüllt via `add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;` im HTTP-only-server-Block des initialen nginx-Configs. `certbot --nginx` erhält bestehende `add_header`-Direktiven beim Hinzufügen des HTTPS-Blocks, so dass HSTS auch nach dem TLS-Lauf gesetzt wird.
+- **`docs/deployment.md` Caddy-Sektion bleibt** als alternative Referenz erhalten (zwei-Zeilen-Banner ganz oben weist auf den nginx-Switch hin). `deploy/Caddyfile.example` NICHT gelöscht — kann später zur Caddy-Alternative reaktiviert werden.
+- **Service-Name `api`** (nicht `pyservice` wie im Dev-Compose). Wörtliche User-Wahl. **Inkonsistenz-Hinweis:** Folge-Cleanup-PR sollte den Dev-`docker-compose.yml` ebenfalls auf `api` umbenennen, damit Dev- und Prod-Compose nicht divergieren. Bis dahin: bewusster Unterschied, beide Dateien sind in sich konsistent.
+- **`T-050b` (Caddy-Reverse-Proxy-Hardening) wird durch T-050a faktisch ersetzt.** T-050b sollte in einem Folge-Cleanup als "obsolete, Caddy nicht in Verwendung" markiert werden (nicht im Scope dieses PRs).
+- **Web-Container an `127.0.0.1:4000`** (nicht 3000), DB + API ohne Host-Ports. nginx auf dem Host proxied vom öffentlichen 80/443 nach `127.0.0.1:4000`.
+- **Benannte Docker-Volumes** (`greenscout-uploads`, `greenscout-generated`, `greenscout-db-data`) statt Host-Binds wie im Dev-Compose — saubere Trennung Dev↔Prod auf demselben Server, kein Risiko dass Dev-Uploads/DB durch den Prod-Stack überschrieben werden.
+- **Skript verlangt Root** (`id -u` ≠ 0 → fail-fast mit deutscher Meldung "Bitte als root ausführen — z. B. `sudo bash deploy.sh`").
+- **Linux-only** (`uname -s` ≠ `Linux` → fail-fast mit Meldung "Dieses Skript läuft nur auf Linux-Servern, nicht in WSL/macOS/etc.").
+- **Voraussetzungs-Check ohne Auto-Install.** Geprüft: `docker`, `docker compose` (als Plugin v2 via `docker compose version`, NICHT das alte v1-Binary `docker-compose`), `nginx`, `certbot`, `git`. Bei Fehlen klare Meldung mit `apt install …`-Hinweis + exit 1. Bewusste Entscheidung: kein silent `apt install`, damit der Operator sieht was passiert.
+- **`.env.production` MUSS existieren.** Bei Absenz: dump der erwarteten Variablen + Hinweis auf `.env.production.example`, exit 1.
+- **Genau fünf User-genannte Variablen in `.env.production.example`** (`DATABASE_URL`, `POSTGRES_PASSWORD`, `AUTH_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `APP_URL`) + sechste optionale `CERTBOT_EMAIL` (für den ersten certbot-Lauf). Seed-Admin-Vars (`SEED_ADMIN_EMAIL`, `SEED_ADMIN_TEMP_PASSWORD`) bewusst NICHT in der Example-Datei — werden in `deploy-anleitung.md` als separater Post-Deploy-Schritt ("Ersten Admin anlegen") dokumentiert, damit sie nach Erst-Login wieder entfernt werden.
+- **`prisma migrate deploy`** läuft als `docker compose -p greenscout -f docker-compose.prod.yml exec -T web npx prisma migrate deploy`. Das `-T` ist wichtig für nicht-TTY-Kontext im Skript.
+- **DB-Backup vor Migration NICHT im Skript** — stattdessen als "Empfehlung für später" in `deploy-anleitung.md` erwähnt. MVP-Pragmatik: erstes Deploy hat eine leere DB; späterer Bedarf ist Operator-Entscheidung.
+
+**Additional §14.2 silent decisions during implementation:**
+
+- **CERTBOT_EMAIL lesen via Subshell** (`( set -a; . "$ENV_FILE"; set +a; printf '%s' "${CERTBOT_EMAIL:-}" )`) — verhindert Leak ALLER Variablen aus `.env.production` in den Skript-Hauptkontext. Nur der benötigte Wert wird via stdout zurückgegeben.
+- **Swap-Detection robust** — `swapon --show | awk 'NR>1 {found=1} END {exit !found}'` prüft, ob mindestens eine aktive Swap-Zeile existiert (Header wird übersprungen). Zusätzlich `-f /swapfile`-Check für den Fall, dass die Datei existiert aber nicht aktiviert ist (z. B. nach Reboot ohne fstab-Eintrag).
+- **fstab-Pattern `^/swapfile[[:space:]]+`** statt simplem `grep -q /swapfile` — vermeidet false positives wenn `/swapfile` in einem Kommentar erscheint.
+- **nginx-Symlink-Sicherheits-Check** — wenn `$NGINX_SITE_LINK` existiert, aber via `readlink -f` NICHT auf `$NGINX_SITE_PATH` zeigt, bricht das Skript ab statt blind zu überschreiben. Eine andere `greenscout`-Site würde sonst stillschweigend abgehängt.
+- **`nginx -t` ZWINGEND vor jedem reload** — fail-fast bei kaputter Config; `systemctl reload nginx` (mit Fallback auf `nginx -s reload` für Systeme ohne systemd) erst danach.
+- **certbot überspringen wenn Cert existiert** — `-f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem` Test; certbot legt selbst einen systemd-Timer für die Erneuerung an, also kein Bedarf das Cert pro Deploy neu zu holen.
+- **Health-Check am Ende ist Warnung, kein Hard-Fail** — DNS könnte gerade frisch propagieren oder Cert noch nicht im Browser-Trust. Container-Stati werden trotzdem ausgegeben.
+- **Web-Health-Wait via in-container `wget --spider http://127.0.0.1:3000/login`** mit Timeout 120s — gleicher Pattern wie der `docker-compose.prod.yml` Healthcheck. Bei Timeout: letzte 50 Log-Zeilen von web/api/db ausgeben, exit 1.
+- **Web-Container `start_period: 30s`** im prod-Compose (vs. 20s im dev) — Cold-Boot in Prod ist messbar langsamer, 30s gibt Next.js Standalone genug Zeit.
+- **`NODE_ENV: production`** in web-Service `environment` gesetzt — vs. dev wo `.env` `NODE_ENV=development` führt. Compose-environment hat Vorrang vor env_file.
+- **`APP_PORT` / `POSTGRES_HOST` / etc. aus `.env.production.example` weggelassen** — Container-internes Routing ist vom Compose-File vorgegeben, der Operator soll keine Compose-Internals via Env überschreiben können.
+- **Skript-Variable `WEB_HEALTH_TIMEOUT_SECONDS=120`** als Kopf-Konstante — falls Cold-Boot mal langsamer wird, Single-Point-of-Edit.
+
+**Net top-level deps added**: none. Reine Infrastruktur-Files, kein TS/Py-Code geändert.
+
+**Affected files** (T-050a diff vs. `origin/main @ 42a6fbd`):
+- `TASKS.md` — neue Task T-050a vor T-050b eingefügt, Status 🟦 IN PROGRESS als erster Commit der Branch (carry-forward-Pattern; nächster PR flippt auf ✅ DONE).
+- `deploy.sh` (neu, executable via `git update-index --chmod=+x`) — Bash-Skript, 8 Schritte, idempotent, deutsche Statusmeldungen.
+- `docker-compose.prod.yml` (neu) — drei Services (`web`, `api`, `db`), benannte Volumes, Web auf 127.0.0.1:4000, API+DB ohne host-ports.
+- `.env.production.example` (neu) — fünf User-spec Vars + optionale `CERTBOT_EMAIL`, alle Werte als Platzhalter `REPLACE_ME` / `REPLACE_WITH_32_BYTE_BASE64`.
+- `docs/deploy-anleitung.md` (neu) — Schritt-für-Schritt-Anleitung in einfacher deutscher Sprache, "Du"-Form, mit allen Befehlen zum Reinkopieren.
+- `docs/deployment.md` — zwei-Zeilen-Banner ganz oben mit Verweis auf nginx-Pivot und `deploy-anleitung.md`; restliche Caddy-Sektion unverändert.
+- `DECISIONS.md` — dieser Eintrag.
+
+**Open question for the user (vor erstem VPS-Lauf zu klären):**
+- Sollen die `SEED_ADMIN_*`-Vars doch direkt in `.env.production.example` aufgenommen werden, damit der First-Deploy-Pfad ohne nachträgliche `.env`-Edits funktioniert? Aktuell: getrennt dokumentiert, damit der Operator sie nach Erst-Login bewusst wieder entfernt. Trade-off: ein zusätzlicher manueller Schritt vs. Risiko dass die Seed-Vars dauerhaft im `.env.production` stehen bleiben.
+
 **Open question for the user:** none under §14.2. Manual smoke after merge: log in with the seeded admin, click "Neuer Kunde", confirm the form lays out per the grid above, submit a customer (e.g. "Anna Berger" + "Hofgut Sonnenwiese GmbH"), confirm the green toast + list-page row appears, click "Bearbeiten" on that row, change a field, confirm the green toast + updated row.
