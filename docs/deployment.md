@@ -1,5 +1,11 @@
 # GreenScout — Production deployment posture
 
+> **Hinweis (T-050a):** Die produktive Deployment-Pipeline läuft mit
+> **nginx + certbot**, gesteuert vom `deploy.sh` im Repo-Root. Siehe
+> `docs/deploy-anleitung.md` für die schritt-für-schritt-Anleitung.
+> Die unten beschriebene Caddy-Variante (`deploy/Caddyfile.example`) bleibt
+> als alternative Referenz erhalten, wird aber nicht weiterverfolgt.
+
 > Authoring-only reference. The agent never executes deployment
 > commands against the production VPS per `CLAUDE.md` §8.10. Human
 > operators apply the configuration described here.
