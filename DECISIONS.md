@@ -2002,3 +2002,34 @@ No new top-level deps.
 - Sollen die `SEED_ADMIN_*`-Vars doch direkt in `.env.production.example` aufgenommen werden, damit der First-Deploy-Pfad ohne nachträgliche `.env`-Edits funktioniert? Aktuell: getrennt dokumentiert, damit der Operator sie nach Erst-Login bewusst wieder entfernt. Trade-off: ein zusätzlicher manueller Schritt vs. Risiko dass die Seed-Vars dauerhaft im `.env.production` stehen bleiben.
 
 **Open question for the user:** none under §14.2. Manual smoke after merge: log in with the seeded admin, click "Neuer Kunde", confirm the form lays out per the grid above, submit a customer (e.g. "Anna Berger" + "Hofgut Sonnenwiese GmbH"), confirm the green toast + list-page row appears, click "Bearbeiten" on that row, change a field, confirm the green toast + updated row.
+
+---
+
+## 2026-05-24 — T-050a Pre-merge corrections (Review-Feedback PR #27)
+**Context:** Nutzer-Review von PR #27 hat vier konkrete Punkte hochgespült, BEVOR der Merge stattfindet. Dieser Eintrag konsolidiert die Korrekturen und korrigiert insbesondere eine ursprüngliche Decision, die sich beim Cross-Check als inkonsistent erwiesen hat.
+
+**Decisions:**
+
+1. **Reversal: Service-Name `api` → `pyservice` in `docker-compose.prod.yml`.**
+   Der ursprüngliche T-050a-Eintrag (2026-05-24, "Production deploy infrastructure") hatte den Service `api` benannt, weil der User in seinem Brief umgangssprachlich "web/api/db" geschrieben hatte. Beim Cross-Check vor dem Merge fiel auf: jede andere Stelle der Codebase (`docker-compose.yml` Dev, `.github/workflows/ci.yml` Build-Matrix, `docs/docker.md`, `docs/deployment.md` ASCII-Diagramm, frühere DECISIONS-Einträge T-007) nennt den Dienst `pyservice`. Der User hat explizit zugestimmt zur Umkehr. Aktueller Stand: Dev und Prod sind konsistent (`pyservice`), der ursprünglich angekündigte Folge-Cleanup-PR (Dev-Rename auf `api`) entfällt.
+   **Affected:** `docker-compose.prod.yml` (service-name, container_name, `PYTHON_SERVICE_URL`-Wert, depends_on, Kopf-Kommentar), `deploy.sh` (Log-Dump-Service-Name + Step-3-Echo-Message), `docs/deploy-anleitung.md` (zwei Mentions).
+
+2. **`AUTH_TRUST_HOST="true"` ist §7.3-relevant und vom Nutzer freigegeben.**
+   Im T-050a-Initial-Brief war `AUTH_TRUST_HOST: "true"` in der Web-Container-Environment-Section stillschweigend gesetzt — vom Implementer korrekt umgesetzt, aber NICHT als §7.3-Hit im Recap markiert. Das war ein Prozess-Bug: §7.3 ("Authentication / security logic changes — password hashing, session handling, role checks, lockout logic, CSRF, CSP") umfasst trustHost, weil die Variable die CSRF-/Origin-Validierung in Auth.js v5 steuert. Der Nutzer hat den Wert nachträglich explizit freigegeben.
+   **Begründung des Werts:** Auth.js v5 lehnt hinter einem TLS-terminierenden Reverse-Proxy (nginx) ohne `trustHost`/`AUTH_TRUST_HOST=true` die `X-Forwarded-Host` / `X-Forwarded-Proto`-Header ab. Folge: Callback-URLs werden gegen den Container-internen HTTP-Host (`http://localhost:3000`) generiert statt gegen den public `https://greenscout.lumina-intelligence.ai`. OAuth/Magic-Link/PKCE-Flows brechen. Für die GreenScout-Topologie (Credentials-Provider + nginx-TLS-Termination) ist `AUTH_TRUST_HOST=true` zwingend.
+   **Sicherheits-Implikation:** Da nginx der einzige öffentlich erreichbare Prozess ist (Web bindet nur an `127.0.0.1:4000`), ist der `X-Forwarded-*`-Spoofing-Vektor geschlossen — kein externer Client kann den Web-Container direkt erreichen und die Header setzen.
+   **Affected:** `docker-compose.prod.yml` Zeile 82 (unverändert, jetzt nur dokumentiert).
+   **Prozess-Lehre:** Künftige §7-Punkte werden im Implementer-Recap sichtbar als "§7.X-Trigger" aufgeführt, nicht still in einer Compose-Datei gesetzt.
+
+3. **nginx-Rollback bei `nginx -t`-Fehler in `deploy.sh` Schritt 5.**
+   Ursprünglich: bei `nginx -t`-Failure brach das Skript ab, ließ aber den frisch angelegten Symlink `/etc/nginx/sites-enabled/greenscout` zurück — beim nächsten manuellen `systemctl reload nginx` (egal wodurch ausgelöst) hätte nginx versucht, die kaputte Site zu laden. Korrektur: `symlink_created_this_run`-Flag tracked, ob WIR den Symlink in diesem Lauf angelegt haben. Nur dann wird er bei `nginx -t`-Fehler vor `exit 1` wieder entfernt — wenn der Symlink schon vor dem Lauf existierte, bleibt er unangetastet (verhindert versehentliches Deaktivieren einer vorher-funktionierenden Site nach Site-File-Edit). Der Site-File unter `$NGINX_SITE_PATH` bleibt zur Inspektion stehen (bewusst kein File-Rollback — User hat das explizit auf Symlink eingegrenzt).
+   **Affected:** `deploy.sh` Schritt 5 (Symlink-Block + nginx-t-Block).
+
+4. **wget-Verfügbarkeit im Web-Image bestätigt.**
+   Sowohl der Compose-Healthcheck (`docker-compose.prod.yml` Zeile 91 `["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]`) als auch die Health-Warteschleife in `deploy.sh` Schritt 3 (Zeile 170 `docker compose ... exec -T web wget -q --spider …`) rufen `wget` im Web-Container auf. Verifikation: `Dockerfile.web` Stage `runner` basiert auf `node:24-alpine` → alpine ships busybox → busybox liefert `/usr/bin/wget`. Die verwendeten Flags `-q --spider` werden von busybox-wget unterstützt. Identisches Pattern läuft seit T-014 erfolgreich in `docker-compose.yml` (Dev) — Kommentar dort Zeile 107: "alpine ships wget — no extra install needed". Kein Fix nötig.
+   **Implikation für zukünftige Image-Wechsel:** Sollte das Web-Image jemals auf `node:24-slim` (Debian-slim), `distroless/nodejs` oder `scratch` umgestellt werden, muss `wget` explizit installiert ODER Healthcheck/Warteschleife auf ein vorhandenes Tool (z. B. `node -e "require('http').get(...)"`) umgestellt werden. Locked-in via dieser DECISIONS-Notiz, damit der zukünftige Implementer nicht stillschweigend regressiert.
+
+**Affected files (Korrektur-Round, alles auf demselben Branch `feat/t050a-deploy-infrastructure`):**
+`docker-compose.prod.yml`, `deploy.sh`, `docs/deploy-anleitung.md`, `DECISIONS.md` (dieser Eintrag).
+
+**Open question for the user:** —
