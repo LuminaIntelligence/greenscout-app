@@ -162,7 +162,7 @@ docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" buil
 # -----------------------------------------------------------------------------
 header "Schritt 3/8: Container starten"
 
-echo "Starte Container (Web auf 127.0.0.1:4000, API + DB nur intern)…"
+echo "Starte Container (Web auf 127.0.0.1:4000, Python-Service + DB nur intern)…"
 docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
 
 echo "Warte auf web-Container Health (max ${WEB_HEALTH_TIMEOUT_SECONDS}s)…"
@@ -172,7 +172,7 @@ until docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T web wget -q -
         err "Timeout: web-Container nicht erreichbar innerhalb von ${WEB_HEALTH_TIMEOUT_SECONDS}s."
         err "Logs der letzten 50 Zeilen:"
         docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 web || true
-        docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 api || true
+        docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 pyservice || true
         docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 db || true
         exit 1
     fi
@@ -230,9 +230,14 @@ server {
 NGINX_CONF
 fi
 
-# Symlink idempotent setzen.
+# Symlink idempotent setzen. `symlink_created_this_run` merkt sich, ob WIR
+# den Symlink gerade angelegt haben — nur dann darf ein nginx-t-Fehler ihn
+# wieder entfernen (sonst würde eine schon vor dem Lauf vorhandene Site
+# deaktiviert).
+symlink_created_this_run=0
 if [ ! -e "$NGINX_SITE_LINK" ]; then
     ln -s "$NGINX_SITE_PATH" "$NGINX_SITE_LINK"
+    symlink_created_this_run=1
     echo "Symlink '$NGINX_SITE_LINK' angelegt."
 elif [ -L "$NGINX_SITE_LINK" ] && [ "$(readlink -f "$NGINX_SITE_LINK")" = "$(readlink -f "$NGINX_SITE_PATH")" ]; then
     echo "Symlink '$NGINX_SITE_LINK' bereits vorhanden."
@@ -242,10 +247,19 @@ else
     exit 1
 fi
 
-# nginx-Test ZWINGEND vor reload.
+# nginx-Test ZWINGEND vor reload. Bei Fehler: in DIESEM Lauf neu angelegten
+# Symlink atomar zurückrollen, damit nginx beim nächsten Reload (egal wodurch
+# ausgelöst) NICHT eine kaputte Site serviert. Der Site-File unter
+# $NGINX_SITE_PATH bleibt erhalten — der Operator soll ihn inspizieren oder
+# manuell entfernen.
 echo "Prüfe nginx-Konfiguration (nginx -t)…"
 if ! nginx -t; then
     err "nginx -t ist fehlgeschlagen — nichts wird reloaded."
+    if [ "$symlink_created_this_run" -eq 1 ]; then
+        rm -f "$NGINX_SITE_LINK"
+        err "Rollback: '$NGINX_SITE_LINK' entfernt (in diesem Lauf angelegt)."
+        err "Hinweis: '$NGINX_SITE_PATH' bleibt zur Inspektion stehen."
+    fi
     exit 1
 fi
 
