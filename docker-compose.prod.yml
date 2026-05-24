@@ -4,12 +4,15 @@
 # Der Agent führt diese Datei niemals selbst aus (CLAUDE.md §8.10).
 #
 # Unterschiede zu docker-compose.yml (Dev):
-#   - Service heißt `api` statt `pyservice` (User-Spec T-050a; siehe DECISIONS).
 #   - Benannte Volumes (greenscout-uploads, greenscout-generated, greenscout-db-data)
 #     statt Host-Binds — saubere Dev/Prod-Trennung auf demselben Host.
 #   - Web bindet auf 127.0.0.1:4000 (nicht 3000) — nginx auf dem Host proxied
-#     von außen. API + DB ohne host-ports — nur intern erreichbar.
+#     von außen. Python-Service + DB ohne host-ports — nur intern erreichbar.
 #   - env_file = .env.production (nicht .env).
+#
+# Service-Namen sind identisch zum Dev-Compose (db / pyservice / web). Siehe
+# DECISIONS.md 2026-05-24 — "T-050a Pre-merge corrections" (Reversal des
+# ursprünglichen `api`-Rename).
 
 name: greenscout
 
@@ -35,17 +38,17 @@ services:
     networks:
       - gs-prod
 
-  api:
+  pyservice:
     build:
       context: ./services/python
       dockerfile: Dockerfile
-    container_name: greenscout-api
+    container_name: greenscout-pyservice
     restart: unless-stopped
     env_file: .env.production
     environment:
       UPLOADS_DIR: /app/uploads
       GENERATED_DIR: /app/generated
-    # KEINE host-ports — API ist nur intern erreichbar.
+    # KEINE host-ports — Python-Service ist nur intern erreichbar.
     volumes:
       - greenscout-uploads:/app/uploads
       - greenscout-generated:/app/generated
@@ -71,14 +74,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      api:
+      pyservice:
         condition: service_healthy
     env_file: .env.production
     environment:
       # Container-interner DB-Pfad — überschreibt DATABASE_URL aus .env.production
       # für die Container-Sicht. Auth.js braucht trustHost in Reverse-Proxy-Setups.
       DATABASE_URL: postgresql://${POSTGRES_USER:-greenscout}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-greenscout}?schema=public
-      PYTHON_SERVICE_URL: http://api:8000
+      PYTHON_SERVICE_URL: http://pyservice:8000
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
     ports:

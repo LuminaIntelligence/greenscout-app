@@ -90,7 +90,7 @@ Das Skript macht der Reihe nach:
 1. Prüft Root-Rechte, Linux, alle Voraussetzungs-Tools.
 2. Legt eine 4-GB-Swap-Datei an (falls noch keine da ist) — verhindert,
    dass der Docker-Build den RAM überlaufen lässt.
-3. Baut die Docker-Images (`web`, `api`, `db`). Beim ersten Mal **5-15 Minuten**.
+3. Baut die Docker-Images (`web`, `pyservice`, `db`). Beim ersten Mal **5-15 Minuten**.
 4. Startet die Container. Web ist intern an `127.0.0.1:4000` gebunden.
 5. Wendet alle Datenbank-Migrationen an.
 6. Legt eine nginx-Konfiguration unter `/etc/nginx/sites-available/greenscout` an
@@ -157,6 +157,6 @@ TLS-Cert) werden übersprungen.
 - certbot scheitert → meistens DNS noch nicht propagiert. Warte 10 Minuten,
   führe `bash deploy.sh` nochmal aus.
 - Container starten nicht → `docker compose -p greenscout logs --tail=100 web`
-  (bzw. `api` / `db`) zeigt die Fehler.
+  (bzw. `pyservice` / `db`) zeigt die Fehler.
 - Im Zweifel: ein Kontext-Recap an Claude Code mit dem letzten Stück Skript-Output
   + dem Inhalt des fehlerhaften Logs.
