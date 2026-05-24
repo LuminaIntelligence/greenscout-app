@@ -1,0 +1,107 @@
+# GreenScout — Production Docker Compose stack (T-050a).
+#
+# Wird ausschließlich vom deploy.sh auf dem Hetzner-VPS verwendet.
+# Der Agent führt diese Datei niemals selbst aus (CLAUDE.md §8.10).
+#
+# Unterschiede zu docker-compose.yml (Dev):
+#   - Service heißt `api` statt `pyservice` (User-Spec T-050a; siehe DECISIONS).
+#   - Benannte Volumes (greenscout-uploads, greenscout-generated, greenscout-db-data)
+#     statt Host-Binds — saubere Dev/Prod-Trennung auf demselben Host.
+#   - Web bindet auf 127.0.0.1:4000 (nicht 3000) — nginx auf dem Host proxied
+#     von außen. API + DB ohne host-ports — nur intern erreichbar.
+#   - env_file = .env.production (nicht .env).
+
+name: greenscout
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: greenscout-db
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-greenscout}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss in .env.production gesetzt sein}
+      POSTGRES_DB: ${POSTGRES_DB:-greenscout}
+    # KEINE host-ports — DB ist nur intern erreichbar.
+    volumes:
+      - greenscout-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - gs-prod
+
+  api:
+    build:
+      context: ./services/python
+      dockerfile: Dockerfile
+    container_name: greenscout-api
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      UPLOADS_DIR: /app/uploads
+      GENERATED_DIR: /app/generated
+    # KEINE host-ports — API ist nur intern erreichbar.
+    volumes:
+      - greenscout-uploads:/app/uploads
+      - greenscout-generated:/app/generated
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=2).status == 200 else 1)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - gs-prod
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: greenscout-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    env_file: .env.production
+    environment:
+      # Container-interner DB-Pfad — überschreibt DATABASE_URL aus .env.production
+      # für die Container-Sicht. Auth.js braucht trustHost in Reverse-Proxy-Setups.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-greenscout}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-greenscout}?schema=public
+      PYTHON_SERVICE_URL: http://api:8000
+      AUTH_TRUST_HOST: "true"
+      NODE_ENV: production
+    ports:
+      # Nur auf 127.0.0.1 binden — nginx auf dem Host proxied von außen.
+      - "127.0.0.1:4000:3000"
+    volumes:
+      - greenscout-uploads:/app/uploads
+      - greenscout-generated:/app/generated
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks:
+      - gs-prod
+
+volumes:
+  greenscout-db-data:
+  greenscout-uploads:
+  greenscout-generated:
+
+networks:
+  gs-prod:
+    driver: bridge
+    name: gs-prod
