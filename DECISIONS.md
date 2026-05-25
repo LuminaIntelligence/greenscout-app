@@ -2083,3 +2083,44 @@ bash deploy.sh
 Schritt 2 baut das Image neu (Layer-Cache invalidiert wegen Dockerfile-Edit) → CLI ist drin → Schritt 4 läuft mit lokalem prisma 5.22.0 → Schritte 5–8 laufen erstmalig durch (nginx + certbot). DB-Zustand ist atomar: entweder die Migration applied (P1012 hat sie verhindert, kein Teil-State), oder sie applied jetzt.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix Follow-up: `.bin`-Symlinks im runner-Image (Folge zu PR #28)
+**Context:** Nach Merge von PR #28 und Re-Run von `deploy.sh` auf dem VPS crasht `prisma migrate deploy` mit `ENOENT … .bin/prisma_schema_build_bg.wasm`. Die CLI ist im Image, wird gefunden, startet — bricht aber beim Laden ihrer eigenen WASM-Geschwister-Datei ab.
+
+**Root cause:** PR #28 hat `node_modules/.bin/prisma` und `node_modules/.bin/tsx` als **einzelne Datei-Quellen** kopiert:
+```dockerfile
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules/.bin/tsx    ./node_modules/.bin/tsx
+```
+Dockerfile-`COPY` mit einer **Datei-Quelle** dereferenziert Symlinks — der **Inhalt** der Ziel-Datei wird kopiert, der Symlink-Charakter geht verloren. Im builder-Image sind diese `.bin`-Einträge **relative Symlinks** auf `../prisma/build/index.js` bzw. `../tsx/dist/cli.mjs`. Nach Dereferenzierung lag im runner-Image an `/app/node_modules/.bin/prisma` der **Inhalt** von `index.js`, aber der Pfad-Bezug zur eigentlichen Datei war weg.
+
+Die prisma-CLI verwendet `import.meta.url` (bzw. `__dirname` im CommonJS-Build) relativ zur eigenen Datei-Location, um ihre WASM-Geschwister wie `prisma_schema_build_bg.wasm` zu finden. Beim dereferenzierten Symlink zeigt diese Auflösung in das `.bin`-Verzeichnis — wo die WASM-Datei nicht existiert → ENOENT.
+
+**Decision:** Beide einzelnen Datei-COPYs durch eine **Verzeichnis-COPY** ersetzen:
+```dockerfile
+COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
+```
+Dockerfile-`COPY` mit einer **Verzeichnis-Quelle** behält Symlinks **als Symlinks** bei (BuildKit-Default-Verhalten). Damit löst `../prisma/build/` korrekt aus dem Symlink-Target heraus auf, und prisma findet seine WASM-Datei.
+
+**Trade-off:** `.bin/` enthält Symlinks für ALLE installierten Bin-Pakete der builder-Stage (Hunderte — eslint, prettier, vitest, husky, etc.). Die Symlinks selbst sind winzig (~50 Byte each); ihre Targets (z. B. `../eslint/bin/eslint.js`) liegen ohnehin nicht im runner-Image, weil wir aus dem builder nur `prisma`, `@prisma`, `tsx` und den standalone-Trace kopieren. Defekte/dangling Symlinks im `.bin`-Dir → harmlos, niemand ruft sie auf. Saubere Alternative wäre `tar`-basiertes COPY mit selektivem Re-Linking — überkompliziert für den Gewinn.
+
+**Affected:**
+- `Dockerfile.web` — zwei einzelne `.bin`-Datei-COPYs durch eine Verzeichnis-COPY ersetzt, mit Inline-Kommentar warum.
+- `DECISIONS.md` — dieser Eintrag.
+- `deploy.sh`, `docs/deploy-anleitung.md`: **unverändert** (User-Spec).
+
+**Pause-Trigger-Check (§7):** Identisch zu PR #28 — keiner. Pure Packaging-Korrektur, kein neuer Dep, kein Schema, kein Auth, kein Architektur-Pivot.
+
+**Re-Run für den Nutzer nach Merge:**
+```
+cd /opt/greenscout
+git pull
+bash deploy.sh
+```
+Schritt 2: Dockerfile-Edit invalidiert den Layer ab dem `.bin`-COPY → neuer Build. Schritt 4: `prisma migrate deploy` läuft mit der jetzt korrekt verlinkten CLI.
+
+**Lehre für zukünftige Image-Edits:** Bei `COPY --from=...` auf `node_modules`-Pfade **immer** auf Verzeichnis-Ebene operieren, niemals auf Einzeldateien — Symlink-Erhaltung ist die Defaulteinstellung, nur bei Datei-Quellen kippt sie. Locked-in via dieser DECISIONS-Notiz.
+
+**Open question for the user:** —

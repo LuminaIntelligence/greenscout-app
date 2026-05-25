@@ -78,8 +78,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
+# Verzeichnis-COPY statt einzelner Datei-COPY: Dockerfile-COPY auf eine
+# Datei-Quelle dereferenziert Symlinks (Inhalt wird kopiert, Pfad-Bezug
+# zur ursprünglichen Datei verloren). prisma-CLI ruft sich selbst via
+# diesen Bin-Symlink wieder auf und erwartet Geschwister-Dateien wie
+# `prisma_schema_build_bg.wasm` relativ zum Symlink-Target zu finden.
+# Verzeichnis-COPY (`/app/node_modules/.bin`) behält die Symlinks als
+# Symlinks bei → `..` löst korrekt nach `node_modules/prisma/build/`
+# auf. Siehe DECISIONS.md → "Hotfix: .bin-Symlinks im runner-Image".
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
 
 # Schema + migrations + seed.ts needed by `prisma migrate deploy` and
 # the direct `tsx prisma/seed.ts` seed invocation (see
