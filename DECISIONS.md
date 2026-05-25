@@ -2248,3 +2248,23 @@ docker exec greenscout-web node prisma/seed.cjs
 **Lehre für zukünftige TS-Skripte im runner:** TypeScript-Skripte mit Path-Aliases NIEMALS via tsx/ts-node zur Laufzeit ausführen — immer build-time bundeln (esbuild/swc) und im runner ein purer `node`-Aufruf. Vermeidet Whack-a-Mole mit transitiven Dev-Loader-Deps. Locked-in via dieser DECISIONS-Notiz.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Mini-Fix: deploy.sh Schritt 8 fehlte --env-file
+**Context:** Beim ersten erfolgreichen End-to-End-Deploy (nach Merge von PR #28–#31) gibt die abschließende Status-Anzeige in Schritt 8 einen Compose-Interpolations-Fehler aus:
+```
+docker compose -p greenscout -f docker-compose.prod.yml ps
+→ FEHLER: POSTGRES_PASSWORD muss in .env.production gesetzt sein
+```
+Kosmetisch — der Deploy selbst lief sauber durch (Schritte 2 + 3 hatten `--env-file` korrekt gesetzt, alle Container `Healthy`, Web erreichbar, Migration applied, nginx + certbot konfiguriert). Nur der finale `ps`-Aufruf hatte den Flag vergessen und konnte den Compose-File-Parse nicht abschließen, weil `${POSTGRES_PASSWORD:?…}` im `db`-Service nicht aufgelöst werden konnte.
+
+**Decision:** `--env-file "$ENV_FILE"` zur ps-Zeile in Schritt 8 ergänzen — konsistent zu den build- und up-Aufrufen in Schritten 2 + 3. Alternative `docker ps --filter "label=com.docker.compose.project=greenscout"` würde auch funktionieren, ist aber inkonsistent zum Rest des Skripts und gibt weniger ergonomische Ausgabe.
+
+**Affected:** `deploy.sh` Schritt 8 (1 Zeile + Kommentar).
+
+**Pause-Trigger-Check (§7):** keiner. Pure Konsistenz-Fix in bestehendem Script.
+
+**Lehre:** Bei jedem `docker compose`-Aufruf in `deploy.sh`, der den Compose-File parsen muss (build, up, ps, config, …), MUSS `--env-file "$ENV_FILE"` mit. Nur Subcommands die einen schon laufenden Container ansprechen (exec, logs) brauchen das nicht, weil die Env-Variablen dann aus dem Container-State kommen, nicht aus dem Compose-File-Parse.
+
+**Open question for the user:** —
