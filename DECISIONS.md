@@ -2033,3 +2033,53 @@ No new top-level deps.
 `docker-compose.prod.yml`, `deploy.sh`, `docs/deploy-anleitung.md`, `DECISIONS.md` (dieser Eintrag).
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-24 — Hotfix: Prisma CLI ins Runtime-Image (Produktiv-Deploy P0)
+**Context:** Erster Produktiv-Deploy auf dem Hetzner-VPS via `deploy.sh` (PR #27, gemerged). Schritte 1–3 OK (Swap, Build, Container `Healthy`). Schritt 4 (`prisma migrate deploy`) hat **silent latest** gezogen, weil im `web`-Runtime-Image keine lokal installierte `prisma`-CLI lag.
+
+**Was genau passiert ist:**
+1. `deploy.sh` Schritt 4: `docker compose ... exec -T web npx prisma migrate deploy`
+2. Im `web`-Container hat `npx` kein lokales `prisma`-Paket gefunden ("package was not found").
+3. `npx` hat — bequem aber tödlich — `prisma@latest` aus dem npm-Registry gezogen → **Prisma 7.8.0**.
+4. Prisma 7 hat die `datasource { url = env(...) }`-Syntax entfernt (Migration auf `prisma.config.ts`).
+5. `npx prisma migrate deploy` → P1012-Schema-Validierungsfehler, `set -e` → exit, Schritte 5–8 (nginx, certbot) nicht erreicht.
+
+**Root cause:** Next.js `output: "standalone"` traced nur was `server.js` zur Laufzeit importiert. `@prisma/client` ist drin (runtime dep, von `src/lib/db.ts` importiert). `prisma` (die CLI) ist NICHT drin — devDependency, niemand importiert sie zur Laufzeit. Die runner-Stage in `Dockerfile.web` kopierte ausschließlich den standalone-Output → keine CLI im Image → `npx`-Fallback auf Registry → Falsche Version.
+
+**Versions-Bestätigung (`package.json` auf `main` HEAD `1daee1c`):**
+- `dependencies."@prisma/client": "^5.22.0"` ✓ unverändert, korrekt
+- `devDependencies.prisma: "^5.22.0"` ✓ unverändert, korrekt
+- Lockfile-Pin laut `npm ci` → exakt `5.22.0` (5.x-Linie per CLAUDE.md §2)
+- KEIN Prisma-7-Upgrade, KEINE `prisma.config.ts`-Migration. CLAUDE.md §2 pinnt 5.x; das bleibt.
+
+**Decisions:**
+
+1. **Prisma-CLI + tsx ins runner-Image baken.** In `Dockerfile.web` runner-Stage explizit `node_modules/prisma`, `node_modules/@prisma` (no-op-Overwrite des bereits-getraceten Pakets, gleiche Version aus demselben `npm ci`), `node_modules/tsx`, sowie die `.bin`-Symlinks aus der builder-Stage kopieren. Zusätzlich `prisma/`-Source-Dir (Schema + Migrations + `seed.ts`). Image-Bloat: ~30 MB (prisma) + ~5 MB (tsx) — vernachlässigbar für ein 1-10-Nutzer-Setup. Alternative ("dedicated migrator container") wäre ein zweiter Build-Pfad + Compose-Service-Eintrag — überkomplex für den Nutzen.
+2. **`npx --no-install`** in `deploy.sh` Schritt 4 und in `docs/deploy-anleitung.md` §5b. Defensiv: wenn die im Image gepinnte CLI durch einen späteren Dockerfile-Bug verschwindet, bricht der Aufruf laut ab statt still Registry-`latest` zu ziehen.
+3. **Seed-Aufruf direkt via `tsx`** (`npx --no-install tsx prisma/seed.ts`) statt `npx prisma db seed`. `prisma db seed` braucht die `prisma.seed`-Config-Sektion aus dem source-`package.json`, das die standalone-Pruned-Variante nicht enthält. Direkter `tsx`-Aufruf umgeht die Indirektion und braucht weder package.json-Overwrite noch nachträgliche Manifest-Edits. Same outcome (führt `prisma/seed.ts` mit der gleichen tsx-Version aus).
+4. **`package.json` NICHT ins runner-Image überschreiben.** Würde die von Next.js standalone-Build erzeugte pruned Manifest-Datei plattmachen. Risikoarm (Next.js liest sie zur Laufzeit kaum), aber unnötig — Decision 3 macht den Overwrite überflüssig.
+
+**Affected:**
+- `Dockerfile.web` — runner-Stage: 5 neue COPY-Direktiven (`prisma`-CLI, `@prisma`-Pakete, `tsx`, `.bin/prisma`, `.bin/tsx`, `prisma/`-Source-Dir) mit ausführlichem Inline-Kommentar.
+- `deploy.sh` — Schritt 4 verwendet `npx --no-install prisma migrate deploy` statt `npx prisma migrate deploy`.
+- `docs/deploy-anleitung.md` — §5b verwendet `npx --no-install tsx prisma/seed.ts` statt `npx prisma db seed`.
+- `DECISIONS.md` — dieser Eintrag.
+
+**Pause-Trigger-Check (§7):**
+- §7.1 Neue Dependency? **Nein** — `prisma` und `tsx` sind seit T-009/T-001 in `devDependencies`. Wir verschieben sie nur sichtbar ins Runtime-Image.
+- §7.2 Riskante Schema-Änderung? **Nein** — Schema unverändert, Migration unverändert.
+- §7.3 Auth/Security? **Nein**.
+- §7.10 Architektur-Pivot? **Nein** — derselbe Container, derselbe Compose, derselbe Migrate-Aufruf, nur deterministische CLI-Auflösung.
+→ Pure Packaging-Korrektur. §6 (allowed: "code within existing modules" + "scripts").
+
+**Re-Run für den Nutzer nach Merge:**
+```
+cd /opt/greenscout
+git pull
+bash deploy.sh
+```
+Schritt 2 baut das Image neu (Layer-Cache invalidiert wegen Dockerfile-Edit) → CLI ist drin → Schritt 4 läuft mit lokalem prisma 5.22.0 → Schritte 5–8 laufen erstmalig durch (nginx + certbot). DB-Zustand ist atomar: entweder die Migration applied (P1012 hat sie verhindert, kein Teil-State), oder sie applied jetzt.
+
+**Open question for the user:** —

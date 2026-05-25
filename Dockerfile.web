@@ -62,6 +62,34 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Bake the Prisma CLI + `tsx` (devDependencies) into the runtime image.
+# Reason: Next.js's standalone `output: "standalone"` trace only includes
+# what `server.js` imports at runtime — `@prisma/client` is in (it's a
+# runtime dep), but the `prisma` CLI is NOT (it's a devDependency, and
+# server.js never imports it). Without the CLI present locally,
+# `deploy.sh`'s `npx prisma migrate deploy` would resolve "prisma not
+# installed" and silently pull `latest` off the registry, which is now
+# Prisma 7 — incompatible with the 5.x schema syntax. `tsx` lands here
+# for the same reason: `prisma db seed` (used by the post-deploy
+# "Ersten Admin anlegen" workflow in docs/deploy-anleitung.md §5) runs
+# `tsx prisma/seed.ts` per the package.json `prisma.seed` config.
+# `@prisma` copy is a no-op overwrite of what `server.js` already
+# traced — same version from the same `npm ci` in the builder stage.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
+
+# Schema + migrations + seed.ts needed by `prisma migrate deploy` and
+# the direct `tsx prisma/seed.ts` seed invocation (see
+# docs/deploy-anleitung.md §5). We deliberately do NOT overwrite the
+# pruned `package.json` that Next.js's standalone build produced —
+# the seed command is called directly via `tsx`, bypassing the
+# `prisma.seed` config-block indirection that would otherwise need
+# the source package.json.
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
 USER nextjs
 
 EXPOSE 3000
