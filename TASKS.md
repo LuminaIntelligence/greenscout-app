@@ -51,44 +51,7 @@
 
 ### Slice 4 — Customers CRUD
 
-### T-023 Customer create / edit form
-- **Status:** ⬜ TODO
-- **Feature:** customers
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-025
-- **Blocked by:** T-022
-- **Description:**
-  Form at `/customers/new` and `/customers/[id]/edit` with RHF + zod. Fields per SPEC §4.4 / §5.1: `companyName` optional, `contactFirstName`/`contactLastName` required, `email`, `phone`, `billingAddress`, `billingZipCode`, `billingCity`, `notes`. On submit: optimistic update via TanStack Query, then redirect to detail page. Audit-log `CREATE` / `UPDATE` entries via repository.
-- **Acceptance criteria:**
-  - [ ] zod rejects empty `contactFirstName`/`contactLastName`; allows missing `companyName`.
-  - [ ] Email field validates RFC-ish format when present.
-  - [ ] Audit-log entries written with `changeSet` diff on edit.
-  - [ ] Form preserves entered values on validation failure.
-  - [ ] Playwright covers happy create + edit flow.
-- **Files likely touched:** `src/features/customers/components/customer-form.tsx`, `src/app/(app)/customers/new/page.tsx`, `src/app/(app)/customers/[id]/edit/page.tsx`.
-- **Pause-triggers anticipated:** none.
-
----
-
-### T-024 Customer detail view + soft-delete action
-- **Status:** 🟦 IN PROGRESS
-- **Feature:** customers
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-025
-- **Blocked by:** T-023
-- **Description:**
-  Detail page at `/customers/[id]` shows customer info + a list of related studies (link to each). Delete button triggers a confirmation dialog (SPEC §4.9 dialog pattern) and performs **soft-delete** (`deletedAt = now`). Audit-log `SOFT_DELETE` entry written. Soft-deleted customers no longer appear in the list (T-022) but their referenced studies remain.
-- **Acceptance criteria:**
-  - [ ] Confirmation dialog blocks accidental delete.
-  - [ ] After delete, customer is hidden from list view; their studies still visible to the consultant.
-  - [ ] Audit-log `SOFT_DELETE` entry recorded with `userId`, `entityType="Customer"`, `entityId`.
-  - [ ] Playwright covers soft-delete confirmation + dismissal paths.
-- **Files likely touched:** `src/app/(app)/customers/[id]/page.tsx`, `src/features/customers/services/delete-customer.ts`.
-- **Pause-triggers anticipated:** §7.11 (DSGVO-adjacent — but soft-delete only here, hard-delete is T-031 admin workflow).
-
----
+*(T-023 and T-024 carried forward to Recently completed — see entries below.)*
 
 ### T-024b Coverage gate honesty — global denominator = whole `src` tree
 - **Status:** ⬜ TODO
@@ -841,33 +804,7 @@
 
 ---
 
-### T-050a Production deploy infrastructure (deploy.sh + nginx + compose + Anleitung)
-- **Status:** 🟦 IN PROGRESS
-- **Feature:** ops / deployment
-- **Type:** chore
-- **Effort:** M
-- **Blocks:** —
-- **Blocked by:** —
-- **Description:**
-  Schafft die erste deploybare Produktions-Instanz auf einem Hetzner-VPS unter
-  `greenscout.lumina-intelligence.ai`. Liefert: `deploy.sh` (Bash, idempotent,
-  deutsche Meldungen), `docker-compose.prod.yml` (web/api/db, benannte Volumes,
-  Web nur auf 127.0.0.1:4000), `.env.production.example` (Platzhalter ohne
-  Werte), `docs/deploy-anleitung.md` (Schritt-für-Schritt für Nicht-Entwickler).
-  nginx + certbot statt Caddy (T-050b's Caddyfile bleibt als Referenz).
-- **Acceptance criteria:**
-  - [ ] `deploy.sh` ist mehrfach idempotent ausführbar.
-  - [ ] Swap-Anlage prüft Soll-Zustand.
-  - [ ] nginx-Config wird nur angelegt wenn nicht vorhanden.
-  - [ ] `nginx -t` läuft VOR jedem reload.
-  - [ ] certbot wird nur bei fehlendem Cert getriggert.
-  - [ ] `.env.production`-Absenz → klare Fehlermeldung mit Variablen-Liste, exit 1.
-  - [ ] Skript läuft auf einer frisch installierten Ubuntu-LTS-VPS mit den
-        dokumentierten apt-Paketen sauber durch.
-- **Files likely touched:** `deploy.sh`, `docker-compose.prod.yml`, `.env.production.example`, `docs/deploy-anleitung.md`, `docs/deployment.md` (Banner-Update), `TASKS.md`.
-- **Pause-triggers anticipated:** §7.10 (Architektur — Reverse-Proxy-Switch Caddy→nginx). Vom Orchestrator vorab freigegeben.
-
----
+*(T-050a carried forward to Recently completed — see entry below.)*
 
 ### T-050b Production reverse-proxy hardening (HSTS + TLS termination)
 - **Status:** ⬜ TODO
@@ -992,6 +929,24 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-050a ✅ Production deploy infrastructure (deploy.sh + nginx + compose + Anleitung)
+- **Merged:** 2026-05-25 via PR #27 (+ Folge-Hotfixes PRs #28–#36 für CSP-Nonce / force-dynamic / sundry deploy-related corrections).
+- **Branch:** `chore/t050a-deploy-infrastructure` (siehe PR-Historie für Folge-Branches).
+- **Summary:** Erste deploybare Produktions-Instanz auf Hetzner-VPS (`greenscout.lumina-intelligence.ai`). Liefert `deploy.sh` (idempotent, deutsche Meldungen), `docker-compose.prod.yml` (web/api/db, benannte Volumes, Web nur auf 127.0.0.1:4000), `.env.production.example` (Platzhalter), `docs/deploy-anleitung.md` (Schritt-für-Schritt). nginx + certbot statt Caddy (T-050b's Caddyfile bleibt Referenz). Reverse-Proxy-Switch Caddy→nginx vorab vom Orchestrator freigegeben (§7.10). Eine Serie von Folge-Hotfixes (PRs #28–#36) korrigierte CSP-Nonce-Propagation (request-headers + force-dynamic root layout), kleine Deploy-Skript-Edges und weitere Produktions-Findings — alle auf demselben deploy-pfad. Status-Flip carry-forward (war `🟦 IN PROGRESS`, faktisch gemerged).
+- **Decisions:** siehe `DECISIONS.md` Einträge zu T-050a und den Folge-CSP-Hotfixes.
+
+### T-024 ✅ Customer detail view + soft-delete action
+- **Merged:** 2026-05-23 via PR #26.
+- **Branch:** `feat/t024-customer-detail`
+- **Summary:** Detail-Seite unter `/customers/[id]` zeigt Kundendaten + Liste der zugehörigen Studien (Link je Studie). Delete-Button via SPEC §4.9 Confirmation-Dialog führt **soft-delete** (`deletedAt = now`) aus; gelöschte Kunden verschwinden aus T-022's Listenansicht, deren Studien bleiben erhalten. Audit-Log `SOFT_DELETE`-Eintrag mit `userId`, `entityType="Customer"`, `entityId`. Server Action `softDeleteCustomerAction` mit voller Multi-Tenant-Ownership-Check + Header-Extraction; 100% per-pattern Coverage (vitest threshold im `vitest.config.ts` aktiv). Playwright deckt confirm + dismiss Pfade. Status-Flip carry-forward (war `🟦 IN PROGRESS`, faktisch gemerged).
+- **Decisions:** siehe `DECISIONS.md` Eintrag "T-024 silent decisions per §14 (consolidated)".
+
+### T-023 ✅ Customer create / edit form
+- **Merged:** 2026-05-22 via PR #25.
+- **Branch:** `feat/t023-customer-form`
+- **Summary:** Formular unter `/customers/new` und `/customers/[id]/edit` mit RHF + zod. Felder per SPEC §4.4 / §5.1 (`companyName` optional; `contactFirstName`/`contactLastName` Pflicht; `email`, `phone`, `billingAddress`/`billingZipCode`/`billingCity`, `notes`). Submit via TanStack-Query-Optimistic-Update, dann Redirect zur Detail-Seite. Server Actions `createCustomerAction` + `updateCustomerAction` schreiben `CREATE`/`UPDATE` Audit-Log-Einträge mit `changeSet`-Diff (Update). 100% per-pattern Coverage auf beide Actions (vitest threshold aktiv). Form preserved values on validation failure. Playwright happy-path Create + Edit. Status-Flip carry-forward (war `⬜ TODO`, faktisch gemerged).
+- **Decisions:** siehe `DECISIONS.md` Eintrag "T-023 silent decisions per §14 (consolidated)".
 
 ### T-022 ✅ Customer feature: schema + repository + list page
 - **Merged:** 2026-05-21 via PR #24 (`063633d`)
