@@ -2462,3 +2462,85 @@ function passThroughWithNonce(request: NextRequest, nonce: string): NextResponse
 - Browser-Verifikation ist bei CSP-Änderungen ZWINGEND und nicht optional. Vitest-Tests können die response-headers prüfen, aber nicht ob der Browser tatsächlich genoncete Scripts ausführt.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix: force-dynamic root layout für CSP-Nonce-Stempelung (Folge zu PR #35)
+**Context:** Nach Merge von PR #35 und Re-Deploy zeigt der Browser-Test:
+- URL nach „Anmelden"-Klick: `/login?email=consulting%40lumina-intelligence.ai&password=[REDACTED — siehe ursprünglicher Browser-Screenshot]` → Form fiel auf native browser-GET zurück, Passwort im Klartext geleakt (URL, Browser-History, nginx-access-Log, evtl. Hetzner-Monitoring).
+- Console: 21 CSP-Violations. Response-CSP enthält den per-Request-Nonce korrekt (`'nonce-NjA2MWVlZjktM2EzYi00YjA5LTgyNDEtNTJhYjQzYTdlNjJh'`), aber die emittierten `<script>`-Tags haben **kein** `nonce`-Attribut. Browser zeigt die sha256-Hashes der inline-Scripts als Hilfestellung — bestätigt dass der Script-Inhalt im DOM ist, aber ohne Nonce-Stempel.
+
+**Root cause:** Genau der Fall, den der User in der PR #35-Spec als Fallback nannte — `/login` (und alle anderen Pages) wird **statisch gerendert**.
+
+Next.js 15 App-Router defaultet auf STATIC rendering wenn eine Page-Server-Component keine dynamic functions aufruft (`headers()`, `cookies()`, `searchParams`, etc.). Static-gerenderte Pages werden **einmal zur `next build`-Zeit** in HTML kompiliert, in den Cache gelegt, und bei jedem Request as-is ausgeliefert. Die Middleware setzt zwar pro Request einen frischen Nonce auf den Response-CSP-Header, **aber das HTML-Body ist die vor-gebakene Cache-Variante** — inline-Script-Tags haben keine `nonce="…"`-Attribute, weil zur Build-Zeit kein Nonce existierte.
+
+Folge-Kaskade im Browser:
+1. Inline-Scripts ohne Nonce → durch CSP `'nonce-<n>'` blockiert
+2. `'strict-dynamic'` deaktiviert die `'self'`-Allowlisting für script-elemente → `/_next/static/chunks/*.js`-URLs werden ebenfalls blockiert (weil nichts von einem genonceten Script geladen wurde, was sie transitiv hätte erlauben können)
+3. Kein JavaScript läuft → kein React-Hydration → LoginForm-Client-Component bleibt nicht-interaktiv → „Anmelden"-Button macht native browser-GET-Submit statt Server-Action
+
+**Decision:** `export const dynamic = "force-dynamic"` am **Root-Layout** (`src/app/layout.tsx`) — covers alle pages in (auth)/, (app)/, künftige Route-Groups. Jeder Request rendert die Page neu, Next.js sieht die Middleware-Request-Headers (`content-security-policy` + `x-nonce`), extrahiert den Nonce, stempelt ihn auf jeden inline-Script. CSP-Response-Header und Script-Attribute haben denselben Nonce → Browser akzeptiert sie → `'strict-dynamic'` lässt die Chunks durch.
+
+**Alternative geprüft + verworfen:**
+- `await headers()` in der Root-Layout (implicit-dynamic via Side-Effect): idiomatic Next.js-Pattern, aber magisch — Code-Reader sieht nicht direkt warum die Page dynamic ist. Force-dynamic ist explizit + lesbar.
+- `force-dynamic` nur auf `(auth)/layout.tsx`: würde `/login` + `/password-change` fixen, aber (app)/-Pages (Customers, Studies künftig) hätten dasselbe Problem. Alle inline-Scripts brauchen den Nonce.
+- Layout-vs-Page-Placement: Page-level wäre zwei Stellen statt eine; Root-Layout-Placement covers alles.
+
+**Trade-off akzeptiert:** Keine SSG/ISR mehr für irgendeine Route. Für GreenScout (1-10 Berater, per-user Daten auf jedem Screen, interner Tool) war Static-Caching ohnehin kein Performance-Hebel — im Gegenteil, es würde Stale-Auth-State-Bugs einführen. Dynamic-rendering ist hier die korrekte Default.
+
+**Falls künftig genuine Caching-Bedarf:** opt-in per Route mit `export const dynamic = "auto"` auf der jeweiligen `page.tsx` UND separate Verifikation des Nonce-Flows für die Route (entweder durch dynamic functions in der page, oder durch eine Inline-`<Script nonce={headers().get("x-nonce")}>`-Konstruktion).
+
+**Lokale Verifikation (smoke test):**
+```
+$ npm run dev
+$ curl -s http://localhost:3000/login | grep -oE 'nonce="[^"]*"' | head -5
+nonce="MGViY2ZlMmUtYjZmNi00YTM5LThjNmMtNTUwYWU3OWJlNTEy"
+nonce="MGViY2ZlMmUtYjZmNi00YTM5LThjNmMtNTUwYWU3OWJlNTEy"
+nonce="MGViY2ZlMmUtYjZmNi00YTM5LThjNmMtNTUwYWU3OWJlNTEy"
+nonce="MGViY2ZlMmUtYjZmNi00YTM5LThjNmMtNTUwYWU3OWJlNTEy"
+nonce="MGViY2ZlMmUtYjZmNi00YTM5LThjNmMtNTUwYWU3OWJlNTEy"
+
+$ curl -sI http://localhost:3000/login | grep -i content-security
+content-security-policy: ... 'nonce-MGViY2ZlMmUtYjZmNi00YTM5LThjNmMtNTUwYWU3OWJlNTEy' ...
+```
+5/5 inline-script-Nonce-Attribute matchen den Response-CSP-Header-Nonce. Vorher (mit static rendering): null nonces auf scripts, mismatch zum Header.
+
+**§7.3-Scope:** Im Scope der User-Freigabe vom Turn 2 vorher (nonce-basierte CSP) — gleiche Mechanik, jetzt mit der zweiten Hälfte (force-dynamic) vollständig wirksam. Keine andere Auth-Logik berührt.
+
+**Sicherheitsfolgemaßnahme (USER):** Das in der Screenshot-URL geleakte Admin-Passwort `[REDACTED — siehe ursprünglicher Browser-Screenshot]` MUSS **sofort gewechselt** werden. Es steht in:
+- Browser-History (lokal — `history.replaceState` o.ä. löst das nicht rückwirkend)
+- nginx access.log auf dem VPS (`/var/log/nginx/access.log` und alle rotierten Varianten)
+- evtl. Hetzner-Monitoring / Backup-Snapshots
+- evtl. Cloudflare/CDN-Logs falls vorgeschaltet
+
+Neues Passwort entweder via App-Login + Passwort-ändern-Workflow setzen (nachdem dieser Fix deployed ist), oder via einmaligem direkten DB-Update aus dem web-Container heraus.
+
+**Affected:**
+- `src/app/layout.tsx`: `export const dynamic = "force-dynamic"` + JSDoc-Block mit Begründung.
+- `DECISIONS.md`: dieser Eintrag.
+- `src/middleware.ts`, `src/middleware.test.ts`, `docs/security.md`: **unverändert** — die Middleware-Mechanik aus PR #34/#35 ist korrekt, sie wurde nur durch Static-Rendering ausgehebelt.
+
+**Pause-Trigger-Check (§7):**
+- §7.3 Auth/Security? Im Scope der laufenden User-Freigabe (CSP-Nonce-Flow vervollständigen).
+- §7.1 Dep? Nein.
+- §7.2 Schema? Nein.
+- §7.10 Architektur? **Grenzfall.** Force-dynamic ist ein Render-Mode-Wechsel über den gesamten App-Tree. Aber: (a) Performance-Implication ist null für 1-10 Nutzer; (b) es ist der einzige Pfad zur funktionierenden CSP-Nonce-Mechanik, die User explizit freigegeben hat; (c) es kann pro Route opt-in zurückgenommen werden. Klassifiziere als „innerhalb der CSP-Freigabe", nicht als eigenständige Architektur-Entscheidung.
+
+**Verifikation nach Merge (kritisch — gleiche 6 Schritte wie PR #34/#35):**
+1. `cd /opt/greenscout && git pull && bash deploy.sh`
+2. https://greenscout.lumina-intelligence.ai/login öffnen — **vorher Browser-Cache und History für diese Domain löschen**, damit die alte static-gecachte HTML weg ist
+3. F12 → Console: **frei** von CSP-Violations
+4. Seite **interaktiv** — „Anmelden" klickbar, kein `?password=…` in der URL nach Submit
+5. Page-Source (Strg+U): `<script>`-Tags tragen `nonce="<wert>"` matching dem Response-CSP-Header
+6. Reload: anderer Nonce in beiden Stellen
+
+**Falls Step 4 weiter zeigt dass kein JS läuft** (extrem unwahrscheinlich nach diesem Fix + lokaler Verifikation):
+- Hartreload mit Strg+Shift+R erzwingen
+- Hetzner-VPS: `docker exec greenscout-web cat /app/.next/standalone/.next/server/app/login/page.html` → falls die Datei existiert, hat der build noch eine static-pre-rendered HTML geschrieben → `npm run build` ohne Caches neu auslösen via `docker compose build --no-cache web`
+
+**Lehre für die Zukunft:**
+- CSP-Nonce-Flow in Next.js braucht ZWEI Dinge gleichzeitig: (1) Middleware setzt CSP auf request + response headers (PR #34 + #35), (2) Page-Render läuft per-Request, nicht aus dem Static-Build-Cache (PR #36, dieser Fix). Ohne beides ist die Mechanik kaputt.
+- Beim Bauen eines Next.js-App mit CSP-Nonces: force-dynamic ist die default-richtige Wahl, nicht der Notfall-Fallback. Static-rendering ist die Optimierung, die ihre eigene Verifikation braucht (genonceter Inline-Script in der page).
+- Browser-Verifikation MUSS direkt nach jedem CSP-relevanten Deploy erfolgen. Unit-Tests können das Static-Rendering-Problem NICHT erkennen — sie testen die Middleware-Logic, nicht das Rendering-Pipeline-Verhalten.
+
+**Open question for the user:** —
