@@ -7,25 +7,43 @@ PR — keep this in sync with `SPEC.md` §4.1 + §6.3 and the relevant
 
 ## 1. Content-Security-Policy (CSP)
 
-Applied to every response by `applySecurityHeaders` in `src/middleware.ts`:
+Applied to every response by `applySecurityHeaders` in `src/middleware.ts`.
+`script-src` is **per-request-nonced** with `'strict-dynamic'` — the
+nonce is fresh per request, generated in middleware via
+`btoa(crypto.randomUUID())`, propagated to the Next.js render layer
+through the `x-nonce` request header so the framework stamps it onto
+every inline script it emits.
 
-| Directive         | Value                            | Rationale                                                                                                |
-| ----------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `default-src`     | `'self'`                         | Deny-by-default                                                                                          |
-| `style-src`       | `'self' 'unsafe-inline'`         | shadcn / Radix portals inject inline styles. Tightening to nonces is T-050 polish work.                  |
-| `script-src`      | `'self' 'wasm-unsafe-eval'`      | Prisma WASM modules need `wasm-unsafe-eval`. No external scripts.                                        |
-| `img-src`         | `'self' data: blob:`             | `data:` for `next/image` placeholder; `blob:` for future T-029 preview uploads.                          |
-| `connect-src`     | `'self'`                         | Server-side fetches to the Python service happen outside the browser CSP.                                |
-| `font-src`        | `'self'`                         | Gabarito self-hosted from `public/fonts/`.                                                               |
-| `frame-ancestors` | `'none'`                         | Defense in depth alongside `X-Frame-Options: DENY`.                                                      |
-| `base-uri`        | `'self'`                         | Prevent `<base>`-tag hijack.                                                                             |
-| `form-action`     | `'self'`                         | Prevent form-submission redirection.                                                                     |
+| Directive         | Value                                                                          | Rationale                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `default-src`     | `'self'`                                                                       | Deny-by-default                                                                                          |
+| `style-src`       | `'self' 'unsafe-inline'`                                                       | shadcn / Radix portals + Tailwind runtime style injection require it. Lower XSS risk than scripts.       |
+| `script-src`      | `'self' 'nonce-<per-request>' 'strict-dynamic' 'wasm-unsafe-eval'`             | Per-request nonce blocks inline-XSS. `'strict-dynamic'` admits chunks loaded by nonced bootstrap scripts. |
+| `img-src`         | `'self' data: blob:`                                                           | `data:` for `next/image` placeholder; `blob:` for future T-029 preview uploads.                          |
+| `connect-src`     | `'self'`                                                                       | Server-side fetches to the Python service happen outside the browser CSP.                                |
+| `font-src`        | `'self'`                                                                       | Gabarito self-hosted from `public/fonts/`.                                                               |
+| `frame-ancestors` | `'none'`                                                                       | Defense in depth alongside `X-Frame-Options: DENY`.                                                      |
+| `base-uri`        | `'self'`                                                                       | Prevent `<base>`-tag hijack.                                                                             |
+| `form-action`     | `'self'`                                                                       | Prevent form-submission redirection.                                                                     |
+
+**Nonce wiring** (per Next.js docs at
+https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy):
+
+1. Middleware generates `nonce = btoa(crypto.randomUUID())`.
+2. Pass-through branch returns `NextResponse.next({ request: { headers: { 'x-nonce': nonce } } })` — Next.js reads `x-nonce` during render and stamps `nonce="..."` onto every inline script it emits (hydration bootstrap, RSC stream, route chunks).
+3. The same nonce is embedded in the response's `Content-Security-Policy` header via `'nonce-<nonce>'` in `script-src`.
+4. `'strict-dynamic'` lets the nonced bootstrap pull in route chunks at runtime without each chunk needing its own nonce attribute.
+
+**The CSP is set ONLY in the Next.js middleware** — nginx (reverse-proxy)
+must NOT set a `Content-Security-Policy` header, or a per-request nonce
+becomes impossible (nginx can't generate one) and dual headers would
+conflict. nginx in `deploy.sh` sets HSTS only; CSP stays a Next.js
+concern.
 
 Browser-verification protocol: open DevTools → Console at `/login` and
-`/password-change`. Expect zero CSP violations. If something is blocked,
-fallback paths in priority order: (a) nonce-based `script-src` via Next 15
-middleware-generated nonce (preferred), (b) `'unsafe-inline'` on
-`script-src` with explicit `DECISIONS.md` deviation entry (last resort).
+`/password-change`. Expect zero CSP violations and a fully-hydrated,
+interactive page. The `Content-Security-Policy` response header should
+contain a fresh `'nonce-...'` value on every page load.
 
 ## 2. CSRF protection
 
