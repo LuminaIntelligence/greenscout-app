@@ -186,7 +186,12 @@ echo "web-Container erreichbar."
 # -----------------------------------------------------------------------------
 header "Schritt 4/8: Datenbankmigrationen anwenden"
 
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T web npx prisma migrate deploy
+# `--no-install` ist defensiv: wenn die im Image gepinnte 5.x-CLI aus
+# irgendeinem Grund fehlt (regression bei Dockerfile-Edit, fehlerhafter
+# Build), bricht npx laut ab, statt still 'prisma@latest' (derzeit 7.x,
+# inkompatibel zur 5.x-Schema-Syntax) aus der Registry nachzuladen.
+# Siehe DECISIONS.md → "Prisma CLI ins Runtime-Image".
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T web npx --no-install prisma migrate deploy
 echo "Migrationen angewendet."
 
 # -----------------------------------------------------------------------------
