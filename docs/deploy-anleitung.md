@@ -116,7 +116,7 @@ a) Trage zwei Zeilen in `.env.production` ein:
 b) Lade den Web-Container mit der neuen `.env` neu und führe den Seed aus:
 
     docker compose -p greenscout -f docker-compose.prod.yml up -d web
-    docker compose -p greenscout -f docker-compose.prod.yml exec -T web npx --no-install tsx prisma/seed.ts
+    docker exec greenscout-web node prisma/seed.cjs
 
 c) Login auf https://greenscout.lumina-intelligence.ai/login mit diesen Daten.
    Du wirst sofort aufgefordert, das temporäre Passwort zu ändern.

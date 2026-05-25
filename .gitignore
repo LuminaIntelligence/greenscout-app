@@ -55,6 +55,9 @@ prisma/dev.db-journal
 prisma/*.sqlite
 prisma/*.sqlite-journal
 prisma/migrations/*/migration.sql.bak
+# esbuild-bundle des seed-Skripts wird im Docker-builder erzeugt
+# (siehe Dockerfile.web + DECISIONS.md "Seed via esbuild-Bundle").
+prisma/seed.cjs
 
 # ----- Uploads & generated artefacts ----------------------------------------
 uploads/
