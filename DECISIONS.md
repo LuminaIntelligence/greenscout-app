@@ -2337,3 +2337,66 @@ docker exec greenscout-web node prisma/seed.cjs
 3. Die OpenSSL-Variante des Targets ergibt sich aus der OpenSSL-Version im Runtime-Image: openssl 1.1 → `-openssl-1.1.x`, openssl 3 → `-openssl-3.0.x`. Bei Image-Wechsel mitschauen.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix: CSP per-request nonce in middleware (§7.3, user-freigegeben)
+**Context:** Nach erfolgreichem End-to-End-Deploy (PR #28–#33) öffnet sich `https://greenscout.lumina-intelligence.ai/login` und ist **tot**. Browser-Console zeigt:
+```
+Refused to execute inline script because it violates the following
+Content Security Policy directive: "script-src 'self' 'wasm-unsafe-eval'".
+```
+Next.js erzeugt inline-Scripts für Hydration-Bootstrap, RSC-Streaming und Route-Chunks. Die T-021-CSP `script-src 'self' 'wasm-unsafe-eval'` blockt sie alle → keine Hydration, RSC-Stream bricht ab, „Anmelden"-Button reagiert nicht. Statische Server-Render-HTML wird angezeigt, aber die App ist nicht interaktiv.
+
+**§7.3-Pause-Trigger-Hinweis:** CSP-Änderung fällt unter §7.3 (Auth/Security-Logik). **Vom Nutzer im aktuellen Turn explizit freigegeben** — der Fix bewegt sich innerhalb dieser Freigabe (nonce-basierte CSP). Keine weitere Auth-Logik berührt.
+
+**Lokalisierung:** CSP wird ausschließlich in `src/middleware.ts` gesetzt (`CSP_HEADER`-Konstante + `applySecurityHeaders`-Helper, T-021-Setup). Die von `deploy.sh` erzeugte nginx-Site setzt **keinen** `Content-Security-Policy`-Header (nur HSTS via `add_header Strict-Transport-Security …`). Kein Konflikt mit doppelten Headern, keine nginx-Edits nötig.
+
+**Decision (Next.js-offizielles Nonce-Pattern):**
+
+1. **Per-Request-Nonce in Middleware.** Helper `generateNonce()` erzeugt einen frischen Nonce pro Request via `btoa(crypto.randomUUID())`. Edge-runtime-safe — `crypto` ist Web-Crypto-Standard, `btoa` ist global, `Buffer` ist in Edge nicht verfügbar.
+2. **CSP-Header dynamisch bauen.** Neue Funktion `buildCsp(nonce)` produziert den Header mit `'nonce-<nonce>'` und `'strict-dynamic'` in `script-src`. Andere Direktiven (style/img/connect/font/frame-ancestors/base-uri/form-action) bleiben unverändert.
+3. **Nonce in Request-Header weiterreichen.** Bei Pass-Through-Branches setzt die Middleware `x-nonce: <nonce>` auf einen geklonten Request-Headers-Set, dann `NextResponse.next({ request: { headers } })`. Next.js liest `x-nonce` während des Rendering und stempelt `nonce="<nonce>"` auf **jeden** inline-script-Tag den er emittiert (Hydration-Bootstrap, RSC-Payload, Route-Chunks). Bei Redirect-Branches ist das nicht nötig (kein Render-Body), nur der Response-CSP-Header bekommt den Nonce.
+4. **`applySecurityHeaders(response, nonce)`-Signatur** — Nonce ist required Parameter. Aufrufer (middleware-handler + Tests) müssen einen erzeugen.
+
+**`script-src`-Direktiven konkret:**
+```
+script-src 'self' 'nonce-<nonce>' 'strict-dynamic' 'wasm-unsafe-eval'
+```
+- `'self'` — same-origin Skripte für ältere Browser, die `'strict-dynamic'` ignorieren.
+- `'nonce-<nonce>'` — per-request Nonce; Next.js stempelt ihn auf inline-Bootstrap.
+- `'strict-dynamic'` — moderne Browser ignorieren die Source-Liste und vertrauen Skripten, die VON einem genonce-ten Skript geladen werden. **Zwingend** für Next.js-Chunk-Loading: der inline-Bootstrap (genoncet) injiziert zur Laufzeit `<script src=…>` für Route-Chunks; ohne `'strict-dynamic'` müsste jedes einzeln genoncet werden, was Next.js nicht tut.
+- `'wasm-unsafe-eval'` — beibehalten für Prismas WASM-Module + Edge-Runtime.
+
+**`style-src` bleibt `'self' 'unsafe-inline'`.** shadcn/Radix-Portale + Tailwind-Runtime injizieren inline-Styles. Tightening auf Nonces wäre möglich, aber:
+- substantiell höherer Aufwand (jede Komponente die `style={...}` benutzt müsste auditiert/umgeschrieben werden)
+- Styles sind **substantiell weniger XSS-kritisch** als Skripte (kein Code-Execution-Vector)
+- aktuell nicht User-Anfragesache
+Lock-in als spätere Polish-Verbesserung wenn das Style-Inventar überschaubarer ist.
+
+**`Content-Security-Policy` bleibt ausschließlich Next.js-Verantwortung.** nginx setzt ihn nicht (war schon T-050a-Design — `deploy.sh` schreibt nur `add_header Strict-Transport-Security` in die nginx-Site). Begründung der Single-Source-Wahl: nginx kann keinen per-Request-Nonce erzeugen; doppelte CSP-Header würden sich überlagern und der striktere Header gewinnen, was den Nonce-Pfad durchlöchern könnte. Lock-in: falls jemals jemand CSP in die nginx-Site einbauen will, muss er zuerst die Middleware-Variante entfernen.
+
+**Affected:**
+- `src/middleware.ts` — komplett umgeschrieben: `generateNonce()`, `buildCsp(nonce)`, `passThroughWithNonce(request, nonce)`-Helper, `applySecurityHeaders(response, nonce)` mit Nonce-required Signatur, handler erzeugt Nonce pro Request und routed durch.
+- `src/middleware.test.ts` — Tests angepasst: alle `applySecurityHeaders`-Calls bekommen jetzt einen Test-Nonce; neue Assertions für `'nonce-…'`, `'strict-dynamic'` in CSP; neuer Test "emits a different nonce per call"; neuer routing-Test "generates a fresh nonce per request". 14 Tests laufen lokal grün.
+- `docs/security.md` §1 — komplett umgeschrieben: Tabellen-Eintrag für `script-src` zeigt Nonce + `strict-dynamic`, neue Nonce-Wiring-Section mit Schritt-für-Schritt-Erklärung, expliziter „CSP nur in Middleware, nicht in nginx"-Lock-in.
+- `DECISIONS.md` — dieser Eintrag.
+- `deploy.sh`, `docker-compose.prod.yml`, `prisma/schema.prisma`, alle anderen Files: **unverändert**. nginx-Site-Template in deploy.sh setzt seit jeher kein CSP, also keine Edit nötig.
+
+**Pause-Trigger-Check (§7):**
+- §7.3 Auth/Security? **JA, vom Nutzer im aktuellen Turn explizit freigegeben.** Scope der Freigabe: nonce-basierte CSP — der Fix bewegt sich exakt innerhalb dieser Freigabe. Keine anderen Auth-Bereiche berührt (kein Argon2-Param-Wechsel, kein Session-Config-Wechsel, kein Role-Check-Wechsel, kein Lockout-Wechsel).
+- §7.1 Dep? Nein — `crypto.randomUUID` ist Web-Standard, `btoa` ist global Edge/Node.
+- §7.2 Schema? Nein.
+- §7.10 Architektur? Nein — gleiche Middleware, gleiche Struktur, neue Logik.
+
+**Verifikations-Plan:**
+- **Lokal (CI):** 14 Vitest-Tests in `middleware.test.ts` laufen grün. Per-pattern-Coverage `src/middleware.ts` bleibt ≥ 90 %.
+- **Produktion (Browser, durch den Nutzer):** Nach Merge + `git pull && bash deploy.sh` → `https://greenscout.lumina-intelligence.ai/login` öffnen + F12 → Console MUSS frei von CSP-Violations sein UND die Seite MUSS interaktiv sein (Email/Passwort-Felder fokussierbar, „Anmelden"-Button klickbar). Response-Header `Content-Security-Policy` enthält ein `'nonce-…'` mit einem 24-stelligen base64-Wert, der bei jedem Reload anders ist. Erst dann gilt der Fix als verifiziert.
+
+**Lehre für die Zukunft:**
+1. Next.js (App Router, ab v13) **erfordert** entweder nonce- oder hash-basierte CSP für inline-Scripts. `'self'` allein reicht NICHT, weil Hydration-Bootstrap inline gerendert wird. `'unsafe-inline'` wäre die Alternative — bricht aber die XSS-Defense völlig auf.
+2. Per-Request-Nonces können nur in der App-Layer (Middleware) erzeugt werden, nicht im Reverse-Proxy. Wenn man Nonces will, MUSS die CSP-Setzung Single-Source in der App leben.
+3. Das `'strict-dynamic'`-Token ist **zwingend** für moderne SPA-Frameworks, die dynamisch Chunks nachladen. Ohne es scheitern alle non-Bootstrap-Scripts.
+4. `style-src` mit `'unsafe-inline'` ist akzeptabler Trade-off: Inline-Styles können CSS-Selector-basierte Daten-Exfiltration ermöglichen, aber keinen Code-Ausführungs-Vector. Skripte sind die kritischere Klasse.
+
+**Open question for the user:** —

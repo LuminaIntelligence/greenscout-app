@@ -3,18 +3,20 @@
  *
  * Verifies the 5 GreenScout security headers (T-017 CSP + the four
  * T-021 additions) are applied to BOTH pass-through and 3xx-redirect
- * responses. Also asserts the deliberate omissions: X-XSS-Protection
- * (deprecated) and Strict-Transport-Security (lives at the production
- * reverse-proxy per T-050b, NOT in middleware — would otherwise leak
- * over dev-HTTP).
+ * responses, with the per-request nonce wired through the CSP
+ * `script-src` directive (per the post-T-021 nonce hotfix). Also
+ * asserts the deliberate omissions: X-XSS-Protection (deprecated)
+ * and Strict-Transport-Security (lives at the production reverse-
+ * proxy per T-050b, NOT in middleware — would otherwise leak over
+ * dev-HTTP).
  *
  * The middleware's auth-routing branches (isPublicPath / session
  * presence / mustChangePassword redirect) are exercised end-to-end by
  * Playwright in T-051a. Here we unit-test only the header-emission
- * surface — the helper is exported precisely so the routing branches
- * don't need to be mocked.
+ * surface plus the routing × nonce-passthrough wiring.
  *
  * @see DECISIONS.md → "T-021 Security headers hardening"
+ * @see DECISIONS.md → "Hotfix: CSP per-request nonce in middleware"
  * @see docs/security.md
  */
 
@@ -37,11 +39,14 @@ vi.mock("@/lib/auth.config", () => ({
 
 import middleware, { applySecurityHeaders } from "./middleware";
 
+const TEST_NONCE = "test-nonce-abc123";
+
 /**
  * Synthesize the request shape that the auth() wrapper passes to its
  * handler. The real wrapper extends NextRequest with `.auth` populated
  * from the session callback; here we construct it directly because our
- * `next-auth` mock makes the wrapper an identity function.
+ * `next-auth` mock makes the wrapper an identity function. `headers`
+ * is required because the nonce passthrough clones the request headers.
  */
 function buildRequest(
   pathname: string,
@@ -51,6 +56,7 @@ function buildRequest(
   return {
     nextUrl,
     auth: session,
+    headers: new Headers(),
   } as unknown as Parameters<typeof middleware>[0];
 }
 
@@ -62,21 +68,31 @@ const EXPECTED_HEADERS: Record<string, string> = {
 };
 
 describe("applySecurityHeaders", () => {
-  it("sets all 5 security headers on a pass-through response", () => {
+  it("sets the nonce-based CSP plus the 4 T-021 headers on a pass-through response", () => {
     const response = NextResponse.next();
-    const result = applySecurityHeaders(response);
+    const result = applySecurityHeaders(response, TEST_NONCE);
 
-    expect(result.headers.get("content-security-policy")).toContain("default-src 'self'");
+    const csp = result.headers.get("content-security-policy");
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain(`'nonce-${TEST_NONCE}'`);
+    expect(csp).toContain("'strict-dynamic'");
+    expect(csp).toContain("'wasm-unsafe-eval'");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("frame-ancestors 'none'");
+
     for (const [key, value] of Object.entries(EXPECTED_HEADERS)) {
       expect(result.headers.get(key)).toBe(value);
     }
   });
 
-  it("sets all 5 security headers on a 307 redirect response", () => {
+  it("sets the nonce-based CSP plus the 4 T-021 headers on a 307 redirect", () => {
     const response = NextResponse.redirect("http://localhost:3000/login");
-    const result = applySecurityHeaders(response);
+    const result = applySecurityHeaders(response, TEST_NONCE);
 
-    expect(result.headers.get("content-security-policy")).toContain("default-src 'self'");
+    const csp = result.headers.get("content-security-policy");
+    expect(csp).toContain(`'nonce-${TEST_NONCE}'`);
+    expect(csp).toContain("'strict-dynamic'");
+
     for (const [key, value] of Object.entries(EXPECTED_HEADERS)) {
       expect(result.headers.get(key)).toBe(value);
     }
@@ -85,36 +101,54 @@ describe("applySecurityHeaders", () => {
 
   it("preserves the underlying response (returns same reference)", () => {
     const response = NextResponse.next();
-    const result = applySecurityHeaders(response);
+    const result = applySecurityHeaders(response, TEST_NONCE);
 
     expect(result).toBe(response);
   });
 
   it("Permissions-Policy does NOT include the deprecated interest-cohort directive", () => {
     const response = NextResponse.next();
-    applySecurityHeaders(response);
+    applySecurityHeaders(response, TEST_NONCE);
 
     expect(response.headers.get("permissions-policy")).not.toContain("interest-cohort");
   });
 
   it("X-XSS-Protection is NOT set (deprecated)", () => {
     const response = NextResponse.next();
-    applySecurityHeaders(response);
+    applySecurityHeaders(response, TEST_NONCE);
 
     expect(response.headers.get("x-xss-protection")).toBeNull();
   });
 
   it("HSTS is NOT set by middleware (lives at reverse-proxy per T-050b)", () => {
     const response = NextResponse.next();
-    applySecurityHeaders(response);
+    applySecurityHeaders(response, TEST_NONCE);
 
     expect(response.headers.get("strict-transport-security")).toBeNull();
+  });
+
+  it("emits a different nonce per call (defense in depth — caller must pass a fresh one)", () => {
+    const r1 = NextResponse.next();
+    const r2 = NextResponse.next();
+    applySecurityHeaders(r1, "nonce-one");
+    applySecurityHeaders(r2, "nonce-two");
+
+    expect(r1.headers.get("content-security-policy")).toContain("'nonce-nonce-one'");
+    expect(r2.headers.get("content-security-policy")).toContain("'nonce-nonce-two'");
   });
 });
 
 describe("middleware routing", () => {
+  /**
+   * Assert all 5 security headers are present on a response AND that
+   * the CSP carries some nonce (the value itself is randomly generated
+   * per request, so we match a pattern rather than a fixed string).
+   */
   function expectAllHeaders(response: NextResponse) {
-    expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
+    const csp = response.headers.get("content-security-policy");
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toMatch(/'nonce-[A-Za-z0-9+/=]+'/);
+    expect(csp).toContain("'strict-dynamic'");
     for (const [key, value] of Object.entries(EXPECTED_HEADERS)) {
       expect(response.headers.get(key)).toBe(value);
     }
@@ -168,5 +202,17 @@ describe("middleware routing", () => {
     )) as NextResponse;
     expect(response.status).toBe(200);
     expectAllHeaders(response);
+  });
+
+  it("generates a fresh nonce per request (two pass-through responses differ)", async () => {
+    const r1 = (await middleware(buildRequest("/login", null), {} as never)) as NextResponse;
+    const r2 = (await middleware(buildRequest("/login", null), {} as never)) as NextResponse;
+    const csp1 = r1.headers.get("content-security-policy");
+    const csp2 = r2.headers.get("content-security-policy");
+    const nonce1 = csp1?.match(/'nonce-([A-Za-z0-9+/=]+)'/)?.[1];
+    const nonce2 = csp2?.match(/'nonce-([A-Za-z0-9+/=]+)'/)?.[1];
+    expect(nonce1).toBeDefined();
+    expect(nonce2).toBeDefined();
+    expect(nonce1).not.toBe(nonce2);
   });
 });
