@@ -320,7 +320,12 @@ echo ""
 echo "Web:           https://${DOMAIN}"
 echo ""
 echo "Container-Status:"
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" ps
+# --env-file zwingend: docker-compose.prod.yml interpoliert
+# ${POSTGRES_PASSWORD:?…} aus dem Environment, scheitert sonst beim
+# Compose-File-Parse (kosmetischer Fehler, beeinflusst den Deploy
+# nicht, aber die Status-Anzeige würde rot sein). Konsistent zu den
+# build- und up-Aufrufen in Schritten 2 + 3.
+docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
 echo ""
 echo "Folge-Deploys:  cd /opt/greenscout && git pull && bash deploy.sh"
 echo ""
