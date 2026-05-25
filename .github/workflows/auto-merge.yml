@@ -1,0 +1,47 @@
+name: Auto-merge
+
+# Activate auto-merge on every newly-opened PR so GitHub merges the PR
+# itself once all required status checks pass + branch protection
+# requirements are met. Keeps the PR-per-slice workflow human-free past
+# the "create PR" step for routine work; the user reviews the diff and
+# merges-by-doing-nothing.
+#
+# Prerequisites on the repository (Settings → General):
+#   - "Allow auto-merge" enabled.
+#   - "Allow squash merging" enabled (we use --squash here).
+#   - Branch protection on `main` with required status checks — the
+#     auto-merge command queues the merge; GitHub waits for the checks
+#     before actually merging. Set up after T-008 — see DECISIONS.md
+#     2026-05-18 "Branch protection ...".
+#
+# If a PR cannot auto-merge (e.g., missing approvals on a protected
+# branch that requires reviews, or auto-merge disabled on the repo),
+# the `gh pr merge` step exits with a clear error and the PR stays
+# open for human action.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+# Skip the redundant scheduling if the PR receives a quick double-event.
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  enable-auto-merge:
+    name: Enable auto-merge on PR
+    runs-on: ubuntu-latest
+    # Drafts are explicitly not-ready — skip until they get marked ready.
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Activate auto-merge (squash strategy)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
