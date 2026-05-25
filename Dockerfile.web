@@ -45,6 +45,37 @@ RUN npx prisma generate
 
 RUN npm run build
 
+# Bundle prisma/seed.ts to a self-contained CommonJS file for the
+# runner. Background: seed.ts imports TypeScript modules via `@/`
+# path aliases (@/lib/db, @/features/auth/utils/hash-password, …).
+# Running it at deploy-time via tsx requires tsx + its transitive
+# deps (esbuild, get-tsconfig, …) in the runner, none of which sit
+# in Next.js's standalone trace. A single esbuild-bundle here in
+# the builder produces a stand-alone .cjs that `node` can execute
+# directly — runner image stays slim, no tsx needed at runtime.
+#
+# Externals:
+# - `@prisma/client` — the generated client (src/generated/prisma/*)
+#   internally `require('@prisma/client/runtime/library')`; resolved
+#   at runtime from node_modules. Sits in the runner via the
+#   `node_modules/@prisma` directory-COPY (PR #28) + standalone trace.
+# - `@node-rs/argon2` — native Rust bindings via NAPI, can't be
+#   bundled. Sits in the runner via Next.js standalone trace
+#   (imported transitively by the auth services that seed.ts pulls in
+#   via `hashPassword`).
+#
+# esbuild is transitively present via vitest / @vitejs/plugin-react;
+# `npx --no-install` mirrors the deploy.sh defensive style — if
+# esbuild ever drops out of the transitive set the Docker build
+# breaks loudly here, not silently at deploy-time.
+RUN npx --no-install esbuild prisma/seed.ts \
+    --bundle \
+    --platform=node \
+    --format=cjs \
+    --external:@prisma/client \
+    --external:@node-rs/argon2 \
+    --outfile=prisma/seed.cjs
+
 
 # ----- Stage 3: minimal runtime ------------------------------------------------
 FROM node:24-alpine AS runner
@@ -82,22 +113,24 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Bake the Prisma CLI + `tsx` (devDependencies) into the runtime image.
+# Bake the Prisma CLI (devDependency) into the runtime image.
 # Reason: Next.js's standalone `output: "standalone"` trace only includes
 # what `server.js` imports at runtime — `@prisma/client` is in (it's a
 # runtime dep), but the `prisma` CLI is NOT (it's a devDependency, and
 # server.js never imports it). Without the CLI present locally,
 # `deploy.sh`'s `npx prisma migrate deploy` would resolve "prisma not
 # installed" and silently pull `latest` off the registry, which is now
-# Prisma 7 — incompatible with the 5.x schema syntax. `tsx` lands here
-# for the same reason: `prisma db seed` (used by the post-deploy
-# "Ersten Admin anlegen" workflow in docs/deploy-anleitung.md §5) runs
-# `tsx prisma/seed.ts` per the package.json `prisma.seed` config.
+# Prisma 7 — incompatible with the 5.x schema syntax.
 # `@prisma` copy is a no-op overwrite of what `server.js` already
 # traced — same version from the same `npm ci` in the builder stage.
+#
+# NOTE: `tsx` is intentionally NOT copied. The seed entry point is the
+# esbuild-bundled `prisma/seed.cjs` produced in the builder stage; the
+# runner invokes it as `node prisma/seed.cjs` — no TS-loader needed.
+# A dangling `.bin/tsx` symlink remains in the `.bin`-COPY below;
+# harmless because nothing in the runner ever invokes it.
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
 # Verzeichnis-COPY statt einzelner Datei-COPY: Dockerfile-COPY auf eine
 # Datei-Quelle dereferenziert Symlinks (Inhalt wird kopiert, Pfad-Bezug
 # zur ursprünglichen Datei verloren). prisma-CLI ruft sich selbst via

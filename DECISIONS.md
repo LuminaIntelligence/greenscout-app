@@ -2176,3 +2176,75 @@ DB-Zustand weiterhin atomar: keine vorige Migration hat den Schema-Engine-Start 
 2. **Prisma `binaryTargets`** — wenn libc/Distro zwischen builder und runner DIFFERIEREN, explizit beide Targets eintragen.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix Follow-up: Seed via esbuild-Bundle statt tsx-Runtime (Folge zu PR #30)
+**Context:** Nach Merge von PR #30 und Re-Run schaffte `deploy.sh` Schritte 1–8 komplett durch — App ist via nginx + Let's Encrypt erreichbar. Der **Folge-Schritt "Ersten Admin anlegen"** aus `docs/deploy-anleitung.md` §5b scheitert jedoch:
+```
+docker compose ... exec -T web npx --no-install tsx prisma/seed.ts
+→ Cannot find package 'esbuild'
+```
+tsx ist im Image (PR #28-COPY), aber sein transitiver Dep `esbuild` (samt Untermodulen wie `get-tsconfig`) ist es nicht. tsx braucht esbuild zur Laufzeit für TS-on-the-fly-Transpilation.
+
+**Optionen-Abwägung:**
+- **(A) esbuild + Begleit-Deps einzeln ins Image kopieren** → unbeschränkt expandierender Schwanz (esbuild zieht weitere transitive Module mit). Trockenes Whack-a-Mole gegen die nächsten ENOENTs.
+- **(B) Seed in der builder-Stage zu eigenständigem JS bundeln** → seed.cjs ist self-contained CommonJS, runner braucht weder tsx noch esbuild noch sonstwas, nur `node`. **Gewählt** (per User-Spec).
+
+**Decision (B-Variante):** In `Dockerfile.web` builder-Stage nach `npm run build` einen esbuild-Schritt einfügen, der `prisma/seed.ts` mit allen `@/`-aliased Source-Imports zu einer einzigen `prisma/seed.cjs` bündelt. Externals:
+- `@prisma/client` — der generated Prisma Client (`src/generated/prisma/*`) macht intern `require('@prisma/client/runtime/library')`; zur Laufzeit aus `node_modules/@prisma/` aufgelöst, das via PR #28's `@prisma`-Verzeichnis-COPY + standalone-Trace im runner liegt.
+- `@node-rs/argon2` — Native Rust-Bindings via NAPI, **kann grundsätzlich nicht gebündelt werden** (Pre-built binary `.node`-files). Zur Laufzeit via standalone-Trace im runner (transitive via `hashPassword` → seed's `hashPassword`-Import → standalone-Trace zieht die Auth-Utils-Subtree ein).
+
+**Native-Module-Audit von `seed.ts`** (per User-Anforderung):
+- `@/features/auth/utils/hash-password` → ja, importiert `@node-rs/argon2`. **External markiert.** ✓
+- `@/features/auth/utils/normalise-email` → reines TS, kein Native.
+- `@/lib/db` → importiert `@/generated/prisma` (TypeScript-Source, wird gebündelt). Der generated Client wiederum require()'t `@prisma/client/*` — über das externals-Mapping abgedeckt.
+- `@/lib/repositories/audit-log.repository`, `@/lib/repositories/user.repository` → reine TS, importieren `@/lib/db`, vollständig im Bundle resolved.
+- Kein weiteres Native-Modul.
+
+**Runner-Stage-Änderungen:**
+- COPY `node_modules/tsx` **entfernt** — Laufzeit braucht tsx nicht mehr.
+- `prisma/seed.cjs` kommt automatisch mit dem bestehenden `COPY /app/prisma ./prisma` rüber (esbuild schreibt die Datei nach `/app/prisma/seed.cjs` in der builder-Stage, BEVOR die runner-Stage den Verzeichnis-COPY ausführt — Stage-Reihenfolge garantiert das).
+- `.bin/tsx`-Symlink bleibt dangling im `.bin`-Verzeichnis-COPY — harmlos, niemand ruft tsx im runner auf.
+
+**`deploy-anleitung.md` §5b** umgestellt:
+- Alt: `docker compose ... exec -T web npx --no-install tsx prisma/seed.ts`
+- Neu: `docker exec greenscout-web node prisma/seed.cjs`
+Direkter `docker exec` per User-Spec; der vorausgehende `docker compose up -d web` (Re-Load mit aktualisierter `.env`) bleibt.
+
+**esbuild-Verfügbarkeit:**
+- `esbuild@0.28.0` ist **transitiv** in `node_modules` (über `vitest`/`@vitejs/plugin-react`), NICHT in `package.json` als direkter Dep.
+- Build-Step verwendet `npx --no-install esbuild …` (gleicher defensiver Stil wie `deploy.sh` Schritt 4). Wenn esbuild je aus dem transitive-set rausfällt (vitest-Drop, dedupe-Update), bricht der Docker-Build laut hier ab statt im seed-Step zur Deploy-Zeit.
+- **Bewusst KEIN expliziter `esbuild`-devDep-Add** zu package.json — wäre §7.1 (neue Dep). User-Spec sagt explizit "keine neuen Deps". Lock-In-Fallback: wenn vitest je weg muss, gleichzeitig `esbuild` als devDep nachziehen.
+
+**Affected:**
+- `Dockerfile.web` builder-Stage: neuer `RUN npx --no-install esbuild …` nach `npm run build`.
+- `Dockerfile.web` runner-Stage: `COPY .../node_modules/tsx` entfernt, Kommentar-Block überarbeitet (tsx-Mentions raus, seed.cjs-Plan erklärt).
+- `docs/deploy-anleitung.md` §5b: ein-Zeilen-Befehl-Wechsel.
+- `DECISIONS.md`: dieser Eintrag.
+- `prisma/schema.prisma`, `deploy.sh`, `package.json`: **unverändert**.
+- `prisma/seed.ts`: **unverändert** — Source bleibt TypeScript, nur das deployte Artefakt ist .cjs.
+
+**Pause-Trigger-Check (§7):**
+- §7.1 Neue Dep? **Nein** — esbuild transitiv vorhanden, kein package.json-Add.
+- §7.2 Schema? **Nein**.
+- §7.3 Auth/Security? **Nein** — Bundling-Mechanik, nicht Krypto.
+- §7.10 Architektur? **Nein** — kein Service-Wechsel, kein neuer Build-Step im CI, nur Image-Build-Zeit-Bundle.
+
+**Re-Run für den Nutzer:**
+```
+cd /opt/greenscout
+git pull
+bash deploy.sh
+```
+Schritt 2: Dockerfile-Edit invalidiert den Layer ab dem neuen `esbuild`-RUN in der builder-Stage UND den runner-COPY-Block (tsx-Zeile weg, neuer Kommentar). Schritte 1–8 sollten wie zuvor durchlaufen (Migration + nginx + certbot bleiben grün — keine semantische Änderung dort).
+
+Anschließend `docs/deploy-anleitung.md` §5b folgen:
+```
+docker compose -p greenscout -f docker-compose.prod.yml up -d web
+docker exec greenscout-web node prisma/seed.cjs
+```
+
+**Lehre für zukünftige TS-Skripte im runner:** TypeScript-Skripte mit Path-Aliases NIEMALS via tsx/ts-node zur Laufzeit ausführen — immer build-time bundeln (esbuild/swc) und im runner ein purer `node`-Aufruf. Vermeidet Whack-a-Mole mit transitiven Dev-Loader-Deps. Locked-in via dieser DECISIONS-Notiz.
+
+**Open question for the user:** —
