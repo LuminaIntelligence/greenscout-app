@@ -113,6 +113,25 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Defensive: Next.js standalone-Trace (NFT / @vercel/nft) **übersieht
+# Prisma's dynamisch geladene Engine-Binaries**. Der generated Client
+# lädt seine `libquery_engine-<binaryTarget>.so.node` via
+# string-konstruiertem `require()`-Pfad — NFT sieht das statisch nicht
+# auflösbar und packt die `.so.node`-Datei nicht ins standalone-Bundle.
+# Folge: Client-Code ist im runner, Engine fehlt → "query-engine fehlt
+# für linux-musl-openssl-3.0.x"-Crash zur Laufzeit.
+#
+# Expliziter COPY des kompletten generated-Trees aus dem builder
+# überschreibt den (potentiell unvollständigen) standalone-COPY oben
+# und stellt sicher, dass ALLE binaryTargets-Engines im runner liegen
+# — unabhängig vom NFT-Verhalten. Klein, idempotent, NFT-Bug-immun.
+#
+# binaryTargets in prisma/schema.prisma sind `["native",
+# "linux-musl-openssl-3.0.x"]` — beide Engines werden hier
+# rüberkopiert. Siehe DECISIONS.md → "Hotfix: Prisma engine
+# binaryTarget für musl-openssl".
+COPY --from=builder --chown=nextjs:nodejs /app/src/generated/prisma ./src/generated/prisma
+
 # Bake the Prisma CLI (devDependency) into the runtime image.
 # Reason: Next.js's standalone `output: "standalone"` trace only includes
 # what `server.js` imports at runtime — `@prisma/client` is in (it's a

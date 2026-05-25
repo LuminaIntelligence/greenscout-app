@@ -7,6 +7,15 @@ generator client {
   provider        = "prisma-client-js"
   output          = "../src/generated/prisma"
   previewFeatures = []
+  // `native` deckt den Dev-Build (Windows/macOS-DLL bzw. host-passend) ab.
+  // `linux-musl-openssl-3.0.x` ist der explizite Target für das prod
+  // runner-Image (node:24-alpine + apk-installed openssl 3). Ohne den
+  // expliziten Eintrag generiert `prisma generate` in der builder-Stage
+  // (die kein OpenSSL hat) nur den nicht-openssl `linux-musl`-Engine,
+  // und der Client crasht zur Laufzeit im runner mit "query-engine
+  // fehlt für linux-musl-openssl-3.0.x". Siehe DECISIONS.md →
+  // "Hotfix: Prisma engine binaryTarget für musl-openssl".
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

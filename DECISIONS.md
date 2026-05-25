@@ -2268,3 +2268,72 @@ Kosmetisch — der Deploy selbst lief sauber durch (Schritte 2 + 3 hatten `--env
 **Lehre:** Bei jedem `docker compose`-Aufruf in `deploy.sh`, der den Compose-File parsen muss (build, up, ps, config, …), MUSS `--env-file "$ENV_FILE"` mit. Nur Subcommands die einen schon laufenden Container ansprechen (exec, logs) brauchen das nicht, weil die Env-Variablen dann aus dem Container-State kommen, nicht aus dem Compose-File-Parse.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix: Prisma engine binaryTarget für musl-openssl (Folge zu PR #32)
+**Context:** Nach Merge von PR #28–#32 läuft `deploy.sh` komplett durch. Beim Folge-Seed (`docker exec greenscout-web node prisma/seed.cjs`) crasht der generated Prisma Client beim ersten DB-Call mit:
+```
+@prisma/client did not initialize yet. Please run "prisma generate"
+query-engine fehlt für linux-musl-openssl-3.0.x
+```
+Hintergrund: `prisma generate` in der builder-Stage erzeugt das query-engine-Binary für den Target, den `native` zur generate-Zeit auflöst. Builder-Stage hat **kein OpenSSL** installiert (per T-050a-Decision — `prisma generate` ist reiner Node/WASM-Pfad und braucht libssl nicht für sich selbst). Folge: `native` resolved im Builder zu `linux-musl` (Suffix-frei, kompatibel mit fehlendem libssl3), NICHT zu `linux-musl-openssl-3.0.x`. Runner hat dagegen openssl 3 (per Hotfix in PR #30) → Client sucht Engine MIT openssl-3-Suffix → ENOENT.
+
+**Korrektur einer früheren Annahme:** Der T-050a-OpenSSL-Eintrag oben sagte _"Builder + runner basieren beide auf node:24-alpine → Prismas `native`-binaryTarget resolved damit in beiden Stages identisch auf linux-musl-openssl-3.0.x"_. Diese Annahme war **falsch**. `native` ist nicht nur libc-/Distro-abhängig, sondern auch davon, welche libssl-Variante in der Generate-Umgebung präsent ist. Builder ohne openssl → `linux-musl`. Runner mit openssl → `linux-musl-openssl-3.0.x`. Die beiden Targets sind verschieden.
+
+**Decision (User-Spec):**
+1. In `prisma/schema.prisma` `generator client {}` Block: `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]`. `native` bleibt für Dev-Builds (Windows-DLL bzw. host-passend). Der explizite `linux-musl-openssl-3.0.x`-Eintrag zwingt `prisma generate` den passenden Runner-Engine herunterzuladen, **unabhängig** von der Builder-Stage-Umgebung.
+
+2. **Defensive COPY** im Dockerfile.web runner-Stage: `COPY --from=builder /app/src/generated/prisma ./src/generated/prisma`. Hintergrund: Next.js standalone-Trace (NFT/@vercel/nft) **übersieht Prismas dynamisch geladene Engine-Binaries**. Der generated Client lädt seine `libquery_engine-<binaryTarget>.so.node` via string-konstruierten `require()`-Pfad — NFT sieht das statisch nicht auflösbar und packt die `.so.node`-Datei nicht ins standalone-Bundle. Folge: ohne expliziten COPY wäre Code im runner, Engine fehlt. Der COPY überschreibt den (potentiell unvollständigen) standalone-COPY und garantiert dass alle binaryTargets-Engines im runner liegen — unabhängig vom NFT-Verhalten.
+
+   **Alternative geprüft:** `outputFileTracingIncludes` in `next.config.ts` würde den gleichen Effekt erzielen, wäre aber:
+   - in einer next.js-spezifischen Config versteckt (Dockerfile-Reader sieht es nicht)
+   - eine weitere Datei zum Editieren (next.config.ts ist aktuell minimal sauber)
+   - vom NFT-Bug-Verhalten abhängig (wenn @vercel/nft je gefixt wird, ist die Config obsolet)
+
+   Dockerfile-COPY ist explizit, lokal lesbar, und NFT-Bug-immun.
+
+**Verifikation lokal (Windows-host):**
+```
+$ npx --no-install prisma generate
+✔ Generated Prisma Client (v5.22.0) to .\src\generated\prisma in 232ms
+
+$ ls src/generated/prisma/ | grep engine
+libquery_engine-linux-musl-openssl-3.0.x.so.node    # ← explizit
+query_engine-windows.dll.node                        # ← via "native"
+```
+Beide Engines werden erzeugt. Im Alpine-builder wird `native` zu `libquery_engine-linux-musl.so.node` resolven (Builder ohne openssl) und das `linux-musl-openssl-3.0.x`-Target nachgezogen → zwei Engine-Files. Runner mit openssl3 lädt zur Laufzeit die zweite.
+
+**Affected:**
+- `prisma/schema.prisma`: `binaryTargets`-Zeile in den `generator client {}` Block ergänzt.
+- `Dockerfile.web` runner-Stage: defensive `COPY --from=builder /app/src/generated/prisma …` nach den `.next/standalone`-COPYs.
+- `DECISIONS.md`: dieser Eintrag (inkl. Korrektur der T-050a-OpenSSL-Annahme).
+- `deploy.sh`, `docs/deploy-anleitung.md`, `package.json`, `prisma/seed.ts`: **unverändert**.
+
+**Pause-Trigger-Check (§7):**
+- §7.1 Neue Dep? **Nein** — `binaryTargets` ist Generator-Config, kein npm-Dep. Die zusätzliche `linux-musl-openssl-3.0.x`-Engine wird von Prisma's `@prisma/engines`-Paket bereitgestellt, das schon installiert ist.
+- §7.2 Schema? **Nein** — `binaryTargets` ist Generator-Config, NICHT Data-Model. Keine Tabellen, keine Columns, keine Migration nötig.
+- §7.3 Auth/Security? **Nein**.
+- §7.10 Architektur? **Nein**.
+
+**Re-Run nach Merge:**
+```
+cd /opt/greenscout
+git pull
+bash deploy.sh
+```
+Schritt 2: Dockerfile.web invalidiert ab dem neuen runner-COPY-Layer. Builder-Stage `prisma generate` lädt zusätzlich die musl-openssl-3 Engine herunter (~12 MB). Schritte 1–8 laufen wie zuvor durch.
+
+Danach Seed nochmal:
+```
+docker compose -p greenscout -f docker-compose.prod.yml up -d web
+docker exec greenscout-web node prisma/seed.cjs
+```
+→ erwartet: `[seed] admin created (id=…). Writing audit entry...`
+
+**Lehre für die Zukunft:**
+1. Prismas `native`-binaryTarget ist **nicht libc-determinismus genug** — wenn die Generate-Umgebung andere shared-libs hat als die Runtime-Umgebung (klassisches Multi-Stage-Docker-Setup), MUSS der Runtime-Target explizit aufgelistet werden.
+2. Next.js standalone-Trace ist für **statisch analysierbare** Imports konzipiert. Dynamic-require-Pfade (`require(prefix + variable + suffix)`) werden nicht erfasst. Pakete mit solchem Lade-Pattern (Prisma, sharp, manche AWS-SDKs, ...) brauchen entweder `outputFileTracingIncludes` in next.config oder explizite Dockerfile-COPYs.
+3. Die OpenSSL-Variante des Targets ergibt sich aus der OpenSSL-Version im Runtime-Image: openssl 1.1 → `-openssl-1.1.x`, openssl 3 → `-openssl-3.0.x`. Bei Image-Wechsel mitschauen.
+
+**Open question for the user:** —
