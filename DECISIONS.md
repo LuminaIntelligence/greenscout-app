@@ -2400,3 +2400,65 @@ Lock-in als spätere Polish-Verbesserung wenn das Style-Inventar überschaubarer
 4. `style-src` mit `'unsafe-inline'` ist akzeptabler Trade-off: Inline-Styles können CSS-Selector-basierte Daten-Exfiltration ermöglichen, aber keinen Code-Ausführungs-Vector. Skripte sind die kritischere Klasse.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix: CSP nonce auf den Request-Headers (Folge zu PR #34)
+**Context:** Nach Merge von PR #34 + Re-Deploy ist die `/login`-Seite weiter tot. Browser-Test zeigt:
+- Response-Header `Content-Security-Policy` enthält den Nonce ✓
+- Aber: die emittierten `<script>`-Tags haben **kein** `nonce`-Attribut ✗
+- Folge: Browser blockiert alle inline-Scripts; `'strict-dynamic'` blockiert daraufhin auch `/_next/static/*`-Chunks (weil sie nicht von einem genonceten Script geladen wurden)
+- Statisches `/login`-HTML wird ausgeliefert, Form macht native-browser-submit (GET) → `?password=…` in der URL — schwere Privacy-Issue, Klartext-Passwort im Server-Log
+
+**Root cause:** Next.js liest den Nonce **aus dem `content-security-policy`-REQUEST-Header** (nicht primär aus `x-nonce`, wie ich in PR #34 angenommen hatte). PR #34 setzte nur `x-nonce` auf den weitergereichten Request-Headers — Next.js fand keinen `content-security-policy`-Request-Header, extrahierte keinen Nonce, stempelte ihn nicht auf die inline-Scripts. Response-CSP enthielt den Nonce → Browser erwartete genoncete Scripts → keine vorhanden → Blockade-Kaskade.
+
+§7.3-Freigabe vom Vor-Turn deckt diesen Folge-Fix mit ab (gleicher Scope: nonce-basierte CSP, exakt die im Vor-Turn freigegebene Mechanik).
+
+**Decision:** In `passThroughWithNonce(request, nonce)` zusätzlich zum bestehenden `x-nonce`-Set jetzt auch den `content-security-policy`-REQUEST-Header mit demselben Per-Request-CSP-String setzen. Identischer Nonce wandert in beide Request-Header und in den Response-Header — Single-Source per `buildCsp(nonce)` + `nonce`-Konstante. `x-nonce` bleibt parallel als dokumentierter Helper (für künftigen App-Code der `headers().get('x-nonce')` für custom `<Script nonce=...>`-Tags nutzt). Belt-and-suspenders.
+
+```ts
+function passThroughWithNonce(request: NextRequest, nonce: string): NextResponse {
+  const csp = buildCsp(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("content-security-policy", csp);  // ← der entscheidende Header
+  requestHeaders.set("x-nonce", nonce);                // ← parallel als doc helper
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+```
+
+**Buffer vs btoa:** User-Code-Snippet zeigte `Buffer.from(crypto.randomUUID()).toString('base64')`. Behalten bei `btoa(crypto.randomUUID())` — semantisch identisch, **Edge-Runtime-safe**. `Buffer` ist in der Edge-Runtime (default für Next.js middleware) NICHT verfügbar; `btoa` ist global. Lock-in: wenn middleware je explizit auf `runtime = "nodejs"` umgestellt wird, kann Buffer mit oder ohne btoa verwendet werden.
+
+**Regression-Test eingebaut:** Neuer Test in `src/middleware.test.ts` (`"forwards the per-request CSP and x-nonce on the REQUEST headers (PR #35 regression)"`) macht `vi.spyOn(NextResponse, "next")`, ruft middleware mit `/login`-Request auf, und assertet dass die übergebenen `request.headers` BOTH `content-security-policy` (mit `'nonce-<n>'`) und `x-nonce` (mit demselben `<n>`) enthalten. Verhindert dass künftige Edits den entscheidenden Request-Header wieder verlieren. 15/15 Tests grün lokal.
+
+**Statisches /login als Fallback geprüft, NICHT nötig:** User-Hinweis "Sollten die Skripte danach immer noch keinen Nonce tragen, wird /login statisch ausgeliefert — dann die Route dynamisch erzwingen." Der primäre Fix (Request-Header-CSP) sollte ausreichen — wenn nicht, Folge-PR mit `export const dynamic = 'force-dynamic'` auf `src/app/(auth)/login/page.tsx` und `src/app/(auth)/password-change/page.tsx`. Nicht spekulativ einbauen.
+
+**Affected:**
+- `src/middleware.ts` — `passThroughWithNonce` setzt zusätzlich `content-security-policy` auf die Request-Headers; Header-Doc-Block am Datei-Kopf entsprechend präzisiert.
+- `src/middleware.test.ts` — neuer Regression-Test (vi.spyOn auf NextResponse.next).
+- `docs/security.md` — Nonce-Wiring-Sektion korrigiert (REQUEST-Header `content-security-policy` ist der entscheidende, nicht `x-nonce`); neuer „Critical gotcha"-Block.
+- `DECISIONS.md` — dieser Eintrag.
+- `deploy.sh`, `Dockerfile.web`, `nginx`-Site: unverändert.
+
+**Pause-Trigger-Check (§7):**
+- §7.3 Auth/Security? Im Scope der User-§7.3-Freigabe vom Vor-Turn (nonce-basierte CSP). Keine andere Auth-Logik berührt.
+- §7.1 Dep? Nein.
+- §7.2 Schema? Nein.
+- §7.10 Architektur? Nein.
+
+**Verifikation (gleiche Schritte wie PR #34, jetzt MUSS sie grün durchlaufen):**
+1. Nach Merge: `cd /opt/greenscout && git pull && bash deploy.sh`
+2. Browser: `https://greenscout.lumina-intelligence.ai/login` öffnen
+3. F12 → Console: **frei** von CSP-Violations
+4. Seite **interaktiv**: Email/Passwort fokussierbar, „Anmelden"-Button klickbar, Formular submittet via Server Action (kein `?password=…` in der URL!)
+5. Page-Source inspizieren: `<script>`-Tags tragen `nonce="<gleicher-base64-wert>"` wie der `Content-Security-Policy`-Response-Header
+6. Reload: anderer Nonce-Wert in beiden Stellen
+
+**Falls SCHRITT 5 immer noch keinen Nonce auf scripts zeigt** (`/login` wird statisch ausgeliefert):
+- Folge-PR mit `export const dynamic = 'force-dynamic'` auf `src/app/(auth)/login/page.tsx` und `src/app/(auth)/password-change/page.tsx`
+- Begründung: Next.js cached static-rendered Pages und wendet middleware-Request-Header-Modifikationen nicht pro Request neu an, wenn die Page nicht dynamisch ist
+
+**Lehre für die Zukunft:**
+- Next.js Nonce-Wiring braucht den `content-security-policy`-Request-Header, NICHT nur `x-nonce`. `x-nonce` ist ein Helper für App-Code, nicht der Mechanismus für das automatische Nonce-Stempeln.
+- Browser-Verifikation ist bei CSP-Änderungen ZWINGEND und nicht optional. Vitest-Tests können die response-headers prüfen, aber nicht ob der Browser tatsächlich genoncete Scripts ausführt.
+
+**Open question for the user:** —

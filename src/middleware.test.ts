@@ -215,4 +215,44 @@ describe("middleware routing", () => {
     expect(nonce2).toBeDefined();
     expect(nonce1).not.toBe(nonce2);
   });
+
+  /**
+   * Regression test for the bug PR #35 fixes. The middleware MUST
+   * forward the per-request CSP on the REQUEST headers (under the
+   * `content-security-policy` key — that's what Next.js reads to
+   * extract the nonce and stamp it onto inline scripts). PR #34 only
+   * set `x-nonce`, which was insufficient — Next.js emitted inline
+   * scripts without a nonce attribute, the browser blocked them, and
+   * `'strict-dynamic'` then also blocked the chunk scripts.
+   *
+   * Asserts: on a pass-through branch, `NextResponse.next()` is called
+   * with `{ request: { headers: ... } }` where the headers contain
+   * BOTH `content-security-policy` (with `'nonce-<n>'`) and `x-nonce`
+   * (with the same `<n>`).
+   */
+  it("forwards the per-request CSP and x-nonce on the REQUEST headers (PR #35 regression)", async () => {
+    const spy = vi.spyOn(NextResponse, "next");
+    try {
+      await middleware(buildRequest("/login", null), {} as never);
+
+      // First call corresponds to the passThroughWithNonce on /login.
+      const arg = spy.mock.calls[0]?.[0];
+      expect(arg).toBeDefined();
+      const requestHeaders = arg?.request?.headers as Headers | undefined;
+      expect(requestHeaders).toBeInstanceOf(Headers);
+
+      const reqCsp = requestHeaders?.get("content-security-policy");
+      const reqXNonce = requestHeaders?.get("x-nonce");
+      expect(reqCsp).toBeTruthy();
+      expect(reqXNonce).toBeTruthy();
+
+      // Both helpers must carry the SAME nonce — request-CSP nonce is
+      // what Next.js stamps on scripts; x-nonce is the documented
+      // helper for any app code that calls headers().get('x-nonce').
+      const nonceFromReqCsp = reqCsp?.match(/'nonce-([A-Za-z0-9+/=]+)'/)?.[1];
+      expect(nonceFromReqCsp).toBe(reqXNonce);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
