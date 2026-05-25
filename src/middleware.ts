@@ -21,11 +21,17 @@
  * Security headers are applied to EVERY response (including redirects)
  * via the `applySecurityHeaders` helper. The set:
  *   - Content-Security-Policy — **per-request nonce** for `script-src`
- *     plus `'strict-dynamic'`. The nonce is also forwarded to the
- *     Next.js render layer via the `x-nonce` request header so the
- *     framework can stamp it onto every inline script it emits
- *     (hydration bootstrap, RSC payload, route chunks). This is the
- *     pattern Next.js documents at
+ *     plus `'strict-dynamic'`. The nonce is forwarded to the Next.js
+ *     render layer via TWO request headers: `content-security-policy`
+ *     (the one Next.js actually reads to extract the nonce and stamp
+ *     it onto inline scripts) and `x-nonce` (documented helper). Both
+ *     get the SAME per-request nonce. Without the request-header CSP,
+ *     Next.js emits inline scripts WITHOUT a `nonce` attribute, the
+ *     browser blocks them under the response CSP, `'strict-dynamic'`
+ *     then also blocks `/_next/static/*` chunks (because nothing was
+ *     loaded by a nonced script), and the page never hydrates. See
+ *     DECISIONS.md → "Hotfix: CSP nonce on request headers (Folge zu
+ *     PR #34)". Pattern documented at
  *     https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy.
  *   - X-Frame-Options: DENY (T-021)
  *   - Referrer-Policy: strict-origin-when-cross-origin (T-021)
@@ -131,12 +137,20 @@ export function applySecurityHeaders(response: NextResponse, nonce: string): Nex
 
 /**
  * Build a pass-through response that ALSO forwards the per-request
- * nonce to Next.js via the `x-nonce` request header. The framework
- * reads that header during render and stamps the nonce on every
- * inline script it emits (hydration bootstrap, RSC payload, route
- * chunks). Without this, the inline scripts have no nonce attribute,
- * the browser blocks them under the nonce-based CSP, and the page
- * never hydrates.
+ * nonce to Next.js via the request headers. The framework reads the
+ * `content-security-policy` REQUEST header to extract the nonce and
+ * stamps it onto every inline script it emits (hydration bootstrap,
+ * RSC payload, route chunks). `x-nonce` is set in parallel as the
+ * publicly-documented helper header (useful for app code that calls
+ * `headers().get('x-nonce')` to wire custom `<Script nonce=...>`).
+ *
+ * Without the `content-security-policy` REQUEST header, the inline
+ * scripts have no `nonce` attribute, the browser blocks them under
+ * the response CSP, `'strict-dynamic'` then also blocks the chunk
+ * scripts (because nothing was loaded by a nonced script), and the
+ * page never hydrates — the form falls back to a native browser
+ * submit, which puts `?password=…` in the URL. This is the bug PR #35
+ * fixes.
  *
  * Only relevant for pass-through. Redirect responses have no body
  * to render so they don't need a nonce in the request headers
@@ -144,7 +158,9 @@ export function applySecurityHeaders(response: NextResponse, nonce: string): Nex
  * `applySecurityHeaders`).
  */
 function passThroughWithNonce(request: NextRequest, nonce: string): NextResponse {
+  const csp = buildCsp(nonce);
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("content-security-policy", csp);
   requestHeaders.set("x-nonce", nonce);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }

@@ -30,9 +30,11 @@ every inline script it emits.
 https://nextjs.org/docs/app/building-your-application/configuring/content-security-policy):
 
 1. Middleware generates `nonce = btoa(crypto.randomUUID())`.
-2. Pass-through branch returns `NextResponse.next({ request: { headers: { 'x-nonce': nonce } } })` — Next.js reads `x-nonce` during render and stamps `nonce="..."` onto every inline script it emits (hydration bootstrap, RSC stream, route chunks).
-3. The same nonce is embedded in the response's `Content-Security-Policy` header via `'nonce-<nonce>'` in `script-src`.
+2. Pass-through branch builds the per-request CSP string and sets it on BOTH the REQUEST headers (`content-security-policy` + `x-nonce`) AND the RESPONSE header (`Content-Security-Policy`). `NextResponse.next({ request: { headers: requestHeaders } })` propagates the request-header CSP into the Next.js render layer — that's the one the framework parses to extract the nonce and stamp `nonce="..."` onto every inline script it emits (hydration bootstrap, RSC stream, route chunks). `x-nonce` is set in parallel as the documented helper for any app code that calls `headers().get('x-nonce')`.
+3. The same nonce in the response's `Content-Security-Policy` header lets the browser validate the nonced scripts.
 4. `'strict-dynamic'` lets the nonced bootstrap pull in route chunks at runtime without each chunk needing its own nonce attribute.
+
+**Critical gotcha:** setting only `x-nonce` on the request (or only the response CSP) is insufficient. Next.js reads the `content-security-policy` REQUEST header to extract the nonce — without it, inline scripts ship without a `nonce` attribute, the browser blocks them, and `'strict-dynamic'` then also blocks `/_next/static/*` chunks (because nothing was loaded by a nonced script). The form falls back to a native browser submit, which puts `?password=…` in the URL. A regression test in `src/middleware.test.ts` (`"forwards the per-request CSP and x-nonce on the REQUEST headers"`) guards against this.
 
 **The CSP is set ONLY in the Next.js middleware** — nginx (reverse-proxy)
 must NOT set a `Content-Security-Policy` header, or a per-request nonce
