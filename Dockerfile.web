@@ -53,6 +53,26 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Prisma's schema-engine binary (used by `prisma migrate deploy`) is
+# dynamically linked against libssl/libcrypto. node:24-alpine does NOT
+# ship those by default; without them the engine aborts at startup with
+# "Could not parse schema engine response: Error load …" + "Prisma
+# failed to detect libssl/openssl". `apk add --no-cache openssl` pulls
+# in the libssl3 + libcrypto3 shared objects (and the CLI, which we
+# don't strictly need but it lands together — ~1.5 MB total).
+#
+# We deliberately skip `ca-certificates` here: GreenScout's prod DB
+# connection runs over the internal docker network without TLS
+# (DATABASE_URL is `postgresql://...@db:5432/...` with no `sslmode`),
+# so the trust store isn't read. If/when the deployment ever talks
+# to a managed Postgres over TLS, append `ca-certificates`.
+#
+# Same base image as builder (node:24-alpine) → Prisma's `native`
+# binaryTarget already resolves correctly to
+# `linux-musl-openssl-3.0.x`; no `binaryTargets` entry needed in
+# prisma/schema.prisma. Locked in via DECISIONS.md.
+RUN apk add --no-cache openssl
+
 # Run as a non-root user (CLAUDE.md §3 hardening — defence in depth).
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
