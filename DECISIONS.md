@@ -2124,3 +2124,55 @@ Schritt 2: Dockerfile-Edit invalidiert den Layer ab dem `.bin`-COPY → neuer Bu
 **Lehre für zukünftige Image-Edits:** Bei `COPY --from=...` auf `node_modules`-Pfade **immer** auf Verzeichnis-Ebene operieren, niemals auf Einzeldateien — Symlink-Erhaltung ist die Defaulteinstellung, nur bei Datei-Quellen kippt sie. Locked-in via dieser DECISIONS-Notiz.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-25 — Hotfix Follow-up: OpenSSL im runner-Image (Folge zu PR #29)
+**Context:** Nach Merge von PR #29 und drittem Re-Run von `deploy.sh` auf dem VPS crasht `prisma migrate deploy` erneut, jetzt mit:
+```
+Could not parse schema engine response: … "Error load"…
+Prisma failed to detect libssl/openssl
+```
+CLI lädt, Symlinks lösen korrekt auf, schema-engine-Binary wird gefunden — bricht beim Linken seiner shared-library-Abhängigkeiten ab.
+
+**Root cause:** Prismas schema-engine (`schema-engine-linux-musl-openssl-3.0.x`, das Binary für Migrationen in Prisma 5.x) ist **dynamisch gegen libssl.so.3 + libcrypto.so.3 gelinkt**. `node:24-alpine` shippt diese shared libraries **NICHT** standardmäßig — Alpine hält das Base-Image minimal, OpenSSL ist Opt-in. Builder-Stage hat es bisher zufällig nicht gebraucht (`prisma generate` ist ein reiner Node-/WASM-Codepfad, kein nativer Engine-Aufruf gegen die DB), darum war der Bug bis zum ersten echten `migrate deploy`-Versuch im runner unsichtbar.
+
+**Decision:** `RUN apk add --no-cache openssl` in der runner-Stage vor der `addgroup`/`adduser`-Sequenz einfügen (frühe Position → caching-freundlich, rarely-changes-Layer). Installiert `libssl3` + `libcrypto3` + den `openssl`-CLI in einem Atom (~1.5 MB total). Prismas Engine findet damit ihre Linker-Deps zur Laufzeit.
+
+**Bewusst NICHT mitinstalliert:**
+- **`ca-certificates`**: GreenScout-Prod-DB-Connection läuft über das interne Docker-Netzwerk OHNE TLS (`DATABASE_URL=postgresql://...@db:5432/...` ohne `sslmode=require`) → kein Trust-Store-Lookup → CA-Bundle wird nicht gelesen. ~150 KB Image-Bloat ohne Nutzen. Falls die Deployment-Topologie jemals auf managed Postgres mit TLS wechselt: `ca-certificates` muss ergänzt werden. Locked-in als Folge-Anforderung in dieser DECISIONS-Notiz.
+
+**`binaryTargets` in `prisma/schema.prisma` BEWUSST nicht geändert.**
+- Builder- und runner-Stage basieren beide auf `node:24-alpine` (musl libc).
+- Prismas `native`-binaryTarget resolved damit in beiden Stages identisch auf `linux-musl-openssl-3.0.x`.
+- Ein expliziter `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]`-Eintrag wäre **redundant** (gleicher resolve) und würde die schema.prisma mit Image-Detail-Wissen koppeln (wenn der Base-Image-Tag jemals wechselt, müsste das Doppelt-an-zwei-Stellen mitgepflegt werden).
+- Der User-Hinweis "**falls** builder- und runner-Base-Image differieren" trifft hier nicht zu (identisch).
+- Lesson für zukünftige Image-Edits: WENN die beiden Stages je auf verschiedene Distros gesplittet werden (z. B. runner auf `gcr.io/distroless/nodejs` mit glibc), DANN muss `binaryTargets = ["native", "linux-musl-openssl-3.0.x"]` (oder das passende glibc-Target) explizit in den generator-Block.
+
+**Affected:**
+- `Dockerfile.web` — eine `RUN apk add --no-cache openssl`-Zeile in der runner-Stage, ausführlicher Inline-Kommentar warum + warum kein ca-certificates + warum kein binaryTargets-Eintrag.
+- `DECISIONS.md` — dieser Eintrag.
+- `prisma/schema.prisma`: **unverändert** (Begründung oben).
+- `deploy.sh`, `docs/deploy-anleitung.md`: **unverändert** (kein User-Bedarf).
+
+**Pause-Trigger-Check (§7):** Identisch zu PR #28/#29 — keiner.
+- §7.1 Neue Dependency? **Nein** — `openssl` ist ein System-Paket des Base-Images (Alpine-Repository), keine npm/pip-Dep, kein `package.json`-Eintrag. Sitzt auf derselben Ebene wie `apt install nginx` auf dem VPS.
+- §7.2 Schema? **Nein** — Prisma-Schema unverändert.
+- §7.3 Auth/Security? **Nein** — OpenSSL-Install ist eine Linker-Anforderung von Prismas Binary, nicht Teil der App-Krypto-Logik. TLS-Verbindungen der App selbst (zu nginx, intern) sind unverändert.
+- §7.10 Architektur-Pivot? **Nein**.
+
+**Re-Run für den Nutzer nach Merge:**
+```
+cd /opt/greenscout
+git pull
+bash deploy.sh
+```
+Schritt 2: Dockerfile-Edit invalidiert den runner-Stage ab dem `apk add`-Layer (frühe Position → nur wenige Folgeschritte werden neu gebaut, COPY-Layer mit prisma/tsx/.bin cachen weiter). Schritt 4: schema-engine startet erfolgreich, Migration läuft. Schritte 5–8 (nginx, certbot, Health-Check) erstmalig komplett.
+
+DB-Zustand weiterhin atomar: keine vorige Migration hat den Schema-Engine-Start überlebt, kein Teil-State zu reparieren.
+
+**Lehre für zukünftige Base-Image-Wechsel:** Bei jedem Wechsel des runner-Base-Images (alpine ↔ debian-slim ↔ distroless) zwei Punkte parallel mitprüfen:
+1. **OpenSSL-Verfügbarkeit** — alpine: `apk add openssl`; debian-slim: `apt-get install -y --no-install-recommends openssl ca-certificates` (Debian shippt ca-certificates nicht im slim-Image); distroless: gar nicht möglich, dann Engine-Binary in eine andere Stage verlagern oder statisch linken.
+2. **Prisma `binaryTargets`** — wenn libc/Distro zwischen builder und runner DIFFERIEREN, explizit beide Targets eintragen.
+
+**Open question for the user:** —
