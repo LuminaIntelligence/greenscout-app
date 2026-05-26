@@ -199,6 +199,36 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // T-025/T-026/T-028 — 100% on the studies Server Actions.
+        // Same trust-boundary class as the customer actions: they
+        // wrap raw input → schema → repository → audit + revalidate.
+        // Multi-tenant ownership + state-machine validation are
+        // security-critical; every branch is covered by the co-
+        // located *.test.ts files.
+        "src/features/studies/actions/create-study.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/features/studies/actions/update-study.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/features/studies/actions/transition-status.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/features/studies/actions/soft-delete-study.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
       },
     },
   },
