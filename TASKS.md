@@ -65,23 +65,7 @@
 
 ---
 
-### T-030 F6 hand-over flow + F7 admin god-mode access
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-040
-- **Blocked by:** T-028
-- **Description:**
-  Per SPEC §4.3 F6: the owning consultant or an admin can hand a study over to another consultant. UI: dropdown of active Beraters in a confirmation dialog, audit-log `HANDOVER` entry with `changeSet` containing `{from, to}`. Per F7: admin sees and can edit any study regardless of `consultantId` — extend the study repository to bypass the consultant filter when `role === 'ADMIN'`.
-- **Acceptance criteria:**
-  - [ ] Berater cannot hand over a study they don't own (server-side enforced).
-  - [ ] Confirmation dialog blocks accidental reassignment.
-  - [ ] Audit-log entry includes `userId` of the actor, `entityId` of the study, `changeSet={from,to}`.
-  - [ ] Admin can open and edit any study; non-admin gets 403 + full error page on others' studies.
-  - [ ] Playwright covers F6 happy path and the 403 path.
-- **Files likely touched:** `src/features/studies/components/handover-dialog.tsx`, `src/features/studies/services/handover-study.ts`, `src/lib/repositories/study.repository.ts`.
-- **Pause-triggers anticipated:** none (no auth-logic changes, just role gates).
+*(T-030 carried forward to Recently completed — gemerged via PR #45 as part of the Slice-5a vertical.)*
 
 ---
 
@@ -136,23 +120,7 @@
 
 ---
 
-### T-041a Admin users — create / edit / deactivate
-- **Status:** ⬜ TODO
-- **Feature:** users (admin)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-041b
-- **Blocked by:** T-019, T-028
-- **Description:**
-  `/admin/users` list (TanStack Table, columns: name | email | role | active | last login | actions), `/admin/users/new` and `/admin/users/[id]/edit` forms. Create generates a random temp password, sets `mustChangePassword=true`, persists the user, returns the temp password to the admin in a one-time toast — never store it plaintext. Deactivate sets `active=false`; reactivate sets `active=true`. Soft-delete sets `deletedAt=now` and removes from the list. Audit-log entries for `CREATE`, `UPDATE`, `SOFT_DELETE` on `User`.
-- **Acceptance criteria:**
-  - [ ] Only `ADMIN` can access the area (403 + full error page otherwise).
-  - [ ] Temp password shown once and cleared from memory.
-  - [ ] Deactivated users cannot log in (checked by T-017).
-  - [ ] Audit-log entries with `userId` of the actor.
-  - [ ] Playwright covers F5 (admin user management happy path).
-- **Files likely touched:** `src/app/(admin)/admin/users/**`, `src/features/users/components/**`, `src/features/users/services/**`.
-- **Pause-triggers anticipated:** §7.3.
+*(T-041a carried forward to Recently completed — gemerged via PR #45 as part of the Slice-5a vertical.)*
 
 ---
 
@@ -508,6 +476,18 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-041a ✅ Admin users — create / edit / deactivate
+- **Merged:** 2026-05-26 via PR #45 (Slice 5a vertical).
+- **Branch:** `feat/admin-users-and-handover-slice`
+- **Summary:** Admin-only `/admin/users` (renamed to `/users` under existing topbar nav per implementation note) area: list + new + edit + deactivate. Create generates a random temp password (one-time toast to the admin), persists `mustChangePassword=true`, hashes via argon2id (`@node-rs/argon2`). Update changes role/name/active state; idempotent no-op short-circuit when payload diff is empty. Deactivate sets `active=false` (self-deactivate guard prevents the last admin locking themselves out). All three Server Actions co-located under `src/features/users/actions/{create-user,update-user,deactivate-user}.ts` with the same trust-boundary pattern as the customer/study actions (session → admin-role gate → repo → audit), per-pattern 100% Vitest coverage. SPEC additive edit + i18n keys + DECISIONS entry. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5a (T-030/T-041a) silent decisions per §14 (consolidated)".
+
+### T-030 ✅ F6 hand-over flow + F7 admin god-mode access
+- **Merged:** 2026-05-26 via PR #45 (Slice 5a vertical).
+- **Branch:** `feat/admin-users-and-handover-slice`
+- **Summary:** `handoverStudyAction` Server Action wires the per-study "Übergeben"-Button on the study detail page: dropdown of active Beraters (excluding self) in a confirmation dialog; transition is server-enforced (the originating consultant or admin can hand over; foreign-Berater path returns `forbidden`). `AuditLog` `HANDOVER` entry with `changeSet = { from, to }` written within the same transaction as the `Study.consultantId` flip; idempotent no-op when `from === to`. New `src/features/auth/utils/can-access-study.ts` helper centralises F6/F7 access: ADMIN god-mode, owner-Berater, foreign-Berater → 403. Both action + helper at per-pattern 100% Vitest coverage. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5a (T-030/T-041a) silent decisions per §14 (consolidated)".
 
 ### T-029c ✅ Revisit image aspect ratio after PPTX mapping sign-off
 - **Merged:** 2026-05-26 via PR #44 (Slice 4 vertical).
