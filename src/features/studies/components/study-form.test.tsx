@@ -114,6 +114,30 @@ describe("StudyForm — single-page mode", () => {
     expect(screen.getByText(/Vorschau Jahresersparnis/)).toBeInTheDocument();
   });
 
+  it("renders the live calc preview for each scenario when inputs are complete", () => {
+    // Slice 2 (T-032) — the preview is now the real calc module.
+    // VALUES: pvEigenverbrauch=30_000, pvVerkauf=0.08, versorger=0.35
+    // Scenario 1 at 0.35 EUR/kWh: (0.35 - 0.08) * 30000 = 8100 EUR/Jahr
+    renderWithClient(<StudyForm mode="single-page" studyId="study-1" initialValues={VALUES} />);
+    // The yearly figure for scenario 1 should show up formatted as 8.100,00 €
+    // (German locale, plus NBSP before €). Use a loose regex on the digits.
+    expect(screen.getByText(/8\.100,00/)).toBeInTheDocument();
+    // 20-year figure: 8100 * 20 = 162000 → "162.000,00".
+    expect(screen.getByText(/162\.000,00/)).toBeInTheDocument();
+  });
+
+  it("shows the incompleteness hint when essential PV inputs are missing", () => {
+    const incompleteValues: StudyFormValues = {
+      ...VALUES,
+      anlageKwp: "",
+      pvErzeugungKwhJahr: "",
+    };
+    renderWithClient(
+      <StudyForm mode="single-page" studyId="study-1" initialValues={incompleteValues} />,
+    );
+    expect(screen.getByText(/Erst Schritte 3 \+ 4 ausfüllen/)).toBeInTheDocument();
+  });
+
   it("displays the placeholder hint for images step", () => {
     renderWithClient(<StudyForm mode="single-page" studyId="study-1" initialValues={VALUES} />);
     expect(screen.getByText(/Bilder-Upload wird in einem späteren Schritt/)).toBeInTheDocument();

@@ -209,7 +209,11 @@ export const de = {
   // ─── T-026 Wizard hints ────────────────────────────────────────────
   "studies.hint.sensitivity":
     "Vorbelegung 35 / 40 / 45 ct/kWh entsprechend der Vorlage. Werte können je Kunde überschrieben werden.",
-  "studies.hint.sensitivity-preview": "Vorschau Jahresersparnis (vereinfachte Schätzung):",
+  "studies.hint.sensitivity-preview":
+    "Vorschau Jahresersparnis (echte Berechnung gemäß Calc-Modul):",
+  "studies.hint.sensitivity-incomplete":
+    "Erst Schritte 3 + 4 ausfüllen (Anlagengröße, PV-Erzeugung, Eigenverbrauch, Verkaufspreis), dann erscheint hier die Live-Vorschau.",
+  "studies.hint.sensitivity-price-empty": "kein Preis eingegeben",
   "studies.hint.images-placeholder":
     "Bilder-Upload wird in einem späteren Schritt freigeschaltet (T-029a). Dieser Bereich ist im aktuellen Slice noch ein Platzhalter.",
   "studies.hint.review":
