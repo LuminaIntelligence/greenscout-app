@@ -169,43 +169,7 @@
 
 ### Slice 8 — Python service + PPTX template wiring
 
-### T-035 FastAPI study/calc/document endpoints + pydantic schemas
-- **Status:** ⬜ TODO
-- **Feature:** python service (api)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-037, T-038
-- **Blocked by:** T-033
-- **Description:**
-  Author `services/python/app/api/calc.py` with `POST /calc/preview` (input → all derived values), `POST /documents/generate` (input + image paths → returns `{pptxPath, pdfPath}` — PDF path filled in T-038), `GET /health` already exists. Pydantic v2 schemas in `app/schemas/`: `StudyCalcInput`, `StudyCalcOutput`, `DocumentGenerateRequest`, `DocumentGenerateResponse`. Input validation rejects negative numerics where applicable. Use the existing internal-only network (no public exposure).
-- **Acceptance criteria:**
-  - [ ] OpenAPI docs at `/docs` enumerate all three endpoints.
-  - [ ] `POST /calc/preview` returns the same values as the TS calc module for parity fixtures.
-  - [ ] `POST /documents/generate` returns the generated PPTX path; PDF path is a stub until T-038.
-  - [ ] Pydantic rejects negative `anlageKwp`, negative prices, etc.
-  - [ ] Pytest covers all three endpoints (200 + 422 paths).
-- **Files likely touched:** `services/python/app/api/calc.py`, `services/python/app/api/documents.py`, `services/python/app/schemas/**`, `services/python/tests/test_api.py`.
-- **Pause-triggers anticipated:** none.
-
----
-
-### T-036 Author `docs/pptx-mapping.md` from the existing template (no edits yet)
-- **Status:** ⬜ TODO
-- **Feature:** docs
-- **Type:** docs
-- **Effort:** M
-- **Blocks:** T-037, T-029c
-- **Blocked by:** T-006
-- **Description:**
-  Per **DECISIONS.md decision #6**, open `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` and produce `docs/pptx-mapping.md` containing a three-column table `Slide-Nr | Original-Text | vorgeschlagener Key` for every red `#FF0000` literal value. Propose `snake_case` keys aligned with `Study` / `Customer` / `User` fields wherever possible. Flag ambiguous cases (same numeric value on different slides with different meanings — e.g. the `24.600 €` example) so the user can disambiguate. **Do NOT edit the PPTX in this task.** End with a clear sign-off section: `## User-Review Checkpoint — sign off below before T-037 begins`.
-- **Acceptance criteria:**
-  - [ ] One row per red literal value in the template; no red value omitted.
-  - [ ] Every proposed key follows `snake_case` and aligns with an existing schema field where possible.
-  - [ ] Ambiguous cases explicitly flagged with `?` in the key column and a note.
-  - [ ] Sign-off section at the bottom.
-  - [ ] PPTX template untouched.
-- **Files likely touched:** `docs/pptx-mapping.md` only. Read-only access to `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx`.
-- **Pause-triggers anticipated:** This task itself is the pause — the user must sign off before T-037 starts.
+*(T-035 and T-036 carried forward to Recently completed — see entries below.)*
 
 ---
 
@@ -717,6 +681,18 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-036 ✅ Author `docs/pptx-mapping.md` from the existing template
+- **Merged:** 2026-05-26 via PR #41 (Slice 3a vertical).
+- **Branch:** `feat/document-gen-backend-and-mapping`
+- **Summary:** First-pass extraction of every red `#FF0000` literal in `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` into `docs/pptx-mapping.md`, with `snake_case` placeholder keys aligned to `StudyCalcInput` / `DerivedValues` / Prisma `Study|Customer|User` fields. Three-column slide-by-slide table (Slide # | Shape ⏐ run | Current literal | Proposed key | Source | Notes), aggregated keylist (alphabetical, deduplicated), and disambiguation summary surfacing the six items requiring user resolution (Slide-5 `468.982`, Slide-14 ohne-PV / mit-PV formulas, Slide-19 Telefon/E-Mail rotation, Slide-4 + 5 image-shape mapping, Slide-9 vs 12/14/15 ct-unification). Sign-off checklist + provenance pointer (stdlib-only `scripts/inspect-pptx.py`) included. Template untouched per T-036's "no PPTX edits" gate. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "T-035/T-036 silent decisions for Slice 3a (consolidated §14)".
+
+### T-035 ✅ FastAPI calc/documents/version endpoints + Next.js python-service-client
+- **Merged:** 2026-05-26 via PR #41 (Slice 3a vertical).
+- **Branch:** `feat/document-gen-backend-and-mapping`
+- **Summary:** Python side: `app/api/endpoints/calc.py` (`POST /api/calc` → `compose_all` → `DerivedValues`, X-API-Key gated), `app/api/endpoints/documents.py` (`POST /api/documents/generate` — Slice-3a STUB returning typed 501 `DocumentGeneratePendingResponse` until placeholder sign-off lands), `app/api/endpoints/version.py` (`GET /version` unauthenticated), `app/api/dependencies.py` (`verify_api_key` shared-secret guard via `secrets.compare_digest` against `PYTHON_SERVICE_API_KEY` env, lazy-resolved to keep `/health` + `/version` reachable without env setup). Pydantic v2 schemas in `app/schemas/`: `calc.py` (`StudyCalcInput`, `DerivedValues`, all-non-negative validation), `documents.py` (`DocumentGenerateRequest`, `DocumentGenerateResponse`, `DocumentGeneratePendingResponse`), `version.py`. Next.js side: `src/lib/python-service-client.ts` with `callCalc` + `callDocumentsGenerate`, camelCase ↔ snake_case shallow-translator at the boundary, `PythonServiceCallResult<T>` discriminated union (`unauthorized | bad-request | validation | not-implemented | server-error | timeout | network`), `AbortController` + `PYTHON_SERVICE_TIMEOUT_SECONDS` env (default 60s), per-pattern 100% Vitest threshold. Pytest coverage: `test_api_calc.py`, `test_api_documents.py`, `test_api_version.py`. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "T-035/T-036 silent decisions for Slice 3a (consolidated §14)".
 
 ### T-034 ✅ Parity tests — TS vs Python calculation outputs
 - **Merged:** 2026-05-26 via PR #40 (Slice 2 vertical).
