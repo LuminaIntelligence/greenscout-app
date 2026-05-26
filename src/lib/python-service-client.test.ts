@@ -14,6 +14,7 @@ import {
   __internals,
   callCalc,
   callDocumentsGenerate,
+  callProcessImage,
   type DocumentGenerateInput,
 } from "@/lib/python-service-client";
 
@@ -412,6 +413,157 @@ describe("callDocumentsGenerate", () => {
       }),
     );
     const result = await callDocumentsGenerate(validDocsInput);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("network");
+      expect(result.message).toContain("Netzwerkfehler");
+    }
+  });
+});
+
+describe("callProcessImage", () => {
+  it("posts the absolute path, sends X-API-Key, returns camelCase metadata", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("http://pyservice:8000/api/images/process");
+      const headers = init?.headers as Record<string, string>;
+      expect(headers["X-API-Key"]).toBe(_API_KEY);
+      const body = JSON.parse(init?.body as string) as Record<string, unknown>;
+      expect(body.image_path).toBe("/uploads/studies/abc/before-1.jpg");
+      expect(body.max_dimension_px).toBe(2000);
+      return jsonResponse(200, {
+        width_px: 2000,
+        height_px: 1200,
+        file_size_bytes: 451200,
+        mime_type: "image/jpeg",
+        processed: true,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callProcessImage({
+      imagePath: "/uploads/studies/abc/before-1.jpg",
+      maxDimensionPx: 2000,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.widthPx).toBe(2000);
+      expect(result.data.heightPx).toBe(1200);
+      expect(result.data.fileSizeBytes).toBe(451200);
+      expect(result.data.mimeType).toBe("image/jpeg");
+      expect(result.data.processed).toBe(true);
+    }
+  });
+
+  it("omits max_dimension_px from the wire body when not provided", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(init?.body as string) as Record<string, unknown>;
+      expect(body).not.toHaveProperty("max_dimension_px");
+      expect(body.image_path).toBe("/uploads/x.png");
+      return jsonResponse(200, {
+        width_px: 800,
+        height_px: 600,
+        file_size_bytes: 100_000,
+        mime_type: "image/png",
+        processed: false,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callProcessImage({ imagePath: "/uploads/x.png" });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.processed).toBe(false);
+    }
+  });
+
+  it("maps 422 to kind='validation'", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(422, { detail: "format not in whitelist" })),
+    );
+    const result = await callProcessImage({ imagePath: "/uploads/bad.gif" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+      expect(result.status).toBe(422);
+    }
+  });
+
+  it("maps 400 to kind='bad-request'", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(400, { detail: "path traversal" })),
+    );
+    const result = await callProcessImage({ imagePath: "/etc/passwd" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("bad-request");
+    }
+  });
+
+  it("maps 404 to kind='bad-request' (4xx fallback)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(404, { detail: "missing" })),
+    );
+    const result = await callProcessImage({ imagePath: "/uploads/ghost.jpg" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("bad-request");
+    }
+  });
+
+  it("maps 401 to kind='unauthorized'", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(401, { detail: "Missing X-API-Key" })),
+    );
+    const result = await callProcessImage({ imagePath: "/uploads/x.jpg" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("unauthorized");
+    }
+  });
+
+  it("returns ok=false kind='timeout' when fetch aborts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        throw err;
+      }),
+    );
+    const result = await callProcessImage({ imagePath: "/uploads/x.jpg" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("timeout");
+    }
+  });
+
+  it("returns ok=false kind='network' on generic fetch failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED");
+      }),
+    );
+    const result = await callProcessImage({ imagePath: "/uploads/x.jpg" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("network");
+      expect(result.message).toContain("ECONNREFUSED");
+    }
+  });
+
+  it("returns ok=false kind='network' with fallback message on non-Error throw", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw "not-an-error";
+      }),
+    );
+    const result = await callProcessImage({ imagePath: "/uploads/x.jpg" });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.kind).toBe("network");

@@ -36,6 +36,16 @@ export async function findStudyImage(
   });
 }
 
+export async function findStudyImageById(
+  id: string,
+  tx?: PrismaTransaction,
+): Promise<StudyImage | null> {
+  const client: Client = tx ?? prisma;
+  return client.studyImage.findUnique({
+    where: { id },
+  });
+}
+
 export async function listStudyImages(
   studyId: string,
   tx?: PrismaTransaction,
