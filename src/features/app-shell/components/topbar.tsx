@@ -41,7 +41,10 @@ interface TopbarProps {
   userEmail: string;
 }
 
-const NAV_ITEMS = [{ href: "/customers", labelKey: "app.nav.customers" as const }];
+const NAV_ITEMS = [
+  { href: "/studies", labelKey: "app.nav.studies" as const },
+  { href: "/customers", labelKey: "app.nav.customers" as const },
+];
 
 export function Topbar({ userEmail }: TopbarProps) {
   const pathname = usePathname();
