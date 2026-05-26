@@ -60,8 +60,11 @@ prisma/migrations/*/migration.sql.bak
 prisma/seed.cjs
 
 # ----- Uploads & generated artefacts ----------------------------------------
-uploads/
-generated/
+# Match only repo-root `./uploads/` so we don't accidentally hide the
+# Next.js route at `src/app/api/uploads/` (Slice 4 added that route).
+/uploads/
+/test-uploads/
+/generated/
 tmp/
 temp/
 *.pptx.bak

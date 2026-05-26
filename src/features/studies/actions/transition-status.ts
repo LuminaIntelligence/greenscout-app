@@ -37,6 +37,7 @@ import {
   InvalidStudyStatusTransitionError,
   setStudyStatus,
 } from "@/lib/repositories/study.repository";
+import { listStudyImages } from "@/lib/repositories/study-image.repository";
 
 // Mirror the Prisma `StudyStatus` enum locally so this action file
 // does not pull `@/generated/prisma` (restricted to the repository
@@ -99,6 +100,11 @@ export async function transitionStudyStatusAction(
   // but defence-in-depth: re-validate server-side so a tampered
   // request can't promote a draft to READY with missing data.
   if (newStatus === "READY") {
+    // Slice 4 (T-029a/c) — load StudyImage rows so the full-schema
+    // check rejects READY when either BEFORE or AFTER is missing.
+    const images = await listStudyImages(studyId);
+    const beforeId = images.find((i) => i.type === "BEFORE")?.id ?? "";
+    const afterId = images.find((i) => i.type === "AFTER")?.id ?? "";
     const fullCheck = studyFullSchema.safeParse({
       customerId: existing.customerId,
       objectName: existing.objectName,
@@ -127,6 +133,8 @@ export async function transitionStudyStatusAction(
       szenarioPreis3: existing.szenarioPreis3 === null ? "" : Number(existing.szenarioPreis3),
       terminVorschlag1: existing.terminVorschlag1 ?? "",
       terminVorschlag2: existing.terminVorschlag2 ?? "",
+      bildBeforeId: beforeId,
+      bildAfterId: afterId,
     });
     if (!fullCheck.success) {
       const fieldErrors = fullCheck.error.issues.reduce<Record<string, string>>((acc, issue) => {

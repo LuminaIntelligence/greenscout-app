@@ -25,6 +25,10 @@ vi.mock("@/lib/repositories/audit-log.repository", () => ({
   createAuditEntry: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/repositories/study-image.repository", () => ({
+  listStudyImages: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/python-service-client", () => ({
   callDocumentsGenerate: vi.fn(),
 }));
@@ -46,6 +50,7 @@ import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import { findCustomerById } from "@/lib/repositories/customer.repository";
 import { createDocument } from "@/lib/repositories/generated-document.repository";
 import { findStudyById, markStudyGenerated } from "@/lib/repositories/study.repository";
+import { listStudyImages } from "@/lib/repositories/study-image.repository";
 import { findUserById } from "@/lib/repositories/user.repository";
 
 import { generateDocumentAction } from "./generate-document";
@@ -310,5 +315,70 @@ describe("generateDocumentAction", () => {
     const auditCall = vi.mocked(createAuditEntry).mock.calls[0];
     expect(auditCall[1].ipAddress).toBeNull();
     expect(auditCall[1].userAgent).toBeNull();
+  });
+
+  it("passes BEFORE / AFTER image paths to the python service when present (Slice 4)", async () => {
+    vi.mocked(listStudyImages).mockResolvedValueOnce([
+      {
+        id: "img-b",
+        studyId: "study-1",
+        type: "BEFORE",
+        filename: "/app/uploads/studies/study-1/before-uuid.jpg",
+        mimeType: "image/jpeg",
+        widthPx: 2000,
+        heightPx: 1200,
+        fileSizeBytes: 200_000,
+        uploadedAt: new Date(),
+      },
+      {
+        id: "img-a",
+        studyId: "study-1",
+        type: "AFTER",
+        filename: "/app/uploads/studies/study-1/after-uuid.jpg",
+        mimeType: "image/jpeg",
+        widthPx: 2000,
+        heightPx: 1200,
+        fileSizeBytes: 220_000,
+        uploadedAt: new Date(),
+      },
+    ] as never);
+
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.imageBeforePath).toBe("/app/uploads/studies/study-1/before-uuid.jpg");
+    expect(call.imageAfterPath).toBe("/app/uploads/studies/study-1/after-uuid.jpg");
+  });
+
+  it("passes only the present image path when the other slot is empty", async () => {
+    vi.mocked(listStudyImages).mockResolvedValueOnce([
+      {
+        id: "img-b",
+        studyId: "study-1",
+        type: "BEFORE",
+        filename: "/app/uploads/studies/study-1/before-uuid.jpg",
+        mimeType: "image/jpeg",
+        widthPx: 1024,
+        heightPx: 768,
+        fileSizeBytes: 50_000,
+        uploadedAt: new Date(),
+      },
+    ] as never);
+
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.imageBeforePath).toBe("/app/uploads/studies/study-1/before-uuid.jpg");
+    expect(call.imageAfterPath).toBeNull();
+  });
+
+  it("falls back to null image paths when no StudyImage rows exist", async () => {
+    vi.mocked(listStudyImages).mockResolvedValueOnce([] as never);
+
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.imageBeforePath).toBeNull();
+    expect(call.imageAfterPath).toBeNull();
   });
 });

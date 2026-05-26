@@ -2963,3 +2963,207 @@ the entire sub-tree → focused input torn out of DOM → `document.activeElemen
 `src/features/studies/components/study-form.test.tsx`, `TASKS.md`.
 
 **Open question for the user:** none.
+
+---
+
+## 2026-05-26 — Slice 4 — Image Upload (T-029a/b/c) silent decisions
+
+**Context:** Slice 4 wires the BEFORE / AFTER image upload pipeline:
+Next.js multipart route -> magic-bytes sniff + size cap -> shared-volume
+write -> Python `/api/images/process` (Pillow inspect + optional resize)
+-> DB row -> audit-log -> end-to-end into the PPTX/PDF generator's image
+placeholders. T-029c (revisit aspect ratio after PPTX sign-off) is
+resolved in this slice — see decision #3 below.
+
+**Decisions (all §14 — none touch §7):**
+
+1. **Route handler as thin shim around a service module.** `src/app/api/uploads/route.ts`
+   contains only auth + FormData decode + HTTP status mapping (~80 LOC).
+   The branching logic lives in `src/features/studies/services/upload-image.ts`
+   so it can sit inside the unit-coverage scope (per `vitest.config.ts`
+   T-024b decision, `src/app/**` is excluded from unit coverage and
+   exercised by Playwright in T-051a/b). The service module hits
+   per-pattern 100% coverage.
+
+2. **Magic-bytes sniff before disk write.** SPEC §4.6 lists MIME, size,
+   dimensions as server-side checks. We add a magic-bytes check
+   (JPEG `FF D8 FF`, PNG `89 50 4E 47…`, WebP `RIFF…WEBP`) BEFORE
+   touching disk — defence-in-depth against a renamed `.exe` slipping
+   through a `Content-Type: image/jpeg` header. The check matches the
+   declared MIME; mismatch -> `magic-bytes-mismatch` errorCode -> 400.
+
+3. **T-029c resolved: contain / letterbox image placement, no
+   server-side cropping.** `pptx_generator._replace_image_in_slide` now
+   reads the source image dimensions via Pillow, computes a contain-fit
+   box inside the slide's placeholder shape (`_contain_fit` pure
+   helper), and inserts the new picture at the centred letterboxed
+   position. Aspect ratios that do not match the slot's aspect leave a
+   thin margin on the short axis. Reasoning: non-destructive default
+   beats silently cropping the customer's photo. Cropping is a separate
+   opt-in PR if the user ever wants it (no follow-up task created —
+   ask the user only if they raise it).
+
+4. **Provisional 16:9 resize bounding box per T-029 dropped.** The
+   `image_processor.process_uploaded_image` resize step is now purely
+   size-bound (max 4000 px on the larger axis) and aspect-preserving.
+   The provisional 16:9 plan from T-029's description was tied to the
+   T-029c follow-up which is now resolved via contain-fit at PPTX
+   placement time — the on-disk file keeps the original aspect ratio.
+
+5. **In-place resize, original byte size captured upstream.** Pillow
+   `thumbnail(LANCZOS)` rewrites the file at `image_path`. The Next.js
+   side already knows the pre-resize byte count from its size-cap
+   check; the post-resize size returned by the Python service is what
+   the `StudyImage` row records (matches the file actually on disk).
+   No second "original" file is retained — SPEC §4.6 mentions the
+   original for "re-rendering if the layout changes later", but in
+   practice the layout decisions live inside `pptx_generator` which
+   reads the file at render time. If a future template change
+   requires the original at a higher resolution, that is a follow-up
+   task with its own retention policy.
+
+6. **EXIF strip on JPEG resize.** Uploaded photos can carry GPS / device
+   data that is not relevant to the slide and is a mild DSGVO smell.
+   Pillow's `save(exif=b"")` drops it for JPEGs that go through the
+   resize path. PNG / WebP do not carry the same metadata in MVP
+   typical usage; no equivalent strip there.
+
+7. **Path-traversal defence on both sides.** Next.js side: the storage
+   path is built via `buildStoragePath(uploadsRoot, studyId, kind, ext)`
+   using a UUID filename — never user-supplied input. Python side:
+   `_validate_path_inside_uploads` resolves the requested path and
+   confirms it sits inside `UPLOADS_DIR`; otherwise -> 400. Belt + braces.
+
+8. **Audit-log allow-list extended.** `IMAGE_UPLOADED` and
+   `IMAGE_REPLACED` added to SPEC §5.1 additively. The repository
+   layer accepts them as free-form strings (no schema change).
+
+9. **Step-7 schema now requires both image IDs for DRAFT -> READY
+   transition.** `step7BilderSchema` flips from optional -> required.
+   `transition-status` Server Action loads StudyImage rows and
+   passes `bildBeforeId` / `bildAfterId` into `studyFullSchema`. Empty
+   either-slot -> `errorCode: "incomplete"` with field-level errors.
+   Per-step autosave (step 7 has none) unaffected — the schema only
+   gates the READY flip.
+
+10. **Old uploaded file is unlinked on replacement.** When a user
+    re-uploads to a slot that already has an image, the prior file's
+    `filename` is `unlink`-ed after the new `StudyImage` row is
+    persisted. Disk hygiene; the audit-log captures both events
+    (`IMAGE_REPLACED`). On `unlink` errors we swallow and continue —
+    the volume may briefly accumulate dead bytes but the user-facing
+    flow is unaffected.
+
+11. **Audit-log failure does NOT roll back the upload.** Mirrors the
+    existing convention in `generate-document.ts`: best-effort audit
+    write, console-error on failure, no user-visible regression.
+    Audit gaps surface as forensic anomalies rather than phantom
+    retries from the consultant.
+
+12. **Generate-document Server Action wires `imageBeforePath` /
+    `imageAfterPath` from `listStudyImages(studyId)`.** When a slot
+    is missing the path stays `null`, and `pptx_generator` keeps the
+    template's placeholder graphic on that slide (warning logged).
+
+13. **`@/lib/repositories/study-image.repository.ts`: added
+    `findStudyImageById(id)`** for the download route. Lookup by
+    primary key only — the ownership check is performed via the
+    parent study in the route handler.
+
+14. **`MAX_UPLOAD_MB` / `MAX_IMAGE_DIMENSION_PX` env-driven, with
+    safe defaults.** Both env vars already existed in `.env.example`
+    since T-007. The service resolvers tolerate missing / invalid env
+    values and fall back to the SPEC §4.6 defaults (10 MB / 4000 px).
+
+15. **`callProcessImage` snake_case <-> camelCase translation lives in
+    the python-service-client, consistent with `callCalc` and
+    `callDocumentsGenerate`.** Single translation surface, callers
+    stay camelCase.
+
+16. **No new Next.js dep (`formidable`, `image-size`, etc.).** Next.js
+    15 supports `request.formData()` natively; image dimension /
+    format probing is delegated to the Python service (Pillow is
+    already a transitive dep on that side). §7.1 — no new deps
+    introduced; only `IMAGE_UPLOADED` + `IMAGE_REPLACED` literal
+    strings added to the audit-log call sites.
+
+17. **Test fixtures generated at test time, not committed.** Both the
+    Python tests and the TS upload-service tests build their image
+    fixtures on the fly via Pillow / synthetic byte arrays. Keeps
+    binary churn out of git history and the test suite deterministic.
+    A `.gitkeep` marker carries the convention for the empty
+    fixtures folder.
+
+18. **TS-side test mock for `node:fs/promises` uses the eager-factory
+    pattern with `default` export.** vitest 4 requires either
+    `importOriginal` OR a complete `default + named` shape; we chose
+    the eager factory because the production code uses only `mkdir`,
+    `writeFile`, `unlink` and the rest of the actual module never
+    surfaces in the call site.
+
+**Affected files:**
+
+- `services/python/app/services/image_processor.py` (new — Pillow
+  resize / format whitelist / EXIF strip)
+- `services/python/app/api/endpoints/images.py` (new — POST
+  `/api/images/process` with path-traversal guard)
+- `services/python/app/schemas/images.py` (new)
+- `services/python/app/main.py` (+ images_router)
+- `services/python/app/services/pptx_generator.py` (added
+  `_contain_fit` pure helper + Pillow-driven contain-fit placement
+  in `_replace_image_in_slide`)
+- `services/python/tests/test_image_processor.py`, `test_api_images.py`
+  (new)
+- `services/python/tests/test_pptx_generator.py` (added contain-fit
+  unit tests)
+- `services/python/tests/fixtures/test-images/.gitkeep` (new — marker)
+- `src/lib/python-service-client.ts` (+ `callProcessImage`)
+- `src/lib/python-service-client.test.ts` (+ 9 cases)
+- `src/lib/repositories/study-image.repository.ts` (+ `findStudyImageById`)
+- `src/lib/repositories/study-image.repository.test.ts` (+ case)
+- `src/features/studies/services/upload-image.ts` (new — multipart
+  upload orchestration)
+- `src/features/studies/services/upload-image.test.ts` (new — 35 cases)
+- `src/app/api/uploads/route.ts` (new — POST handler shim)
+- `src/app/api/uploads/[id]/route.ts` (new — GET image download)
+- `src/features/studies/components/study-image-upload.tsx` (new —
+  drag-drop widget)
+- `src/features/studies/components/study-image-upload.test.tsx` (new)
+- `src/features/studies/components/study-form.tsx` (Section7Bilder
+  now uses the widget; `bildBefore` / `bildAfter` added to
+  `StudyFormValues`; `studyId` added to `SectionRenderProps`)
+- `src/features/studies/components/study-form.test.tsx` (initial
+  values + i18n key updated)
+- `src/features/studies/actions/generate-document.ts` (loads
+  StudyImage rows, passes paths to Python)
+- `src/features/studies/actions/generate-document.test.ts` (+ 3 cases)
+- `src/features/studies/actions/transition-status.ts` (loads
+  StudyImage rows, gates READY on both slots present)
+- `src/features/studies/actions/transition-status.test.ts` (+ 3 cases)
+- `src/features/studies/schemas/step7-bilder.ts` (required slots)
+- `src/features/studies/schemas/step7-bilder.test.ts` (rewritten)
+- `src/features/studies/schemas/study-full-schema.test.ts` (VALID
+  fixture extended)
+- `src/app/(app)/studies/[id]/edit/page.tsx` (hydrates `bildBefore` /
+  `bildAfter` from `listStudyImages`)
+- `src/i18n/de.ts` (+ 16 keys: dropzone copy, replace button, toast,
+  10 error keys, 2 schema-required keys)
+- `SPEC.md` (audit-log allow-list + 2 entries: `IMAGE_UPLOADED`,
+  `IMAGE_REPLACED`)
+- `vitest.config.ts` (per-pattern 100% on `upload-image.ts` +
+  `study-image-upload.tsx`)
+- `DECISIONS.md` (this entry)
+
+**Open follow-ups:**
+
+- **Manual visual smoke** of a generated PPTX (slides 4 + 5) with
+  real BEFORE/AFTER photos uploaded through the wizard, to confirm
+  the contain-fit math + letterbox margins land where expected.
+  Listed in the PR description as a pre-merge gate.
+
+- **Original-resolution retention.** SPEC §4.6 mentions retaining
+  the original for "re-rendering if the layout changes later". MVP
+  rewrites in place. If a future template change requires the
+  original, that is a separate task with its own retention policy.
+
+**Open question for the user:** none. T-029c resolved per decision #3.

@@ -21,6 +21,15 @@ vi.mock("@/lib/repositories/audit-log.repository", () => ({
   createAuditEntry: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/repositories/study-image.repository", () => ({
+  // Default: both BEFORE + AFTER images present so the READY check
+  // passes. Per-test overrides drive the missing-image branches.
+  listStudyImages: vi.fn().mockResolvedValue([
+    { id: "img-b", studyId: "study-1", type: "BEFORE" },
+    { id: "img-a", studyId: "study-1", type: "AFTER" },
+  ]),
+}));
+
 const headersStore = new Map<string, string | null>();
 vi.mock("next/headers", () => ({
   headers: async () => ({
@@ -39,6 +48,7 @@ import {
   InvalidStudyStatusTransitionError,
   setStudyStatus,
 } from "@/lib/repositories/study.repository";
+import { listStudyImages } from "@/lib/repositories/study-image.repository";
 
 import { transitionStudyStatusAction } from "./transition-status";
 
@@ -246,6 +256,47 @@ describe("transitionStudyStatusAction", () => {
       expect(result.fieldErrors).toBeDefined();
     }
     expect(setStudyStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns incomplete when DRAFT → READY and BEFORE image is missing (Slice 4)", async () => {
+    vi.mocked(listStudyImages).mockResolvedValueOnce([
+      { id: "img-a", studyId: "study-1", type: "AFTER" },
+    ] as never);
+    const result = await transitionStudyStatusAction({
+      studyId: "study-1",
+      newStatus: "READY",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errorCode).toBe("incomplete");
+      expect(result.fieldErrors?.bildBeforeId).toBe("studies.error.bild-before-required");
+    }
+    expect(setStudyStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns incomplete when DRAFT → READY and AFTER image is missing (Slice 4)", async () => {
+    vi.mocked(listStudyImages).mockResolvedValueOnce([
+      { id: "img-b", studyId: "study-1", type: "BEFORE" },
+    ] as never);
+    const result = await transitionStudyStatusAction({
+      studyId: "study-1",
+      newStatus: "READY",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errorCode).toBe("incomplete");
+      expect(result.fieldErrors?.bildAfterId).toBe("studies.error.bild-after-required");
+    }
+  });
+
+  it("returns incomplete when both images are missing", async () => {
+    vi.mocked(listStudyImages).mockResolvedValueOnce([] as never);
+    const result = await transitionStudyStatusAction({
+      studyId: "study-1",
+      newStatus: "READY",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errorCode).toBe("incomplete");
   });
 
   it("ADMIN may transition another consultant's study", async () => {

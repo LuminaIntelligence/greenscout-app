@@ -247,10 +247,37 @@ export default defineConfig({
         // class: outbound HTTP with shared-secret auth + camel/snake
         // translation. Every branch (env-resolve happy/missing-URL/
         // missing-key/invalid-timeout, fetch happy/401/422/500/400/
-        // 501/timeout/network, JSON-parse fallback, both endpoints
-        // including the Slice-3a 501 stub path) is covered by the
-        // co-located python-service-client.test.ts.
+        // 501/timeout/network, JSON-parse fallback, all three
+        // endpoints including the Slice-3a 501 stub path and the
+        // Slice-4 callProcessImage path) is covered by the co-located
+        // python-service-client.test.ts.
         "src/lib/python-service-client.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // T-029a — 100% on the image-upload service. Trust-boundary
+        // class: multipart bytes from the route handler → magic-bytes
+        // sniff → ownership-checked repository write → Python service
+        // → audit-log. Every branch (validation/ownership/oversize/
+        // unsupported-MIME/magic-mismatch/server-write-fail/pyservice-
+        // 422/pyservice-400/pyservice-timeout/dimensions-too-large/DB-
+        // upsert-fail/audit-fail/replacement-cleanup/admin-god-mode)
+        // is covered by the co-located upload-image.test.ts.
+        "src/features/studies/services/upload-image.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // T-029a — 100% on the StudyImageUpload widget. Trust-boundary
+        // class: HTML5 drag-drop / file-picker / fetch → typed
+        // result → toast. Every branch (BEFORE/AFTER slot, empty/
+        // preview tile, drag enter/leave/over/drop, file-input change,
+        // disabled, error-code → German toast, replacement upload)
+        // is covered by the co-located study-image-upload.test.tsx.
+        "src/features/studies/components/study-image-upload.tsx": {
           lines: 100,
           branches: 100,
           functions: 100,

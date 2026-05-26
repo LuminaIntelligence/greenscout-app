@@ -26,6 +26,8 @@ const VALID = {
   szenarioPreis3: 0.45,
   terminVorschlag1: new Date("2026-06-01T10:00:00"),
   terminVorschlag2: new Date("2026-06-02T10:00:00"),
+  bildBeforeId: "img-before-1",
+  bildAfterId: "img-after-1",
 };
 
 describe("studyFullSchema", () => {

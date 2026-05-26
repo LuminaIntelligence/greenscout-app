@@ -204,8 +204,28 @@ export const de = {
   "studies.field.szenario-preis-3": "Szenario 3 (€/kWh)",
   "studies.field.termin-vorschlag-1": "Termin 1",
   "studies.field.termin-vorschlag-2": "Termin 2",
-  "studies.field.bild-before": "Bild VORHER",
-  "studies.field.bild-after": "Bild NACHHER",
+  "studies.field.bild-before": "Bild VORHER (Dach ohne PV)",
+  "studies.field.bild-after": "Bild NACHHER (Dach mit PV)",
+  // ─── T-029a Image upload widget ────────────────────────────────────
+  "studies.action.upload-replace": "Bild ersetzen",
+  "studies.action.upload-uploading": "Lädt hoch…",
+  "studies.hint.upload-dropzone-headline": "Datei hier ablegen oder klicken",
+  "studies.hint.upload-dropzone-detail": "JPG, PNG oder WebP · max. 10 MB · max. 4000 × 4000 px",
+  "studies.toast.image-uploaded": "Bild hochgeladen",
+  "studies.error.upload.file-too-large": "Datei ist zu groß (max. 10 MB).",
+  "studies.error.upload.unsupported-format":
+    "Format wird nicht unterstützt. Erlaubt sind JPG, PNG und WebP.",
+  "studies.error.upload.corrupt-image": "Datei konnte nicht als Bild gelesen werden.",
+  "studies.error.upload.dimensions-too-large":
+    "Bild ist zu groß (max. 4000 × 4000 Pixel nach Verarbeitung).",
+  "studies.error.upload.forbidden": "Du bist nicht berechtigt, dieses Bild hochzuladen.",
+  "studies.error.upload.not-found": "Studie wurde nicht gefunden.",
+  "studies.error.upload.validation": "Upload-Anfrage ungültig.",
+  "studies.error.upload.server": "Bild-Upload ist fehlgeschlagen. Bitte erneut versuchen.",
+  "studies.error.bild-before-required":
+    "VORHER-Bild ist erforderlich, bevor du die Studie als bereit markieren kannst.",
+  "studies.error.bild-after-required":
+    "NACHHER-Bild ist erforderlich, bevor du die Studie als bereit markieren kannst.",
   // ─── T-026 Wizard hints ────────────────────────────────────────────
   "studies.hint.sensitivity":
     "Vorbelegung 35 / 40 / 45 ct/kWh entsprechend der Vorlage. Werte können je Kunde überschrieben werden.",
@@ -215,7 +235,7 @@ export const de = {
     "Erst Schritte 3 + 4 ausfüllen (Anlagengröße, PV-Erzeugung, Eigenverbrauch, Verkaufspreis), dann erscheint hier die Live-Vorschau.",
   "studies.hint.sensitivity-price-empty": "kein Preis eingegeben",
   "studies.hint.images-placeholder":
-    "Bilder-Upload wird in einem späteren Schritt freigeschaltet (T-029a). Dieser Bereich ist im aktuellen Slice noch ein Platzhalter.",
+    "Lade zwei Fotos hoch: das Dach vor der PV-Installation und das gewünschte Endergebnis. Beide Bilder erscheinen in der späteren Präsentation.",
   "studies.hint.review":
     'Prüfe deine Eingaben. Mit „Studie als bereit markieren" wechselt der Status von Entwurf auf Bereit. Du kannst die Studie danach weiter bearbeiten.',
   "studies.review.summary-empty": "—",

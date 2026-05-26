@@ -15,6 +15,7 @@ import { prisma } from "@/lib/db";
 import {
   deleteStudyImage,
   findStudyImage,
+  findStudyImageById,
   listStudyImages,
   upsertStudyImage,
 } from "./study-image.repository";
@@ -28,6 +29,13 @@ describe("study-image.repository", () => {
     await findStudyImage("study-1", "BEFORE");
     expect(prisma.studyImage.findUnique).toHaveBeenCalledWith({
       where: { studyId_type: { studyId: "study-1", type: "BEFORE" } },
+    });
+  });
+
+  it("findStudyImageById looks up by primary key", async () => {
+    await findStudyImageById("img-1");
+    expect(prisma.studyImage.findUnique).toHaveBeenCalledWith({
+      where: { id: "img-1" },
     });
   });
 

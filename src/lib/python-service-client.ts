@@ -250,6 +250,81 @@ export async function callDocumentsGenerate(
   };
 }
 
+/**
+ * Inputs to `callProcessImage` (Slice 4 / T-029b).
+ *
+ * The `imagePath` field is the container-internal absolute path to a
+ * file the Next.js side has just written to the shared `UPLOADS_DIR`
+ * volume. The Python side refuses to touch any path outside that root.
+ */
+export interface ImageProcessInput {
+  imagePath: string;
+  /** Largest allowed dimension after processing. Defaults to 4000 on the Python side. */
+  maxDimensionPx?: number;
+}
+
+/** Output of `callProcessImage` — metadata of the file as it sits on disk. */
+export interface ImageProcessOutput {
+  widthPx: number;
+  heightPx: number;
+  fileSizeBytes: number;
+  mimeType: string;
+  processed: boolean;
+}
+
+/**
+ * POST /api/images/process — inspect + optionally resize an uploaded image.
+ *
+ * Slice 4 / T-029b. The Next.js upload route writes the file, then
+ * calls this with the absolute path. The Python side validates the
+ * format (JPEG/PNG/WebP), resizes if oversize (preserving aspect
+ * ratio), and returns the post-processing metadata so the upload
+ * route can persist the final dimensions / byte size in the
+ * `StudyImage` DB row.
+ */
+export async function callProcessImage(
+  input: ImageProcessInput,
+): Promise<PythonServiceCallResult<ImageProcessOutput>> {
+  const wireBody: Record<string, unknown> = {
+    image_path: input.imagePath,
+  };
+  if (input.maxDimensionPx !== undefined) {
+    wireBody.max_dimension_px = input.maxDimensionPx;
+  }
+
+  let result: { status: number; json: unknown };
+  try {
+    result = await postJson("/api/images/process", wireBody);
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, kind: "timeout", message: "Python-Service-Aufruf hat Timeout erreicht." };
+    }
+    const message = err instanceof Error ? err.message : "Unbekannter Netzwerkfehler";
+    return { ok: false, kind: "network", message };
+  }
+
+  if (result.status !== 200) {
+    return {
+      ok: false,
+      kind: statusToKind(result.status),
+      status: result.status,
+      message: `Python-Service antwortete mit Status ${result.status}.`,
+    };
+  }
+
+  const wireData = result.json as Record<string, unknown>;
+  return {
+    ok: true,
+    data: {
+      widthPx: Number(wireData.width_px),
+      heightPx: Number(wireData.height_px),
+      fileSizeBytes: Number(wireData.file_size_bytes),
+      mimeType: String(wireData.mime_type),
+      processed: Boolean(wireData.processed),
+    },
+  };
+}
+
 /** Internal hooks for tests. Not part of the public API. */
 export const __internals = {
   camelToSnake,
