@@ -31,9 +31,17 @@ export const optionalString = z
 
 /**
  * Trimmed required string with an i18n error key.
+ *
+ * The custom `error` factory makes sure a *missing* key (the field
+ * absent from the input object) surfaces the same i18n key as a
+ * present-but-empty value, instead of zod 4's default
+ * `"Invalid input: expected string, received undefined"`.
  */
 export function requiredString(requiredKey: string) {
-  return z.string().trim().min(1, requiredKey);
+  return z
+    .string({ error: () => requiredKey })
+    .trim()
+    .min(1, requiredKey);
 }
 
 /**
