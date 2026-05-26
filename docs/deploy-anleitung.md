@@ -72,6 +72,7 @@ In `nano` musst du jeden `REPLACE_ME`-Platzhalter ersetzen:
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `SETTINGS_ENCRYPTION_KEY` | `openssl rand -base64 32` |
 | `APP_URL` | bleibt `https://greenscout.lumina-intelligence.ai` |
+| `PYTHON_SERVICE_API_KEY` | `openssl rand -base64 32` — Shared-Secret zwischen web- und pyservice-Container; ohne den schlagen Bild-Uploads und Dokument-Generierung fehl |
 | `CERTBOT_EMAIL` | deine echte Email — Let's Encrypt schickt dahin Ablauf-Warnungen |
 
 In `nano` speichern: `Strg+O`, Enter, `Strg+X`.
@@ -158,5 +159,14 @@ TLS-Cert) werden übersprungen.
   führe `bash deploy.sh` nochmal aus.
 - Container starten nicht → `docker compose -p greenscout logs --tail=100 web`
   (bzw. `pyservice` / `db`) zeigt die Fehler.
+- **Alte VPS-Installationen mit hardcoded WebSocket-Headern in der nginx-Site**
+  (vor diesem Fix angelegt) sollten den Header-Block einmalig entfernen — der
+  hardcoded `Connection: upgrade` ist ein Anti-Pattern und kann multipart-Uploads
+  zerstören. Auf dem Server ausführen:
+
+      sudo sed -i '/proxy_set_header Upgrade/d; /proxy_set_header Connection "upgrade"/d' /etc/nginx/sites-available/greenscout && sudo nginx -t && sudo systemctl reload nginx
+
+  Bei Neu-Installationen ist das nicht nötig — `deploy.sh` schreibt die Site
+  bereits ohne diese Header.
 - Im Zweifel: ein Kontext-Recap an Claude Code mit dem letzten Stück Skript-Output
   + dem Inhalt des fehlerhaften Logs.
