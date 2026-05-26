@@ -2618,4 +2618,72 @@ The denominator went from 385 statements (pre-refactor) to 651 statements (post-
 **Affected files:** `vitest.config.ts`, `src/features/auth/actions/sign-in.ts` (1-line import swap + inline comment), `src/features/auth/actions/sign-in.test.ts` (new), `src/features/auth/actions/change-password.test.ts` (new), `DECISIONS.md`.
 **Open question for the user:** —
 
+---
+
+## 2026-05-26 — Slice 5 (T-025/T-026/T-027/T-028) silent decisions per §14 (consolidated)
+
+**Context:** Slice 5 ships the full vertical scope of Studies CRUD in a single PR per the user spec (one slice == one PR, not one task == one PR). It covers T-025 (zod schemas), T-026a/b (wizard), T-027 (single-page layout), T-028 (dashboard + state machine) plus the SOFT_DELETE action and the supporting i18n / repository / route plumbing.
+
+**Decisions taken (silent, §14.2):**
+
+1. **DRAFT placeholder values for NOT-NULL columns.** `Study.objectName / *Address / *ZipCode / *City / flurstueck / anlageKwp / pvErzeugungKwhJahr / pvEigenverbrauchKwhJahr / pvVerkaufEurKwh / verbrauchKwhJahr / versorgerPreisEurKwh` are NOT-NULL in the Prisma schema (frozen since T-011 — see "Slice 2 schema design approved"). To preserve the SPEC §4.3 F2 "Berater klicks 'Neue Studie' und füllt nach" UX, `createStudyAction` persists the new row with sentinel zero / empty-string values for those columns, status = DRAFT. The per-step zod schemas validate the populated state at autosave time; `studyFullSchema` gates the DRAFT → READY transition (defence-in-depth, also re-validated server-side in `transition-status.ts`). Decision: this is shipping behaviour, **not** a TODO.
+
+2. **Per-step zod validation, not full-schema validation, on autosave.** `updateStudyAction` picks the matching step schema (Step 1..6) for the posted patch — a `step3` autosave only validates Step 3's eight numeric inputs. The composed `studyFullSchema` runs only at the READY-transition seam. Rationale: lets a Berater leave Step 4 half-filled and come back later without the autosave bouncing.
+
+3. **State-machine allow-list at the repository.** `setStudyStatus` looks up the current status, throws `InvalidStudyStatusTransitionError` on disallowed pairs. The action wrapper translates the typed exception to `{ ok: false, errorCode: "invalid-transition" }`. The `STATUS_TRANSITIONS` table allow-lists same-status no-ops (DRAFT → DRAFT etc.) to keep the API ergonomic for double-clicks.
+
+4. **Wizard + single-page modes share one `StudyForm` component.** Both modes hydrate from the same `StudyFormValues` object and re-use the same section renderer functions. Wizard mode shows one section at a time with stepper UI; single-page mode renders all eight as `<Card>`s with a sticky left anchor nav. Save semantics differ: wizard saves the current step on each "Weiter" click; single-page Save iterates every step sequentially. This keeps the schemas/actions identical and removes the cross-component sync risk a separate `WizardForm` + `SinglePageForm` would have introduced.
+
+5. **Step 5 sensitivity preview is a SIMPLE STUB.** Slice 5 ships a `pvErzeugung × szenarioPreis × eigenverbrauchsquote` multiplication that displays in the wizard / single-page Step 5 preview. **This is not the authoritative calculation** — the real module lands in Slice 2 (T-032). Source-code comment marks it `TODO(slice-2): replace with calculation module from T-032`. Per §14.4 smell test: a placeholder preview is needed to demonstrate the wizard UX in Slice 1; a wrong-formula bug here would only mislead a Berater into picking a different sensitivity input, which they will re-do anyway once the real calc lands. Documented here so the user is aware before clicking through.
+
+6. **Step 7 images is a visible placeholder.** Two dashed-border boxes labelled BEFORE / AFTER with an explanatory hint that the upload widget arrives in T-029a (Slice 4). The `studyFullSchema` does NOT require image presence; the READY-transition gate accepts a study without images. This matches the T-029a/b/c rollout cadence.
+
+7. **`STATUS_CHANGE` audit action added to SPEC §5.1 allow-list additively.** Prior allow-list had `CREATE / UPDATE / DELETE / SOFT_DELETE / LOGIN_* / LOCKOUT / PASSWORD_RESET / PASSWORD_CHANGE_FAIL / HANDOVER / GENERATE_DOCUMENT / RETENTION_NOTICE`. Slice 5's `transition-status.ts` writes `STATUS_CHANGE` so the audit log can answer "wann ist die Studie auf Bereit gegangen?". Additive — no removals.
+
+8. **Repository `listStudies(includeRelations: true)` overload** mirrors the T-022 `listCustomers(includeStudyCount: true)` pattern. Single Prisma query with `include: { consultant, customer }`; no N+1 in the dashboard.
+
+9. **Dashboard status filter via native `<select>`** instead of a custom shadcn-Select-in-a-toolbar. Native select is lighter, has built-in keyboard support, and the styling is hidden by the surrounding Card layout. Re-evaluate if T-030's consultant-handover dropdown introduces a richer toolbar.
+
+10. **i18n test refactored from strict sorted-key equality to sample-based assertions.** The T-022/T-023/T-024 `de.test.ts` asserted an exact `Object.keys(de).sort()` list of every key in the dictionary. Slice 5 adds ~155 keys — extending that list by hand is mechanical busywork and a constant merge-conflict surface. The new shape: one regression-guard test that asserts a sample key from each slice is present plus `keys.length > 100`, then per-feature `t()` exact-match assertions for every new string introduced. Failure modes covered:
+    - missing key → per-slice exact-match assertion fires
+    - stale strict-list → no longer a thing (test pattern shifted)
+    - interpolation markers (`{minutes}`, `{company}`, `{from}/{to}/{total}`, `{object}`, `{current}/{total}`) all have dedicated `toContain` tests
+    - net: the same coverage with much lower maintenance overhead
+
+11. **`force-dynamic` exports on every Slice-5 server-component page.** `/studies`, `/studies/[id]`, `/studies/[id]/edit`, and `/api/studies/route.ts` all set `export const dynamic = "force-dynamic"` because they read `auth()` which depends on cookies and the URL search params. Same convention as the T-022/T-023/T-024 routes after the CSP-nonce hotfix series (PRs #28-#36).
+
+12. **No shadcn primitives added.** The form uses the existing `Input`, `Label`, `Select`, `Card`, `Separator`, `Dialog`, `AlertDialog`, `DropdownMenu`, `Badge`, `Button`, `Skeleton`, `Table`. `datetime-local` input handles the Step 6 dates natively — picking up `react-day-picker` would have been a §7.1 pause-trigger.
+
+13. **`StudyForm` uses plain `useState` + custom error map** rather than RHF + resolver. Rationale: the Slice 5 form is structurally an 8-step driven dialog where the *server* (action layer) owns the per-step zod validation. Putting RHF in the loop would mean either (a) duplicating step-key dispatch on the client OR (b) running zod twice. The shared-state-with-error-map keeps the autosave path single-source-of-truth (action returns `fieldErrors` → component sets the local map). The customer form keeps RHF since its single-shot submit pattern matches RHF's design.
+
+14. **`updateStudy` repository accepts `Prisma.StudyUpdateInput`; action passes `Record<string, unknown>`.** ESLint `no-restricted-imports` keeps `@/generated/prisma` types in the repository layer (DECISIONS T-014). The action file therefore avoids the Prisma type and casts to `Record<string, unknown>` at the boundary; the repository's signature does the structural cast on receipt. The `StudyStatus` enum is mirrored locally in `transition-status.ts` as `type StudyStatus = "DRAFT" | "READY" | "GENERATED"` — same allow-list as `STATUS_TRANSITIONS` in the repo.
+
+15. **Per-pattern 100% Vitest thresholds on the four Slice-5 Server Actions.** `create-study.ts`, `update-study.ts`, `transition-status.ts`, `soft-delete-study.ts` — same trust-boundary class as the customer actions. Tests cover every documented branch (no-session, validation-fail, not-found, cross-org, BERATER vs ADMIN ownership, repo-throws, idempotent no-op, state-machine violation, race-loss, header extraction with/without `x-forwarded-for`, Decimal-like value normalisation). 24 study-repo tests, 41 action tests, 28 component tests, 10 schema tests.
+
+16. **Coverage: post-Slice-5 global 88.03% statements / 86.38% branches / 81% functions / 88.84% lines.** Above the 80% global floor T-024b carved out. Per-pattern 100% thresholds all green. The new client components sit at 60-80% per-file (smoke-tested in jsdom for the load-bearing render paths); the unreached branches are mostly error-path toasts that would need full user-event simulation to hit and don't change the truth-table outcome of the action layer.
+
+**§14.4 smell test — why this is decide-and-document and not a pause-trigger:**
+- No new top-level dependency.
+- No schema change (the new repo functions write to columns already present since T-011).
+- No auth-logic change (only ownership-checks reusing the established `session.user.role !== "ADMIN" && existing.consultantId !== session.user.id` pattern from the customer actions).
+- No SPEC scope change. SPEC §5.1 AuditLog `action` allow-list extension is additive (new event type, no behaviour change for existing events).
+- No money-touching logic — the Step 5 sensitivity preview is a UI sketch that does not feed any persisted column or customer-visible document; the real money path lands in Slice 2 (T-032) and Slice 8 (T-038/T-039).
+
+**Affected files:**
+- `prisma/schema.prisma` (unchanged — read-only reference)
+- `SPEC.md` (§5.1 additive STATUS_CHANGE)
+- `vitest.config.ts` (4 new per-pattern 100% thresholds)
+- `src/features/studies/schemas/**` (10 new files — 8 step + 1 composed + 1 common helpers + co-located tests)
+- `src/features/studies/actions/**` (4 new actions + co-located tests)
+- `src/features/studies/components/**` (5 new components + co-located tests)
+- `src/lib/repositories/study.repository.ts` (extended with `countStudies`, race-safe `softDeleteStudy`, state-machine `setStudyStatus`, `listStudies(includeRelations)`)
+- `src/app/(app)/studies/**` (3 new route pages)
+- `src/app/api/studies/route.ts` (new GET endpoint)
+- `src/features/app-shell/components/topbar.tsx` (added Studien nav item)
+- `src/i18n/de.ts` + `src/i18n/de.test.ts` (155 new keys + sample-based regression guard)
+- `TASKS.md` (T-024b carry-forward)
+- `DECISIONS.md` (this entry)
+
+**Open question for the user:** —
+
 **Open question for the user:** —
