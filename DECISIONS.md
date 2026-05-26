@@ -3167,3 +3167,66 @@ resolved in this slice — see decision #3 below.
   original, that is a separate task with its own retention policy.
 
 **Open question for the user:** none. T-029c resolved per decision #3.
+
+---
+
+## 2026-05-26 — Slice 5a (T-030 / T-041a) silent decisions per §14 (consolidated)
+**Context:** Slice 5a ships F6 (study hand-over), F7 (admin god-mode), und the admin user-management CRUD (create / edit / deactivate). Slice 5b (T-041b — admin password reset + DSGVO hard-delete) is split off and awaits user pause-trigger approval.
+
+**Decisions taken (taste-level, §14.2):**
+
+1. **`canAccessStudy` helper** — neue `src/features/auth/utils/can-access-study.ts`. Single source of truth für die F6/F7-Ownership-Check-Klausel "session.user.role === ADMIN OR session.user.id === study.consultantId". 7 inline-Kopien in den Studies-Server-Actions + Route-Handlern + Page-Components refactored zum Helper. Per-pattern 100% Coverage. Reason: war Code-Smell, jedes Refactor an der Ownership-Logik (z. B. Multi-Tenant Phase 3) hätte 7 Stellen treffen müssen.
+
+2. **`User.active` als deactivate-Indikator** — bereits im Prisma-Schema vorhanden (`active Boolean @default(true)` an User-Model). Keine neue nullable Column nötig, kein §7.2-Trigger. T-041a "deactivate" setzt `active=false`; T-017 `authorize-credentials` filtert bereits inaktive User beim Login (etabliert in DECISIONS T-017).
+
+3. **Session-Invalidation beim Deactivate — deferred, deliberate** — Auth.js v5 speichert 8h-JWT im Cookie (DECISIONS T-017). Ein bereits eingeloggter User behält seine Session bis zum Hard-Expiry. Die Deaktivierung wird beim *nächsten* Login enforced (T-017 `authorize-credentials` blockt `active=false`). Dokumentiert als bewusst gewählter Trade-off in `deactivate-user.ts`; ein Follow-up kann eine Server-side-Session-Revocation hinzufügen, wenn ein User-Session-Store landet (kein MVP-Requirement).
+
+4. **`HANDOVER`-Audit-Actor = Session-User (nicht Original-Consultant)** — wenn ein Admin via F7 eine fremde Studie übergibt, zeigt der Audit-Eintrag den **Admin** als Actor (nicht den bisherigen Berater). Reason: Audit muss zeigen, wer die Aktion vollzogen hat — Attributability ist DSGVO-relevant.
+
+5. **Email-Change im update-user.ts ausgeschlossen** — `updateUserSchema` enthält **kein** `email`-Feld. Email-Renames sind §7.3 auth-adjacent (Login-Identifier, könnte Account-Übernahme ermöglichen). Wenn jemals nötig, ist das eine separate task mit User-Pause-Trigger-Approval.
+
+6. **Role-Change erlaubt** — `updateUserSchema` enthält `role: enum(ADMIN, BERATER)`. Role ist nur ein UI-Feature-Toggle (Topbar-Nav, Server-Action-Gate), keine crypto-Operation. Keine §7.3-Verletzung.
+
+7. **Temp-Password-Generation via `crypto.randomUUID()`** — 12 Zeichen aus UUID-Hex (`randomUUID().replace(/-/g, "").slice(0, 12)`). ~48 Bit Entropie für eine *einmalig* sichtbare temp-Credentials. User muss sie beim ersten Login ändern (`mustChangePassword=true`). Plaintext landet **nie** in DB / Audit / Logs; wird ausschließlich im Response-Envelope einmalig zur UI zurückgegeben.
+
+8. **`createUserSchema.email` doppelt geprüft** — `findUserByEmail` mit `includeDeleted: true` prüft Duplikate **inkl. soft-deleted** Konten, da das Prisma-`email @unique` global ist (auch über soft-deletes hinweg). DB-Constraint würde sonst eine raw Prisma-P2002 werfen; explizite Prüfung erlaubt ein lokalisiertes `users.error.email-taken` ohne Prisma-Error-Code-Parsing.
+
+9. **Self-Deactivate-Guard** — `deactivateUserAction` lehnt ab, wenn `userId === session.user.id`. Ein selbst-deaktivierter Admin hätte sich beim nächsten Login ausgesperrt. Nicht §7-relevant, nur UX-Schutz.
+
+10. **`<select>` statt shadcn `<Select>` für Handover-Target + User-Table-Filter** — bewusst native HTML statt der Radix-basierten shadcn-Variante. Reason: native `<select>` rendert ohne `ResizeObserver` (Radix UI braucht den, was im jsdom-Vitest-Run einen Polyfill erzwingt — siehe Decision 14 dieser Liste). Konsistent mit T-028 (`StatusFilter` in `studies-table.tsx` nutzt auch ein natives `<select>`).
+
+11. **Users-Dashboard ohne TanStack-Query / Server-Pagination** — `listUsers` mit `take: 200` reicht für MVP (1-10 User pro Org); Filter (role, state, search) werden client-seitig angewendet. Wenn die Org-Größe wächst, kann ein Follow-up das customer-table-Pattern (Server-Pagination via URL-State) übernehmen.
+
+12. **User-Form: zwei separate Sub-Komponenten** — `CreateUserForm` und `EditUserForm` als interne Komponenten, von `<UserForm>` als façade per `props.mode` ausgewählt. Reason: `useForm<CreateUserInput>` und `useForm<UpdateUserInput>` haben verschiedene Resolver-Schemas + verschiedene `setError`-Typen; eine Union wäre awkward. Gleicher JSX-Body in beiden Branches, aber typed je nach Schema. Schlechter DRY, besseres TypeScript.
+
+13. **`useSession()` vermieden** — die neue `/users/new`-Seite ist ein Server Component (auth + role check) und delegiert nur den interaktiven Sub-Tree an `<NewUserClient>`. Spart das Wiring von `<SessionProvider>` (das im Repo noch nicht eingerichtet ist).
+
+14. **`ResizeObserver`-Polyfill in `vitest.setup.ts`** — Radix UI Primitives (`<RadioGroup>`, `<Dialog>`) verlassen sich auf `ResizeObserver`, das jsdom nicht implementiert. Ein no-op Stub (`observe/unobserve/disconnect` als leere Methoden) im global. Layout-Größen sind im Unit-Test irrelevant; wir assertieren gegen React-Tree-Output, nicht gegen Geometrie.
+
+15. **`.gitattributes`-Erweiterung für TS/TSX/JS/JSX/MJS/CJS auf LF** — Husky/lint-staged stash/restore-Zyklus auf Windows-Checkouts mit `core.autocrlf=true` re-introduziert CRLF nach `prettier --write`. Spiegelt die bereits etablierte `*.py text eol=lf`-Regel (T-005-Dekision). Keine Verhaltensänderung in CI, nur lokales Windows-Setup wird stabiler.
+
+16. **Per-pattern Coverage-Thresholds** — 100% auf `can-access-study.ts`, `handover-study.ts`, `create-user.ts`, `update-user.ts`, `deactivate-user.ts`. Gleicher Trust-Boundary-Class wie die customer + studies Server Actions. Komponenten-Coverage liegt knapp unter 100% (user-form 94.82%, users-table 95.83%, temp-password-dialog 85.71%) — kein per-pattern threshold, da die untersten Branches (catch-Block für Clipboard-Failure, einzelne Toast-Branches) das nicht rechtfertigen.
+
+**Affected files:**
+- `src/features/auth/utils/can-access-study.ts` + co-located test
+- `src/features/studies/actions/handover-study.ts` + co-located test
+- `src/features/studies/components/handover-dialog.tsx` + co-located test
+- `src/features/studies/actions/{transition-status,update-study,soft-delete-study,generate-document}.ts` (refactored to use `canAccessStudy`)
+- `src/app/api/uploads/[id]/route.ts` + `src/app/api/studies/[id]/documents/[docId]/route.ts` + `src/app/(app)/studies/[id]/{page,edit/page}.tsx` (refactored to use `canAccessStudy`)
+- `src/features/users/schemas/user-schema.ts`
+- `src/features/users/actions/{create-user,update-user,deactivate-user}.ts` + co-located tests
+- `src/features/users/components/{user-form,users-table,user-deactivate-dialog,temp-password-dialog,new-user-client}.tsx` + co-located tests
+- `src/app/(app)/users/{page,new/page,[id]/edit/page}.tsx`
+- `src/features/app-shell/components/topbar.tsx` (Nutzer-Nav für Admins) + topbar test
+- `src/app/(app)/layout.tsx` (passes `userRole` to Topbar)
+- `src/lib/repositories/user.repository.ts` (`countUsers` added) + test
+- `src/i18n/de.ts` + `src/i18n/de.test.ts` (~50 new keys)
+- `SPEC.md` §5.1 audit-log allow-list extended with `HANDOVER`, `USER_CREATED`, `USER_UPDATED`, `USER_DEACTIVATED`
+- `vitest.config.ts` (per-pattern 100% thresholds added) + `vitest.setup.ts` (ResizeObserver polyfill)
+- `.gitattributes` (TS/TSX/JS/JSX/MJS/CJS LF rule)
+
+**Open follow-ups (Slice 5b — needs user pause-trigger approval before dispatch):**
+- T-041b — admin password reset + DSGVO hard-delete. Latter trips §7.11 (DSGVO hard-delete on personal data); reset trips §7.3 (auth-adjacent password mutation). Both require explicit user green-light.
+- Server-side session invalidation when deactivating a logged-in user (currently enforced on next login only; see decision 3).
+
+**Open question for the user:** none. Slice 5a is complete and self-contained per the orchestrator brief.
