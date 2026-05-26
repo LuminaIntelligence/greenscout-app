@@ -229,6 +229,20 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // T-040 — 100% on the generate-document Server Action.
+        // Same trust-boundary class as the other studies actions: input
+        // -> session -> repo lookups -> pyservice call -> persist +
+        // audit. Every branch (validation, no-session, not-found,
+        // forbidden, BERATER vs ADMIN, DRAFT-gate, missing customer /
+        // consultant, pyservice failure, fallback-name paths,
+        // co2-override propagation, server-throws, missing headers)
+        // is covered by generate-document.test.ts.
+        "src/features/studies/actions/generate-document.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
         // T-035 — 100% on the Python service client. Trust-boundary
         // class: outbound HTTP with shared-secret auth + camel/snake
         // translation. Every branch (env-resolve happy/missing-URL/
