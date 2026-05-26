@@ -2543,4 +2543,79 @@ Neues Passwort entweder via App-Login + Passwort-ändern-Workflow setzen (nachde
 - Beim Bauen eines Next.js-App mit CSP-Nonces: force-dynamic ist die default-richtige Wahl, nicht der Notfall-Fallback. Static-rendering ist die Optimierung, die ihre eigene Verifikation braucht (genonceter Inline-Script in der page).
 - Browser-Verifikation MUSS direkt nach jedem CSP-relevanten Deploy erfolgen. Unit-Tests können das Static-Rendering-Problem NICHT erkennen — sie testen die Middleware-Logic, nicht das Rendering-Pipeline-Verhalten.
 
+---
+
+## 2026-05-25 — T-024b Coverage gate honesty (binding)
+**Context:** CLAUDE.md §5.2 + SPEC §5.2 mandate a global ≥ 80 % coverage gate. Until T-024b, `vitest.config.ts` `coverage.include` was a hand-curated opt-in allow-list (`src/lib/**`, `src/features/**/{services,utils,schemas,hooks}/**`, customer actions, password-rule-checklist, middleware). Files not on the list — every component-side directory, all auth Server Actions, app-shell, route shells — did not enter the v8 denominator. The "92.5 % global" reported after PR #25 was computed over the allow-list only, so untested files did not redden the gate; they simply did not exist as far as v8 was concerned. That is a quiet way to make the 80 % gate non-binding.
+
+**Decision (binding):** Flip `coverage.include` to `["src/**/*.{ts,tsx}"]`. The 80 % gate now measures the entire authored TypeScript surface as denominator. Move every legitimately-excluded category into `coverage.exclude` with an inline `//` comment naming the reason it stays outside. All pre-existing per-pattern thresholds (calculations, password-policy, authorize-credentials, admin-alerts, change-password service, password-rule-checklist, middleware @ 90 %, customer create/update/soft-delete actions) remain enforced verbatim. Add new per-pattern 100 % thresholds for `src/features/auth/actions/{sign-in,change-password,sign-out}.ts` — these sit on the same trust boundary as the customer actions (FormData → schema → service / Auth.js → typed result) and deserve the same treatment.
+
+**Exclude categories (each with one-line justification embedded in `vitest.config.ts`):**
+- `src/generated/**` — Prisma generated client (vendored, not authored).
+- `src/**/*.test.{ts,tsx}` — test files are the measurement, not the measured.
+- `src/**/*.d.ts` — declaration files, no executable code.
+- `src/i18n/**` — dictionary, strings not logic.
+- `src/lib/db.ts` — Prisma singleton wiring, no branchable logic.
+- `src/components/ui/**` — shadcn-generated primitives (vendored, not authored).
+- `src/app/**` — Next.js route shells, exercised E2E by Playwright (T-051a/b), kept out of unit coverage by design — same strategy locked in by T-015b.
+- `**/*.config.{js,mjs,ts}` — declarative config files (next.config, tailwind.config, vitest.config, etc.).
+- `**/example.ts` — T-001 scaffold placeholders, removed when real code lands.
+
+**Post-refactor coverage snapshot (text reporter):**
+
+```
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   92.01 |    88.86 |   93.54 |   92.48 |
+ src/features/auth |   86.66 |       25 |     100 |   88.88 |
+  ...-constants.ts |   63.63 |       25 |     100 |   66.66 | 29-31
+ ...uth/components |   83.47 |    82.05 |    82.6 |    84.4  |
+  ...word-form.tsx |   84.21 |    78.78 |   81.81 |   85.18 | 91-99
+  login-form.tsx   |   79.16 |    74.07 |   77.77 |      80 | 68-76,108
+ ...ers/components |   97.24 |       90 |   97.56 |   98.05 |
+  ...omer-form.tsx |     100 |    88.63 |     100 |     100 | ...08,119,182-195
+  ...mer-table.tsx |   94.64 |    90.62 |   95.65 |      96 | 110,267
+ src/lib           |    4.34 |        0 |      20 |    4.54 |
+  auth.ts          |       0 |        0 |       0 |       0 | 44-90
+  ...-provider.tsx |       0 |      100 |       0 |       0 | 1-44
+ ...b/repositories |   96.58 |    93.45 |   97.72 |   96.42 |
+  ...repository.ts |      90 |    88.88 |     100 |   88.88 | 47
+  ...repository.ts |   94.73 |    93.75 |     100 |   94.44 | 48
+  transaction.ts   |       0 |      100 |       0 |       0 | 29
+  ...repository.ts |   97.14 |    88.67 |     100 |   97.05 | 45
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 92.01% ( 599/651 )
+Branches     : 88.86% ( 423/476 )
+Functions    : 93.54% ( 145/155 )
+Lines        : 92.48% ( 578/625 )
+================================================================================
+```
+
+The denominator went from 385 statements (pre-refactor) to 651 statements (post-refactor) — a +69 % increase in the surface measured by the 80 % gate. Global lines/branches/functions/statements all sit comfortably above 80 %.
+
+**New auth-action test suites added in this same PR (acceptance criterion 5 of T-024b):**
+- `src/features/auth/actions/sign-in.test.ts` — 9 tests covering schema-parse failures (missing email, empty password, malformed email), `signIn` throwing `LockedAccountError(lockedUntil)`, `AccountUnavailableError("deleted")`, `AccountUnavailableError("inactive")`, generic `AuthError`, non-Auth.js exception, and the happy path. Catch-order test fixture (custom `GenericAuthError` extends `AuthError`) verifies the load-bearing ordering documented in `sign-in.ts`.
+- `src/features/auth/actions/change-password.test.ts` — 8 tests covering schema-parse failure (missing field), `.refine()` mismatch (newPassword !== confirmNewPassword), no-session, service returning ok=false → `unstable_update` NOT invoked, service returning ok=true → `unstable_update({})` invoked once, session-userId/orgId forwarded, header extraction with absent `x-forwarded-for`, and header extraction with comma-separated `x-forwarded-for` chain (first IP, trimmed).
+
+**Production-code change to satisfy the test-runtime resolver:**
+- `src/features/auth/actions/sign-in.ts` — `AuthError` import swapped from `next-auth` (barrel pulls `next/server` which is not resolvable under Vitest) to `@auth/core/errors` (`next-auth` re-exports `AuthError` from this module, so `instanceof AuthError` checks are byte-identical). Same pattern already in use by `src/features/auth/errors.ts` for `CredentialsSignin`. Documented in the source-code comment on the import. Pure equivalence — no logic change.
+
+**§14.4 smell test — why this is decide-and-document and not a pause-trigger:**
+- Pure tooling refactor — no SPEC scope change, no auth-logic change, no schema change, no dependency change.
+- The 80 % global floor is NOT lowered; it is left at 80 % per CLAUDE.md §5.2.
+- Per-pattern thresholds are preserved verbatim; only additions (three auth-action thresholds at 100 %), no removals or weakenings.
+- The auth-action tests use mocks already idiomatic in the codebase (`vi.mock("@/lib/auth")`, `vi.mock("next/headers")`, `vi.mock("next/cache")`) — pattern lifted directly from `create-customer.test.ts`.
+
+**§14.2 silent decisions taken in this PR:**
+- Test file co-location next to source files (mirrors the existing `sign-out.test.ts` / `change-password.ts` co-location pattern — taste, §14.2 "test scaffolding").
+- Helper function `buildFormData(overrides)` in both new test files for FormData ergonomics (taste, scaffolding pattern lifted from the codebase's repeated FormData construction sites).
+- DECISIONS entry kept to a single `## ` heading per the file's existing convention; no sub-headings.
+
+**Affected files:** `vitest.config.ts`, `src/features/auth/actions/sign-in.ts` (1-line import swap + inline comment), `src/features/auth/actions/sign-in.test.ts` (new), `src/features/auth/actions/change-password.test.ts` (new), `DECISIONS.md`.
+**Open question for the user:** —
+
 **Open question for the user:** —

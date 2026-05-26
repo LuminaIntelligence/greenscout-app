@@ -1,6 +1,14 @@
 "use server";
 
-import { AuthError } from "next-auth";
+// AuthError is imported from `@auth/core/errors` (not the `next-auth`
+// package barrel) for the same reason that `errors.ts` imports
+// `CredentialsSignin` from there: the `next-auth` barrel pulls
+// `next/server` into the Vitest runtime where it cannot resolve.
+// `next-auth` re-exports `AuthError` from this same module, so the
+// `instanceof AuthError` check below matches identically.
+// See DECISIONS T-017a Verify-First Korrektur per ④ for the original
+// note that introduced this pattern.
+import { AuthError } from "@auth/core/errors";
 
 import { AccountUnavailableError, LockedAccountError } from "@/features/auth/errors";
 import { loginSchema } from "@/features/auth/schemas/login-schema";
