@@ -152,6 +152,18 @@ const eslintConfig = [
     },
   },
 
+  // T-034 — One-off helper scripts under `scripts/` live outside `src/`
+  // and don't have the `@/*` path alias configured at node-side tsx
+  // execution time. Allow `../src/...` relative imports there only.
+  // This is the same trusted-path pattern as the Prisma trusted-paths
+  // block above.
+  {
+    files: ["scripts/**/*.{js,mjs,ts}"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
+
   prettierConfig,
 ];
 
