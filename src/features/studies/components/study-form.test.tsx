@@ -19,6 +19,14 @@ const softDeleteMock = vi.fn();
 vi.mock("@/features/studies/actions/soft-delete-study", () => ({
   softDeleteStudyAction: (...a: unknown[]) => softDeleteMock(...a),
 }));
+// Hotfix — image upload is now a Server Action and the
+// StudyImageUpload widget imports it directly. Mock it here so loading
+// StudyForm in this test does not transitively pull `@/lib/auth`
+// (which breaks Vitest module resolution on `next/server`).
+const uploadImageMock = vi.fn();
+vi.mock("@/features/studies/actions/upload-study-image", () => ({
+  uploadStudyImageAction: (...a: unknown[]) => uploadImageMock(...a),
+}));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));

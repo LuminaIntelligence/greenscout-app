@@ -296,6 +296,21 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // Hotfix — 100% on the upload-study-image Server Action.
+        // FormData → service adapter that replaced the multipart
+        // Route Handler at `POST /api/uploads` for the browser path
+        // (production nginx returned 502 on the latter; Server
+        // Actions go through fine). Trust-boundary glue: session
+        // gate, FormData parsing (every missing/invalid field
+        // branch), header extraction, role mapping, revalidatePath,
+        // service-result forwarding (happy + every error code). All
+        // branches covered by upload-study-image.test.ts.
+        "src/features/studies/actions/upload-study-image.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
         // T-030 — 100% on the can-access-study helper. The single
         // source of truth for F7 admin god-mode + F6 ownership; every
         // branch (no session, no user object, ADMIN, owner, foreign
