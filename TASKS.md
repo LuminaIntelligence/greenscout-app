@@ -61,77 +61,7 @@
 
 ---
 
-### T-029 Image upload feature (BEFORE/AFTER, server validation, Pillow resize)
-- **Status:** ⬜ TODO
-- **Feature:** studies (images)
-- **Type:** feat
-- **Effort:** L → split into T-029a / T-029b
-- **Blocks:** T-026b, T-030
-- **Blocked by:** T-013, T-022
-- **Description:**
-  Two-image upload per SPEC §4.6 / decision context. See split tasks for the split — note the aspect-ratio target is best known *after* the PPTX placeholder mapping (T-026 in slice 8). Decision recorded here in the plan: implement upload with a **provisional aspect ratio of 16:9** for the resize bounding box, and add a follow-up task T-029c to revisit the ratio once `docs/pptx-mapping.md` is signed off. Recorded as an assumption — implementer must add an entry to `DECISIONS.md` before merging T-029.
-- **Acceptance criteria:** see split tasks.
-- **Files likely touched:** see split tasks.
-- **Pause-triggers anticipated:** §7.4 (UI), §7.1 (Pillow, `multer` or Next.js form-data handling).
-
----
-
-### T-029a Image upload — TS frontend + Next.js route handler
-- **Status:** ⬜ TODO
-- **Feature:** studies (images)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-029b, T-026b
-- **Blocked by:** T-013, T-022
-- **Description:**
-  Implement the upload UI in step 7 (BEFORE + AFTER slots) and the Next.js POST route at `/api/studies/[id]/images`. Client-side checks: MIME in `{image/jpeg, image/png, image/webp}`, size ≤10 MB. Server-side checks: same MIME allow-list (sniffed), size, and pixel-dimension cap ≤4000×4000 via `image-size` lib. Route saves the original file to `./uploads/studies/<studyId>/original/<uuid>.<ext>` and forwards to the Python image processor (T-029b). DB entry created in `StudyImage` with `unique(studyId, type)` enforced.
-- **Acceptance criteria:**
-  - [ ] Replacing an image of the same type updates the existing row (does not create a duplicate).
-  - [ ] Oversize / wrong-MIME files rejected with a German error message.
-  - [ ] Filenames are UUID-based; original extension preserved.
-  - [ ] Audit-log `CREATE` / `UPDATE` entry for `StudyImage`.
-  - [ ] Path traversal attempts (`../../`) rejected.
-- **Files likely touched:** `src/features/studies/components/image-uploader.tsx`, `src/app/api/studies/[id]/images/route.ts`, `src/features/studies/services/image-service.ts`.
-- **Pause-triggers anticipated:** §7.1 (`image-size` or sharp).
-
----
-
-### T-029b Image processing — Pillow resize in Python service
-- **Status:** ⬜ TODO
-- **Feature:** python service (images)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-029c
-- **Blocked by:** T-029a, T-006
-- **Description:**
-  Add `app/services/image_processor.py` exposing `process_image(input_path, output_path, target_ratio)` — opens with Pillow, fits to bounding box with the provisional 16:9 aspect ratio (decision recorded in T-029), saves optimized JPEG/PNG/WebP at quality 85. Add FastAPI endpoint `POST /images/process` accepting `{input_path, output_path, target_ratio}`. Original retained per SPEC §4.6 (only the processed version goes into the slide).
-- **Acceptance criteria:**
-  - [ ] Pillow installed via `requirements.txt`.
-  - [ ] Endpoint returns 200 with `{ width, height, file_size_bytes }`.
-  - [ ] Resize completes in <5s for a 10 MB original (SPEC §6.2).
-  - [ ] Pytest covers JPG, PNG, WebP fixtures + an oversize fixture.
-  - [ ] Original file untouched on disk.
-- **Files likely touched:** `services/python/app/services/image_processor.py`, `services/python/app/api/images.py`, `services/python/requirements.txt`, `services/python/tests/test_image_processor.py`.
-- **Pause-triggers anticipated:** §7.1 (`Pillow` install).
-
----
-
-### T-029c Revisit image aspect ratio after PPTX mapping sign-off
-- **Status:** ⬜ TODO
-- **Feature:** studies (images)
-- **Type:** refactor
-- **Effort:** S
-- **Blocks:** —
-- **Blocked by:** T-029b, T-036
-- **Description:**
-  Once `docs/pptx-mapping.md` (T-036) is signed off and the image placeholder dimensions are known from the template, replace the provisional 16:9 aspect ratio in `image_processor.py` with the actual value. Record the change in `DECISIONS.md`. If any existing study has already uploaded images with the old ratio, re-process them via a one-shot script (no auto-purge of originals — they're retained per SPEC §4.6).
-- **Acceptance criteria:**
-  - [ ] `image_processor.py` references a single named constant for the target ratio.
-  - [ ] Old `DECISIONS.md` assumption marked superseded.
-  - [ ] Re-processing script runs idempotently against existing images.
-  - [ ] Pytest reflects the corrected ratio.
-- **Files likely touched:** `services/python/app/services/image_processor.py`, `services/python/scripts/reprocess_images.py`, `DECISIONS.md`.
-- **Pause-triggers anticipated:** §7.4 (changes visible-in-PDF area — must surface).
+*(T-029, T-029a, T-029b and T-029c carried forward to Recently completed — all gemerged via PR #44 as the Slice-4 image-upload vertical.)*
 
 ---
 
@@ -578,6 +508,24 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-029c ✅ Revisit image aspect ratio after PPTX mapping sign-off
+- **Merged:** 2026-05-26 via PR #44 (Slice 4 vertical).
+- **Branch:** `feat/image-upload-slice`
+- **Summary:** Slice 4 closed: provisional 16:9 aspect ratio confirmed against the signed-off `docs/pptx-mapping.md` placeholder geometry; the named constant in `image_processor.py` lives in a single location and pytest fixtures verify the resize bounding box. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 4 (T-029a/T-029b/T-029c) silent decisions per §14 (consolidated)".
+
+### T-029b ✅ Image processing — Pillow resize in Python service
+- **Merged:** 2026-05-26 via PR #44 (Slice 4 vertical).
+- **Branch:** `feat/image-upload-slice`
+- **Summary:** `services/python/app/services/image_processor.py` mit `process_image(input_path, output_path, target_ratio)`-API (Pillow, JPEG/PNG/WebP at quality 85). FastAPI-Endpoint `POST /api/images/process` mit X-API-Key-Gate, Pydantic v2 Request/Response-Schemas, structured-error-envelope. Pytest deckt JPG/PNG/WebP/oversize-Fixtures + Performance-Budget <5s. Original-Datei wird nie überschrieben (SPEC §4.6). Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 4 (T-029a/T-029b/T-029c) silent decisions per §14 (consolidated)".
+
+### T-029a ✅ Image upload — TS frontend + Next.js route handler
+- **Merged:** 2026-05-26 via PR #44 (Slice 4 vertical).
+- **Branch:** `feat/image-upload-slice`
+- **Summary:** `<StudyImageUpload>`-Widget mit BEFORE/AFTER-Slots (drag-drop + file-picker, JPG/PNG/WebP, ≤10 MB client + server, ≤4000×4000 px via magic-bytes sniff). Next.js POST `/api/uploads` + GET `/api/uploads/[id]` (ownership-checked, F7 admin-god-mode honored). Upload-Service orchestriert: write to `./uploads/studies/<studyId>/original/<uuid>.<ext>` → Python `/api/images/process` (T-029b) → `StudyImage`-Upsert (`unique(studyId, type)` enforced) → `IMAGE_UPLOADED`/`IMAGE_REPLACED` Audit-Entry. Step 7 (Bilder) im Wizard sowie der Single-Page-Variant nutzen das Widget; Step-7-Schema verschärft, sodass `bildBeforeId`+`bildAfterId` als Pflicht für die DRAFT→READY-Transition gegated sind (siehe `transition-status.ts`). 30+ neue i18n-Keys (`studies.action.upload-*`, `studies.error.upload.*`, `studies.error.bild-*-required`). Per-pattern 100 % Coverage auf Service + Widget + Route-Handler. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 4 (T-029a/T-029b/T-029c) silent decisions per §14 (consolidated)".
 
 ### T-040 ✅ Generated document persistence + per-study version list UI
 - **Merged:** 2026-05-26 via PR #42 (Slice 3b vertical).
