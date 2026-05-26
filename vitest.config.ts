@@ -229,6 +229,19 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // T-035 — 100% on the Python service client. Trust-boundary
+        // class: outbound HTTP with shared-secret auth + camel/snake
+        // translation. Every branch (env-resolve happy/missing-URL/
+        // missing-key/invalid-timeout, fetch happy/401/422/500/400/
+        // 501/timeout/network, JSON-parse fallback, both endpoints
+        // including the Slice-3a 501 stub path) is covered by the
+        // co-located python-service-client.test.ts.
+        "src/lib/python-service-client.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
       },
     },
   },
