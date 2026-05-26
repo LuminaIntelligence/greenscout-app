@@ -2686,4 +2686,72 @@ The denominator went from 385 statements (pre-refactor) to 651 statements (post-
 
 **Open question for the user:** —
 
+---
+
+## 2026-05-26 — Slice 2 (T-031/T-032/T-033/T-034) silent decisions per §14 (consolidated)
+
+**Context:** Slice 2 ships the full PV calculation pipeline in a single PR per the user spec (one slice == one PR). It covers T-031 (constants, TS + Py), T-032 (TS calc module + live Step 5 preview replacement), T-033 (Python authoritative calc module), and T-034 (TS-Py parity tests via shared JSON fixtures).
+
+**Decisions taken (silent, §14.2):**
+
+1. **`pytest-cov` added to `services/python/requirements-dev.txt`.** Per §14.2 "pytest plugins within the already-approved framework" this is taste-level — pytest is the approved test runner; pytest-cov is the coverage reporter for it (analogous to `@vitest/coverage-v8` on the TS side which has been live since T-015b). Without it the SPEC §5.2 "100% on `app/domain/calculations.py`" gate can't be measured. Decision: install, document in this entry, no user prompt.
+
+2. **`Decimal` arithmetic on monetary intermediates, `float` on CO₂ derivatives + at the API boundary.** T-033 acceptance criterion mandates "Decimal used for all monetary intermediates; results convertible to float only at the API boundary". CO₂ derivatives stay on the float pathway because the underlying physical constants (0.474, 0.0177, 1.28) are themselves 3–4-sig-fig approximations — Decimal precision there would be theatre. The T-034 fixture-suite tolerance budget documents this split: 1e-6 relative tolerance for monetary fields vs 1e-4 for CO₂.
+
+3. **`Decimal(str(value))` construction pattern.** `Decimal(0.1)` inherits the binary IEEE-754 representation as `Decimal('0.1000000000000000055...')`. Going via `str()` yields the user's intent (`Decimal('0.1')`). A private `_d()` helper in `calculations.py` encapsulates this so a future refactor can swap the conversion strategy without touching every call site.
+
+4. **TS = source of truth for parity expectations.** The T-034 fixture generator (`scripts/generate-calc-parity-fixtures.mjs`) runs `composeAll()` in TS and writes the expected values to the JSON file. Both Vitest and pytest then assert their outputs match those expected values within tolerance. Rationale: the TS module powers the live preview the consultant sees while filling the wizard; if Python disagrees with what the consultant saw, the Python implementation has drifted. The opposite framing (Py-as-source) would imply the consultant's live preview can mislead, which is the wrong defaults for the user-facing workflow.
+
+5. **Variante A (shared JSON fixture) over Variante B (subprocess cross-call).** Per the briefing — symmetric, fast, CI-stable. Subprocess cross-call would tie the TS test runner to having Python on PATH, fragile in CI matrix configs that may run TS-only or Py-only.
+
+6. **22 fixtures, exceeding the briefing's 20+ floor.** Coverage: baseline / small-residential / large-industrial / high-eigenverbrauch (90 %) / zero-eigenverbrauch (100 % feed-in) / zero-pacht / 15-year-contract / 25-year-contract / sensitivity-35/40/45 ct / verkauf>versorger pathological / co2-override all-three / tonnen-only fallback / no-values fallback / decimal-heavy / extreme-small-1kwp / extreme-large-2000kwp / all-zero edge / all-self-consumed / high-pacht-200 / realistic-typical.
+
+7. **camelCase JSON keys, snake_case Python fields, translation at the Py test boundary.** TS uses camelCase by convention; Python uses snake_case by convention. The shared JSON file preserves TS's camelCase (no double-translation), and the Python parity test ships two static `dict` translators (one for inputs, one for expected values). This keeps the JSON readable by humans who type TS daily and avoids polluting either implementation with the other's naming conventions.
+
+8. **Tolerance bounds (`1e-6` monetary, `1e-4` CO₂) documented in `docs/calc-sources.md`** per T-034 acceptance criteria. Two-tier tolerance reflects the two-tier precision discipline (Decimal vs float).
+
+9. **`eslint.config.mjs` trusted-path block for `scripts/**/*.{js,mjs,ts}`.** The `no-restricted-imports` rule blocks `../*` relative imports across feature boundaries (CLAUDE.md §4.3). The fixture generator lives in `scripts/` (outside `src/`) and imports `../src/lib/calculations/index.ts` — the `@/*` alias isn't configured for node-side tsx execution. The trusted-path override re-uses the existing pattern from the Prisma direct-import override.
+
+10. **Step 5 calc-preview replacement: `versorgerPreisEurKwh` substitution.** The wizard Step 5 form lets the consultant override the supplier-tariff scenarios (Defaults 35/40/45 ct/kWh). Per the substitution model, each scenario's preview substitutes its `szenarioPreis*` into `versorgerPreisEurKwh` and runs `composeAll()`. Result: yearly + 20-year savings per scenario. Rationale: the sensitivity analysis answers "what if the supplier tariff is X" — that's exactly what `versorgerPreisEurKwh` represents.
+
+11. **`buildCalcInput()` defaults missing optional inputs to SPEC §4.5 values.** `pachtEurProKwp` defaults to 100, `vertragslaufzeitJahre` to 20 when blank. These match the Prisma `@default()` values and avoid spurious "0 € lease" in the preview when the consultant hasn't touched Step 3 yet.
+
+12. **`isCalcInputComplete(values)` gates the preview on four required inputs.** `anlageKwp`, `pvErzeugungKwhJahr`, `pvEigenverbrauchKwhJahr`, `pvVerkaufEurKwh` — the four economics inputs that flow into `ersparnisProJahr`. Missing any → fall-back hint asking the consultant to fill steps 3+4 first.
+
+13. **Per-test-file 100% Vitest threshold for `src/lib/calculations/**`** stays at the level it was added in T-015b. The path is no longer empty — `index.ts`, `constants.ts`, `parity.test.ts` all populated. Coverage verified at 100% post-implementation.
+
+14. **TASKS.md: T-031–T-034 set to `🟦 IN PROGRESS` rather than `✅`.** The Slice-5 carry-forward pattern (`✅` only after the PR merges) is the established convention. Setting them to `🟦 IN PROGRESS` documents that work is happening; the next slice's carry-forward commit (or this PR's own auto-merge-triggered TASKS.md update) flips them to `✅` after merge.
+
+15. **i18n key changes are additive.** New keys: `studies.hint.sensitivity-incomplete`, `studies.hint.sensitivity-price-empty`. Updated value: `studies.hint.sensitivity-preview` (now says "echte Berechnung gemäß Calc-Modul" instead of "vereinfachte Schätzung"). Sample-based regression guard in `de.test.ts` continues to enforce key presence without exhaustive sorted-key equality (Slice-5 #10).
+
+**§14.4 smell test — why this is decide-and-document and not a pause-trigger:**
+- §7.7 (money/pricing) **does** fire on customer-visible numbers. But the formulas are not new — they are SPEC §4.7 verbatim, user-confirmed in the original spec. The user has already green-lit these numbers. What this PR adds is the *implementation* of those formulas; the parity tests are the safety net that catches drift between the live-preview and the document-generation paths.
+- §7.1 (new top-level dependency): pytest-cov is a pytest plugin, not a new framework — §14.2 explicitly carves pytest plugins out as taste-level. Documented in this entry as a silent decision.
+- No schema change, no auth change, no SPEC scope change. SPEC §4.7 constants and formulas are quoted exactly.
+- CO₂ Mischwald factor stays at 0.0177 with the PROVISIONAL marker — user-confirmed in DECISIONS "CO₂ Mischwald-Faktor provisional". When GreenScout confirms a new value, it's a one-line edit in both constants modules + a `docs/calc-sources.md` line.
+
+**Affected files:**
+- `src/lib/calculations/constants.ts` (new)
+- `src/lib/calculations/constants.test.ts` (new)
+- `src/lib/calculations/types.ts` (new)
+- `src/lib/calculations/index.ts` (new)
+- `src/lib/calculations/index.test.ts` (new)
+- `src/lib/calculations/parity.test.ts` (new)
+- `services/python/app/domain/constants.py` (populated)
+- `services/python/app/domain/calculations.py` (populated)
+- `services/python/app/schemas/calc.py` (new)
+- `services/python/tests/test_constants.py` (new)
+- `services/python/tests/test_calculations.py` (new)
+- `services/python/tests/test_parity.py` (new)
+- `services/python/tests/fixtures/calc-parity-fixtures.json` (new)
+- `services/python/requirements-dev.txt` (pytest-cov added)
+- `scripts/generate-calc-parity-fixtures.mjs` (new)
+- `docs/calc-sources.md` (new)
+- `eslint.config.mjs` (trusted-path block for `scripts/`)
+- `src/features/studies/components/study-form.tsx` (Step 5 STUB replaced)
+- `src/features/studies/components/study-form.test.tsx` (2 new tests)
+- `src/i18n/de.ts` (2 new keys + 1 updated)
+- `TASKS.md` (Slice 1 carry-forward + Slice 2 IN PROGRESS markers)
+- `DECISIONS.md` (this entry)
+
 **Open question for the user:** —

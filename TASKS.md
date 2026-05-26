@@ -164,7 +164,7 @@
 ### Slice 7 — Calculation logic (TS + Py mirror)
 
 ### T-031 Calculation constants modules (TS + Py) with CO₂ provisional marker
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
 - **Feature:** calculations
 - **Type:** feat
 - **Effort:** S
@@ -183,7 +183,7 @@
 ---
 
 ### T-032 TS calculation module (live preview)
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
 - **Feature:** calculations
 - **Type:** feat
 - **Effort:** M
@@ -202,7 +202,7 @@
 ---
 
 ### T-033 Python calculation module (authoritative for document generation)
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
 - **Feature:** calculations (python)
 - **Type:** feat
 - **Effort:** M
@@ -221,7 +221,7 @@
 ---
 
 ### T-034 Parity tests — TS vs Python calculation outputs
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
 - **Feature:** calculations
 - **Type:** test
 - **Effort:** M
