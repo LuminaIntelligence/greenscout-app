@@ -51,39 +51,7 @@
 
 ### Slice 4 — Customers CRUD
 
-*(T-023 and T-024 carried forward to Recently completed — see entries below.)*
-
-### T-024b Coverage gate honesty — global denominator = whole `src` tree
-- **Status:** ⬜ TODO
-- **Feature:** tooling / quality-gate
-- **Type:** chore
-- **Effort:** S
-- **Blocks:** T-025 (Slice 5 must be built under an honest 80 % gate, not one with holes)
-- **Blocked by:** —
-- **Description:**
-  Tighten the Vitest coverage scope so the CLAUDE.md §5.2 / SPEC §5.2 "global 80 %" gate measures the entire `src/**` code surface as denominator, not the hand-curated opt-in allow-list currently configured in `vitest.config.ts`.
-
-  **Status quo (origin/main 1daee1c):** `coverage.include` is a curated allow-list — `src/lib/**`, `src/features/**/{services,utils,schemas,hooks}/**`, `src/features/customers/actions/**`, `src/features/**/*-policy.{ts,tsx}`, the single password-rule-checklist file, and `src/middleware.ts`. Everything else — `src/features/auth/actions/{sign-in,change-password,sign-out}.ts`, every component-side directory (auth/login-form, auth/change-password-form, customers/customer-table, customers/customer-form, app-shell/topbar), route shells under `src/app/**`, shadcn primitives in `src/components/ui/**` — does **not enter the denominator**. The "92.5 % global" reported after PR #25 is computed over the allow-list only, so untested files do not redden the gate; they just do not exist as far as v8 is concerned.
-
-  **Refactor:** switch `coverage.include` to `["src/**/*.{ts,tsx}"]`. Move every legitimately-excluded category into `coverage.exclude` with an inline comment justifying the exclusion. Allowed exclusion categories: Prisma generated client (`src/generated/**`), test files (`*.test.{ts,tsx}`), declaration files (`*.d.ts`), the i18n dictionary (`src/i18n/**` — strings, not logic), the Prisma singleton (`src/lib/db.ts` — wiring), shadcn-generated UI primitives (`src/components/ui/**` — vendored, not authored), Next.js route shells (`src/app/**` — exercised end-to-end by Playwright T-051a/b, kept out of the unit-coverage gate by design), config files (`*.config.{js,mjs,ts}`), scaffold placeholders (`**/example.ts`).
-
-  **Per-pattern thresholds stay enforced.** Every existing per-pattern 100 % / 90 % rule in `vitest.config.ts` must remain after the refactor (calculations, password-policy, authorize-credentials, admin-alerts, change-password service, password-rule-checklist, middleware @ 90 %, customer create/update actions). **Additionally**, add a per-pattern 100 % threshold for `src/features/auth/actions/{sign-in,change-password,sign-out}.ts` — those sit on the same trust boundary as `src/features/customers/actions/**` and deserve the same treatment. This will force `sign-in.test.ts` and `change-password.test.ts` (action-wrapper tests) to be written in this same PR, since the files currently have zero coverage.
-
-  **Expected effect:** the global lines/branches/functions/statements numbers will drop noticeably as previously-invisible files (auth actions, every `components/` directory currently outside the allow-list, app-shell, etc.) enter the denominator. If the post-refactor global drops below 80 %, the PR is responsible for either (a) adding the missing tests in-PR or (b) tightening the global threshold to a documented honest floor with a written plan in `DECISIONS.md` to recover. **The threshold itself does not move down.** Failing the 80 % gate is a pause-trigger to coordinate with the user, not a license to lower the floor.
-
-  Document the rationale + the new exclude list in a single `DECISIONS.md` entry (§14.5).
-- **Acceptance criteria:**
-  - [ ] `vitest.config.ts` `coverage.include` is `["src/**/*.{ts,tsx}"]` (or equivalent expressing the whole src tree).
-  - [ ] `coverage.exclude` lists each excluded path with an inline `//` comment naming the reason it stays outside.
-  - [ ] All pre-existing per-pattern thresholds remain enforced verbatim.
-  - [ ] New per-pattern 100 % thresholds added for `src/features/auth/actions/sign-in.ts`, `src/features/auth/actions/change-password.ts`, `src/features/auth/actions/sign-out.ts`.
-  - [ ] New tests `src/features/auth/actions/sign-in.test.ts` and `src/features/auth/actions/change-password.test.ts` ship in this same PR, covering every branch (schema-parse failure, signIn-throws-LockedAccountError with lockedUntil, signIn-throws-AccountUnavailableError "deleted"/"inactive", signIn-throws-AuthError, signIn-throws-generic, happy path; for change-password: schema-parse failure, no-session, service-returns-error, service-returns-ok → unstable_update invoked, header extraction with/without `x-forwarded-for`).
-  - [ ] `npm run test -- --coverage` exits 0 locally — every threshold (global + per-pattern) is met.
-  - [ ] `DECISIONS.md` entry under §14.5 records: (a) why include flips to the whole src tree, (b) why each excluded path is excluded, (c) the post-refactor coverage-report ASCII snapshot.
-  - [ ] PR body pastes the `text` reporter output so the reviewer sees the new denominator size.
-  - [ ] CI green on the new global denominator.
-- **Files likely touched:** `vitest.config.ts`, new `src/features/auth/actions/sign-in.test.ts`, new `src/features/auth/actions/change-password.test.ts`, `DECISIONS.md`.
-- **Pause-triggers anticipated:** none. Pure tooling refactor — no SPEC scope change, no auth-logic change, no schema change, no dependency change. Lowering the 80 % global floor WOULD be a pause-trigger (§5 quality-gate softening) — the implementer must not lower it unilaterally; instead add the missing tests in-PR.
+*(T-023, T-024 and T-024b carried forward to Recently completed — see entries below.)*
 
 ---
 
@@ -929,6 +897,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-024b ✅ Coverage gate honesty — global denominator = whole `src` tree
+- **Merged:** 2026-05-26 via PR #38.
+- **Branch:** `chore/t024b-coverage-gate-honesty`
+- **Summary:** `vitest.config.ts` `coverage.include` flipped from a curated opt-in allow-list to `["src/**/*.{ts,tsx}"]`. Every legitimately-excluded category now lives in `coverage.exclude` with an inline `//` comment justifying the exclusion (Prisma generated client, test files, declaration files, i18n dictionary, Prisma singleton, shadcn UI primitives, Next.js route shells, config files, scaffold placeholders). All pre-existing per-pattern thresholds remain enforced verbatim. New per-pattern 100 % thresholds added for `src/features/auth/actions/{sign-in,change-password,sign-out}.ts` — same trust-boundary class as the customer Server Actions. New tests `sign-in.test.ts` and `change-password.test.ts` ship to satisfy the new thresholds; `sign-out.test.ts` was already in place. Global lines/branches/functions/statements measured against the new whole-`src` denominator with all gates (global 80 % + every per-pattern 100 %/90 %) green. Status-flip carry-forward (war `🟦 IN PROGRESS`, faktisch gemerged in PR #38).
+- **Decisions:** siehe `DECISIONS.md` Eintrag "T-024b — Coverage gate honesty (binding)".
 
 ### T-050a ✅ Production deploy infrastructure (deploy.sh + nginx + compose + Anleitung)
 - **Merged:** 2026-05-25 via PR #27 (+ Folge-Hotfixes PRs #28–#36 für CSP-Nonce / force-dynamic / sundry deploy-related corrections).
