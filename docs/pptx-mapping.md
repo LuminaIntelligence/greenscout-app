@@ -1,9 +1,13 @@
 # PPTX-Mapping — `Machbarkeitsstudie-PV-Template_v1_6.pptx`
 
-> **⚠️ DRAFT — awaiting user sign-off before T-037 modifies the template.**
-> Slice 3b (T-037+) starts **only** after the user confirms the mapping below.
+> **✅ SIGNED OFF 2026-05-26 — see DECISIONS.md "Slice 3a sign-off + Slice 3b design".**
+> The six previously-flagged disambiguation items have been resolved
+> by the user; the resolved entries are inlined below in the relevant
+> per-slide tables, and the consolidated answers live in the
+> "Disambiguation summary — resolved" section near the bottom.
+> Slice 3b (T-037+) implements exactly the placeholders listed here.
 >
-> Tracker: T-036 in `TASKS.md`. Author: implementer subagent.
+> Tracker: T-036 (gemerged via PR #41) in `TASKS.md`. Author: implementer subagent.
 > Source of truth for the extraction: `scripts/inspect-pptx.py` against
 > `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` (19 slides).
 >
@@ -39,29 +43,13 @@ shapes on which slides receive those.
 
 ---
 
-## Sign-off checklist (user)
+## Sign-off — resolved 2026-05-26
 
-Review the table below, then mark this section once you're satisfied.
-**T-037 will not start until at least the first four boxes are checked.**
-
-- [ ] All static text correctly identified (i.e. nothing the consultant
-      should be able to change has been left as static text).
-- [ ] All dynamic placeholders cover the data needed (every red value
-      maps to a `{{key}}` with a defined source).
-- [ ] Snake_case names align with the pydantic schemas
-      (`StudyCalcInput`, `DerivedValues`) and Prisma fields.
-- [ ] Image placeholders (`{{image_before}}`, `{{image_after}}`) are
-      assigned to the correct shapes on Slides 2, 4, 5 (cross-check the
-      "Image placeholder candidates" rows below).
-- [ ] Ambiguous keys (marked `?` in the table) have been disambiguated —
-      either resolved here in this file or left for a follow-up
-      discussion before T-037.
-- [ ] No additional slots discovered post-review (i.e. the template has
-      no other red values beyond those captured here).
-
-When all of the above are checked, post the comment `mapping signed-off`
-on the PR. The orchestrator dispatches Slice 3b (T-037, T-038a, T-038b,
-T-039, T-040) on that signal.
+All six disambiguation items were resolved by the user in the Slice 3a
+review. The binding answers are inlined in the per-slide tables below
+and consolidated in the "Disambiguation summary — resolved" section.
+Slice 3b (T-037, T-038a, T-038b, T-039, T-040) implements exactly the
+mapping captured here.
 
 ---
 
@@ -97,6 +85,14 @@ implement exactly this set; any deviation should be flagged before merge.
 - `{{ersparnis_gesamt_vertragslaufzeit_eur}}` — `DerivedValues.ersparnis_20_jahre`, format `492.000 €`.
 - `{{gesamterzeugung_vertragslaufzeit_kwh}}` — `DerivedValues.gesamterzeugung_20j`, format `4.720.000 kWh`.
 - `{{gesamtvorteil_eur}}` — `DerivedValues.gesamtvorteil`, format `517.500 €`.
+- `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` — `DerivedValues.pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit`
+  (Slice-3a sign-off item 1; formula `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`), format `3.280.000 kWh`.
+- `{{stromkosten_ohne_pv_eur_jahr}}` — `DerivedValues.stromkosten_ohne_pv_eur_jahr`
+  (Slice-3a sign-off item 2; formula `verbrauch_kwh_jahr × versorger_preis_eur_kwh`), format `140.000 €`.
+- `{{stromkosten_mit_pv_eur_jahr}}` — `DerivedValues.stromkosten_mit_pv_eur_jahr`
+  (Slice-3a sign-off item 3; formula `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_einspeise_vergueting`,
+  with `pv_einspeise_vergueting = EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 €/kWh` provisional constant
+  pending real PV-Sol / Einspeisevergütung data — see DECISIONS), format `115.400 €`.
 
 ### Sensitivity scenarios (sourced from `Study.szenarioPreis*` + recomputed via `StudyCalcInput` substitution)
 
@@ -186,17 +182,17 @@ Slide 4 is the **money slide** — it densely repeats key figures. Six shapes co
 | 4       | `Text 16 \| run 0` (Pacht block) | `27.500 `                        | `{{pacht_einnahme_einmalig_eur}} `                 | `DerivedValues.pacht_einnahme_einmalig`                                                         | Second occurrence on Slide 4 (Pachteinnahmen-Block). Identical source to Slide 3 run 7.                                                |
 | 4       | `Textfeld 34 \| run 1`           | `Linzgau Center, Pfullendorf. `  | `{{customer_object_short_name_and_city}}. `        | `Study.objectName + ', ' + Study.objectCity + '.'`                                              | Footer "Objektstandort: …" — short form, **not** the full address. Disambiguation note: this is shorter than `{{customer_object_address}}`. |
 | 4       | `Textfeld 34 \| run 2`           | `Flurstück: 78.10`               | `Flurstück: {{flurstueck}}`                        | `Study.flurstueck`                                                                              | Static prefix `Flurstück: ` + dynamic value.                                                                                          |
-| 4       | `Image 0` / `Grafik 25` shapes   | _PIC shapes_                     | **image placeholder candidates** — see note below   | TBD                                                                                             | **Disambiguate at sign-off**: which of `Image 0` / `Grafik 25` is the BEFORE photo on Slide 4 (vs. brand-graphic)? Default assumption: `Image 0` becomes `{{image_before}}`. |
+| 4       | `Image 0` shape                  | _PIC shape_                      | **renamed to `image_before` (shape.name)**          | `StudyImage.type = BEFORE` (processed file from T-029b)                                          | **Resolved 2026-05-26** (item 5): Slide 4 has only one photo placeholder — `Image 0` — and it receives the BEFORE photo. The other `Grafik 25` is brand decoration and remains static. T-037 sets `shape.name = "image_before"` on `Image 0` so T-038b can find it by name. **Post-merge visual check** required: confirm the right shape received the photo when the first generated PPTX is opened. |
 
 ### Slide 5 — Jetzt / Später Wirtschaftlichkeit
 
 | Slide # | Shape \| run               | Current literal | Proposed key                                       | Source                                                                                          | Notes                                                                                                                                  |
 | ------- | -------------------------- | --------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 5       | `Textfeld 13 \| run 1`      | `27.500 `       | `{{pacht_einnahme_einmalig_eur}} `                 | `DerivedValues.pacht_einnahme_einmalig`                                                         | Third occurrence — same source.                                                                                                        |
-| 5       | `Textfeld 15 \| run 3`      | `468.982`       | `{{pv_erzeugung_kwh_gesamt_vertragslaufzeit}}`     | derived: `pv_erzeugung × vertragslaufzeit`                                                       | **Disambiguation**: this is the **20-year PV total** from PV-Sol, but the existing template's literal `468.982` differs from `Text 9 \| run 2 = 4.720.000` on Slide 4. **Open question**: is this slide's value supposed to be `pv_eigenverbrauch × vertragslaufzeit_jahre` rather than `pv_erzeugung × ...`? Awaiting user confirmation. Provisional key suggestion: `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` — please confirm. |
+| 5       | `Textfeld 15 \| run 3`      | `468.982`       | `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` | derived: `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`                                  | **Resolved 2026-05-26** (item 1): map to the eigenverbrauch-over-contract formula. The literal `468.982` in the template came from a PV-Sol simulation of a different dataset and is internally inconsistent with the rest of the slide deck; the formula-based value keeps Slide 5 consistent with the MVP "no-degradation" convention used on Slide 4 (`gesamterzeugung_20j = pv_erzeugung × 20 = 4.720.000 kWh`). Phase 3 (SPEC §2.3) will replace this with real PV-Sol output. |
 | 5       | `Textfeld 11 \| run 0`      | `20,00 `        | `{{pv_verkauf_ct_kwh}}`                            | `StudyCalcInput.pv_verkauf_eur_kwh × 100`                                                       | PV-Stromlieferpreis in ct/kWh. Format `20,00` (German decimal).                                                                        |
 | 5       | `Textfeld 11 \| run 7`      | `492.000`       | `{{ersparnis_gesamt_vertragslaufzeit_eur}}`        | `DerivedValues.ersparnis_20_jahre`                                                              | "Einsparpotential gegenüber dem heutigen Stromlieferanten ca. X €".                                                                    |
-| 5       | `Grafik 2/5/10` shapes      | _PIC shapes_    | **image placeholder candidates** — see note below   | TBD                                                                                             | "Vorher - Nachher"-Block. **Disambiguate at sign-off**: which two of these three shapes are `{{image_before}}` and `{{image_after}}`? Default assumption based on shape ordering: `Grafik 2 = {{image_before}}`, `Grafik 5 = {{image_after}}`, `Grafik 10` = static brand mark. |
+| 5       | `Grafik 2/5/10` shapes      | _PIC shapes_    | **`Grafik 2` → `image_before`, `Grafik 5` → `image_after`, `Grafik 10` stays static** | `StudyImage.type = BEFORE/AFTER` (processed files from T-029b)                              | "Vorher - Nachher"-Block. **Resolved 2026-05-26** (item 5): default assumption confirmed. `Grafik 2` is the left "vorher"-tile, `Grafik 5` the right "nachher"-tile, `Grafik 10` is the static GreenScout brand-mark and is NOT replaced. T-037 sets `shape.name = "image_before"` on `Grafik 2` and `shape.name = "image_after"` on `Grafik 5`. **Post-merge visual check** required when the first PPTX is generated. |
 
 ### Slide 6 — Dafür stehen wir (Mission/Vision)
 
@@ -214,7 +210,7 @@ No red text runs. Static.
 
 | Slide # | Shape \| run    | Current literal | Proposed key                                  | Source                                                                                          | Notes                                                                                                                                                                                                          |
 | ------- | --------------- | --------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9       | `Text 4 \| run 1` | `32`            | `{{versorger_preis_ct_kwh}}`                  | `StudyCalcInput.versorger_preis_eur_kwh × 100`                                                  | "Ihr aktueller Netzstrompreis X netto ct/kWh". **Disambiguation**: the template currently has `32` here but `35` on Slide 12 / 14 / 15. Slide 9 likely an older draft; map to same single source `{{versorger_preis_ct_kwh}}` so all three reflect the consultant-entered value uniformly. |
+| 9       | `Text 4 \| run 1` | `32`            | `{{versorger_preis_ct_kwh}}`                  | `StudyCalcInput.versorger_preis_eur_kwh × 100`                                                  | "Ihr aktueller Netzstrompreis X netto ct/kWh". **Resolved 2026-05-26** (item 6): unify with Slides 12/14/15 onto a single `{{versorger_preis_ct_kwh}}` placeholder so all four slides reflect the consultant-entered value consistently. The literal `32` on Slide 9 was a leftover from an older draft.|
 | 9       | `Text 21 \| run 2` | `27.500`       | `{{pacht_einnahme_einmalig_eur}}`             | `DerivedValues.pacht_einnahme_einmalig`                                                         | Pachteinnahmen Summary.                                                                                                                                                                                        |
 | 9       | `Text 21 \| run 5` | `492.000 `     | `{{ersparnis_gesamt_vertragslaufzeit_eur}} `  | `DerivedValues.ersparnis_20_jahre`                                                              | Stromersparnis 20 Jahre.                                                                                                                                                                                       |
 | 9       | `Text 21 \| run 8` | `2200 `        | `{{co2_tonnen_gesamt_vertragslaufzeit}} `     | derived                                                                                         | CO₂-Ersparnis 20 Jahre.                                                                                                                                                                                        |
@@ -265,8 +261,8 @@ No red text runs. Static.
 
 | Slide # | Shape \| run    | Current literal | Proposed key                                   | Source                                          | Notes                                                                                                                                                                                                         |
 | ------- | --------------- | --------------- | ---------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 14      | `Text 4 \| run 1` | `140.000 `      | `{{stromkosten_ohne_pv_eur_jahr}} `            | derived: `Study.verbrauchKwhJahr × Study.versorgerPreisEurKwh` | "Ohne PV: ca. X € Stromkosten pro Jahr". `verbrauch × versorger_preis`. **Disambiguation needed**: is this denominator the full annual consumption, or the consumption portion not covered by eigenverbrauch? Default: full consumption. |
-| 14      | `Text 7 \| run 1` | `115.400`       | `{{stromkosten_mit_pv_eur_jahr}}`              | derived: `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_verkauf` | "Mit PV: ca. X € Stromkosten pro Jahr". Formula: residual-from-grid at supplier price + self-consumed at PV-Liefervertrag price.                                                                              |
+| 14      | `Text 4 \| run 1` | `140.000 `      | `{{stromkosten_ohne_pv_eur_jahr}} `            | `DerivedValues.stromkosten_ohne_pv_eur_jahr` — formula: `verbrauch_kwh_jahr × versorger_preis_eur_kwh` | "Ohne PV: ca. X € Stromkosten pro Jahr". **Resolved 2026-05-26** (item 2): full annual consumption × supplier price. Rechenprobe: `400.000 × 0,35 = 140.000 €`. |
+| 14      | `Text 7 \| run 1` | `115.400`       | `{{stromkosten_mit_pv_eur_jahr}}`              | `DerivedValues.stromkosten_mit_pv_eur_jahr` — formula: `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH` | "Mit PV: ca. X € Stromkosten pro Jahr". **Resolved 2026-05-26** (item 3): residual-from-grid at supplier price + self-consumed share valued at the Einspeisevergütung (NOT the consultant-entered `pv_verkauf_eur_kwh` — that is the *sales* price to the grid, not the avoided-cost reference). Rechenprobe: `(400.000 − 164.000) × 0,35 + 164.000 × 0,20 = 82.600 + 32.800 = 115.400 €`. The `0,20` factor lives as the PROVISIONAL constant `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH` in `constants.ts/.py` — see DECISIONS for the open follow-up on real 2026 Einspeisevergütung lookup. |
 | 14      | `Text 8 \| run 1` | `20 `           | `{{pv_verkauf_ct_kwh}} `                       | `StudyCalcInput.pv_verkauf_eur_kwh × 100`       | "Fixer PV-Strompreis X ct/kWh".                                                                                                                                                                               |
 | 14      | `Text 10 \| run 1` | `24.600`       | `{{ersparnis_pro_jahr_eur}}`                   | `DerivedValues.ersparnis_pro_jahr`              | "Jährliche Reduktion der Stromkosten".                                                                                                                                                                        |
 
@@ -311,22 +307,24 @@ No red text runs. Fully static.
 | ------- | --------------- | --------------------- | --------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | 19      | `Text 3 \| run 3` | `XX.XX.XXXX um XX.XX` | `{{termin_vorschlag_1}}`    | `Study.terminVorschlag1`                        | Format `DD.MM.YYYY um HH.MM`.                                                                                        |
 | 19      | `Text 3 \| run 8` | `XX.XX.XXXX um XX.XX ` | `{{termin_vorschlag_2}} ` | `Study.terminVorschlag2`                        | Format same.                                                                                                         |
-| 19      | `Text 2 \| run 0` | `Bernd Berater`       | `{{consultant_full_name}}`  | `User.firstName + ' ' + User.lastName`          | Bottom-card Berater name. **Disambiguation**: The `Text 4 (Telefon:)` and the `Text 5 (E-Mail:)` literal lines below are also currently hard-coded to the GreenScout default. The user must decide: keep them static (GreenScout-V e.V. central contact) or swap to the assigned consultant's `User.phone` / `User.email`. **Recommended for MVP**: keep `Text 4/5/6` static (the central GreenScout e.V. contact line — phone +49 172 3794240, projektberatung@greenscout-ev.de, Utechter Str. 5) and only personalise the bottom-right "Bernd Berater" card via `{{consultant_full_name}}`. Confirm at sign-off. |
+| 19      | `Text 2 \| run 0` | `Bernd Berater`       | `{{consultant_full_name}}`  | `User.firstName + ' ' + User.lastName`          | Bottom-card Berater name. **Resolved 2026-05-26** (item 4): keep the central GreenScout e.V. contact lines static in the template — `+49 172 3794240`, `projektberatung@greenscout-ev.de`, `Utechter Str. 5, 19217 Utecht`. Only `{{consultant_full_name}}` rotates per study. Rationale: `User.phone` is optional and a fallback to the central line is more robust than a sometimes-empty consultant phone slot. |
 
 ---
 
-## Disambiguation summary — items the user must resolve at sign-off
+## Disambiguation summary — resolved 2026-05-26
 
-These flagged items require an explicit answer before T-037 starts:
+All six items below were resolved by the user as part of the Slice 3a
+sign-off. The decisions are binding for T-037 / T-038a / T-038b /
+T-039 / T-040.
 
-| # | Slide(s) | Question                                                                                          | Default assumption (if no other answer)                                                                                |
-| - | -------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 1 | 5        | What is `Textfeld 15 \| run 3 = 468.982` supposed to be?                                          | Provisional: `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` — `pv_eigenverbrauch × vertragslaufzeit_jahre`.       |
-| 2 | 14       | Is `140.000 €` "Ohne PV" the full annual consumption × supplier price?                            | Default: yes — `verbrauchKwhJahr × versorgerPreisEurKwh`.                                                              |
-| 3 | 14       | Is `115.400 €` "Mit PV" the residual-from-grid + eigenverbrauch-at-PV-price?                       | Default: yes — `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_verkauf`.                   |
-| 4 | 19       | Should `Telefon` / `E-Mail` / `Adresse` lines stay as the central GreenScout contact, or rotate per-consultant? | Default: stay central; only `{{consultant_full_name}}` rotates per study.                                              |
-| 5 | 4, 5     | Which exact shape names receive `{{image_before}}` and `{{image_after}}`?                          | Default: Slide 4 `Image 0` = `{{image_before}}`; Slide 5 `Grafik 2` = `{{image_before}}` and `Grafik 5` = `{{image_after}}`. |
-| 6 | 9        | Slide 9's `32` ct/kWh literal differs from Slide 12/14/15's `35`. Unify to a single placeholder?  | Default: yes — single placeholder `{{versorger_preis_ct_kwh}}`; user-entered value drives all four slides.            |
+| # | Slide(s) | Question                                                                                          | **Resolution**                                                                                                                              |
+| - | -------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | 5        | What is `Textfeld 15 \| run 3 = 468.982` supposed to be?                                          | `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` = `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`. Template literal `468.982` was internally inconsistent and is replaced. Phase 3 introduces real PV-Sol-driven values. |
+| 2 | 14       | Is `140.000 €` "Ohne PV" the full annual consumption × supplier price?                            | Yes — `{{stromkosten_ohne_pv_eur_jahr}}` = `verbrauch_kwh_jahr × versorger_preis_eur_kwh`. Rechenprobe: `400.000 × 0,35 = 140.000 €`. |
+| 3 | 14       | Is `115.400 €` "Mit PV" the residual-from-grid + eigenverbrauch-at-PV-price?                       | Yes (with one caveat) — `{{stromkosten_mit_pv_eur_jahr}}` = `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`. The avoided-cost reference is the Einspeisevergütung (PROVISIONAL 0,20 €/kWh constant — pending real 2026 lookup), NOT `pv_verkauf_eur_kwh` (which is the sales-to-grid price). Rechenprobe: `(400.000 − 164.000) × 0,35 + 164.000 × 0,20 = 115.400 €`. |
+| 4 | 19       | Should `Telefon` / `E-Mail` / `Adresse` lines stay as the central GreenScout contact, or rotate per-consultant? | Stay central. Only `{{consultant_full_name}}` rotates. Central contact: `+49 172 3794240`, `projektberatung@greenscout-ev.de`, `Utechter Str. 5, 19217 Utecht`. |
+| 5 | 4, 5     | Which exact shape names receive `{{image_before}}` and `{{image_after}}`?                          | Slide 4 `Image 0` → renamed to `image_before`. Slide 5 `Grafik 2` → `image_before`, `Grafik 5` → `image_after`, `Grafik 10` stays static (brand mark). **Post-merge visual check** required. |
+| 6 | 9        | Slide 9's `32` ct/kWh literal differs from Slide 12/14/15's `35`. Unify to a single placeholder?  | Yes — single `{{versorger_preis_ct_kwh}}` placeholder across all four slides; consultant-entered value drives them uniformly.            |
 
 ---
 
