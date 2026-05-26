@@ -1,0 +1,3 @@
+# Generated test images live here. The conftest creates per-test
+# image files in a tmp_path; nothing is committed inside this folder
+# beyond this marker so binary churn stays out of git history.

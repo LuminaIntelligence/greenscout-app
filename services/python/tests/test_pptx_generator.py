@@ -37,6 +37,7 @@ from app.services.pptx_generator import (
     _IMAGE_AFTER_NAME,
     _IMAGE_BEFORE_NAME,
     _PLACEHOLDER_RE,
+    _contain_fit,
     _format_value,
     generate_pptx,
 )
@@ -131,6 +132,52 @@ def test_no_placeholders_in_paragraph_is_a_no_op(tmp_path: Path) -> None:
     generate_pptx(tpl_path, out, context={"customer_name": "X"})
     pres = Presentation(out)
     assert pres.slides[0].shapes[0].text_frame.text.startswith("Static title")
+
+
+# --- contain-fit arithmetic (T-029c letterbox/contain policy) --------
+
+
+def test_contain_fit_image_same_aspect_fills_slot() -> None:
+    """Matching aspect ratio → image fills the entire slot, no margin."""
+    left, top, w, h = _contain_fit(1000, 500, 2000, 1000)
+    assert (left, top, w, h) == (0, 0, 2000, 1000)
+
+
+def test_contain_fit_wide_image_letterboxes_top_bottom() -> None:
+    """A 16:9 image in a 4:3 slot leaves margins top + bottom (height < slot)."""
+    left, top, w, h = _contain_fit(1600, 900, 1200, 1200)
+    # Image aspect = 16/9 ≈ 1.778; slot aspect = 1.0; image-wider branch.
+    assert w == 1200  # fills width
+    assert h == round(1200 * 9 / 16)  # 675
+    assert left == 0
+    assert top == (1200 - h) // 2
+
+
+def test_contain_fit_tall_image_letterboxes_left_right() -> None:
+    """A 9:16 image in a 4:3 slot leaves margins left + right (width < slot)."""
+    left, top, w, h = _contain_fit(900, 1600, 1200, 1200)
+    # Image aspect = 0.5625; slot aspect = 1.0; image-taller branch.
+    assert h == 1200  # fills height
+    assert w == round(1200 * 9 / 16)
+    assert top == 0
+    assert left == (1200 - w) // 2
+
+
+def test_contain_fit_degenerate_image_zero_dim_falls_back_to_fill() -> None:
+    """Defensive: zero-dimension image input falls back to filling the slot."""
+    assert _contain_fit(0, 100, 1000, 500) == (0, 0, 1000, 500)
+    assert _contain_fit(100, 0, 1000, 500) == (0, 0, 1000, 500)
+
+
+def test_contain_fit_degenerate_slot_zero_dim_returns_zeros() -> None:
+    """Defensive: zero-dimension slot returns a zero-area placement."""
+    assert _contain_fit(100, 100, 0, 500) == (0, 0, 0, 500)
+    assert _contain_fit(100, 100, 500, 0) == (0, 0, 500, 0)
+
+
+def test_contain_fit_negative_slot_dimensions_clamp_to_zero() -> None:
+    """Negative slot dimensions are clamped to 0 (no crashes on bad input)."""
+    assert _contain_fit(100, 100, -10, 500) == (0, 0, 0, 500)
 
 
 # --- image replacement ------------------------------------------------

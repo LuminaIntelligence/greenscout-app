@@ -31,6 +31,14 @@ Key design points:
     same position). If the context omits the image, the shape stays
     untouched so the template's placeholder graphic remains visible.
 
+    **Aspect-ratio policy (T-029c, Slice-4 sign-off):** the new picture
+    is inserted in **letterbox / contain** mode — the image's full
+    aspect ratio is preserved and the picture is centred inside the
+    placeholder's box. The image is never cropped server-side; any
+    aspect-ratio mismatch with the slide slot is taken up by a thin
+    margin top/bottom or left/right. Cropping is a separate, opt-in
+    PR (recorded as a follow-up in DECISIONS.md).
+
 @see SPEC §4.8 (document generation strategy)
 @see docs/pptx-mapping.md (signed-off placeholder mapping)
 """
@@ -41,6 +49,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
+from PIL import Image
 from pptx import Presentation
 from pptx.util import Emu
 
@@ -131,33 +140,91 @@ def _replace_in_shape(shape: Any, context: dict[str, Any]) -> int:
     return count
 
 
+def _contain_fit(
+    image_width_px: int,
+    image_height_px: int,
+    slot_width_emu: int,
+    slot_height_emu: int,
+) -> tuple[int, int, int, int]:
+    """Fit the image into the slot bounding box (contain / letterbox).
+
+    Preserves the source image's aspect ratio. The returned tuple is
+    ``(left_offset_emu, top_offset_emu, fitted_width_emu, fitted_height_emu)``
+    relative to the slot's top-left corner: the offsets centre the
+    image inside the slot when one axis is smaller than the slot.
+
+    The function is pure — no Pillow / pptx access — so it is cheap
+    to unit-test for arithmetic correctness.
+    """
+    if image_width_px <= 0 or image_height_px <= 0:
+        # Degenerate input — fall back to filling the slot to avoid a
+        # divide-by-zero. The slot still bounds the visible area so
+        # the layout doesn't blow up.
+        return (0, 0, slot_width_emu, slot_height_emu)
+    if slot_width_emu <= 0 or slot_height_emu <= 0:
+        return (0, 0, max(slot_width_emu, 0), max(slot_height_emu, 0))
+
+    image_aspect = image_width_px / image_height_px
+    slot_aspect = slot_width_emu / slot_height_emu
+
+    if image_aspect >= slot_aspect:
+        # Image is wider (or equal) — width fills, height letterboxes.
+        fitted_width = slot_width_emu
+        fitted_height = round(slot_width_emu / image_aspect)
+        left_offset = 0
+        top_offset = (slot_height_emu - fitted_height) // 2
+    else:
+        # Image is taller — height fills, width letterboxes.
+        fitted_height = slot_height_emu
+        fitted_width = round(slot_height_emu * image_aspect)
+        top_offset = 0
+        left_offset = (slot_width_emu - fitted_width) // 2
+
+    return (left_offset, top_offset, fitted_width, fitted_height)
+
+
 def _replace_image_in_slide(slide: Any, shape_name: str, image_path: Path) -> bool:
     """Replace the named image-placeholder shape with the new picture.
 
     Captures the placeholder's geometry, removes it, and inserts a
-    fresh ``picture`` at the same ``left/top/width/height``. Returns
-    True on success.
+    fresh ``picture`` at the same ``left/top``, scaled with a
+    ``contain`` policy so the image's aspect ratio is preserved. The
+    image is centred inside the placeholder's box.
+
+    Returns True on success, False if the named shape was not found.
     """
     target = next((s for s in slide.shapes if s.name == shape_name), None)
     if target is None:
         logger.info("pptx_generator: image shape '%s' not found on slide, skipping", shape_name)
         return False
 
-    left = target.left
-    top = target.top
-    width = target.width
-    height = target.height
+    slot_left = int(target.left) if target.left is not None else 0
+    slot_top = int(target.top) if target.top is not None else 0
+    slot_width = int(target.width) if target.width is not None else 0
+    slot_height = int(target.height) if target.height is not None else 0
 
     # Remove the placeholder shape from the slide's XML tree.
     sp_element: Any = target._element  # python-pptx exposes no public delete API.
     sp_element.getparent().remove(sp_element)
 
+    # Read the source image's pixel dimensions so we can compute the
+    # contain-fit box. Pillow is already a transitive dependency.
+    with Image.open(str(image_path)) as src:
+        image_width_px, image_height_px = src.size
+
+    left_offset, top_offset, fitted_width, fitted_height = _contain_fit(
+        image_width_px,
+        image_height_px,
+        slot_width,
+        slot_height,
+    )
+
     new_pic = slide.shapes.add_picture(
         str(image_path),
-        Emu(int(left)) if left is not None else Emu(0),
-        Emu(int(top)) if top is not None else Emu(0),
-        width=Emu(int(width)) if width is not None else None,
-        height=Emu(int(height)) if height is not None else None,
+        Emu(slot_left + left_offset),
+        Emu(slot_top + top_offset),
+        width=Emu(fitted_width) if fitted_width > 0 else None,
+        height=Emu(fitted_height) if fitted_height > 0 else None,
     )
     new_pic.name = shape_name  # keep the name so a re-run can find it again.
     return True
