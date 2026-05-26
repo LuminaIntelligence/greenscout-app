@@ -2912,3 +2912,54 @@ The denominator went from 385 statements (pre-refactor) to 651 statements (post-
 - **Post-merge visual check** of the first generated PPTX: Slide 4 + Slide 5 image shapes should have received the photos.
 
 **Open question for the user:** none. The six sign-off items are resolved.
+
+---
+
+## 2026-05-26 — StudyForm focus-loss fix (silent §14 decisions consolidated)
+
+**Context:** User-reported regression after Slice-3b PR #42 merge: in the live deploy
+(`greenscout.lumina-intelligence.ai`), every keystroke in any StudyForm text or number
+field lost focus, so only the first character of any typed string landed. Diagnosis
+confirmed the cause: the eight `Section<N>` renderers were defined as *nested functions*
+inside `StudyForm`, so every parent re-render (which fires after every `setValues` call,
+i.e. every keystroke) produced fresh component identities → React unmounted + remounted
+the entire sub-tree → focused input torn out of DOM → `document.activeElement` reset to
+`<body>` → next keystroke landed nowhere.
+
+**Decisions:**
+
+- **Test framework: Vitest + RTL + `@testing-library/user-event` instead of Playwright.**
+  Reason: Playwright is gated behind T-051a (install pending — §7.1). `user-event.type()`
+  dispatches one keydown/input/keyup cycle per character through the real DOM, which is
+  exactly the path that triggered the bug — equally diagnostic without a new dependency.
+  Verified by running the test against the buggy commit (`e33604d`): both new tests
+  failed with `expected 'H' to be 'Hofgut Sonnenwiese'`, exactly the bug's signature.
+
+- **No prophylactic `useCallback` wrap of `patch` / `handleNext` / `handlePrev`.** They
+  are passed as props to module-scope section components now, but their identity change
+  per render is no longer a re-mount trigger because the components themselves no longer
+  re-mount. Wrapping them would be premature optimisation; only fix what is broken.
+
+- **`SectionRenderProps` interface (4 fields: `values`, `stepErrors`, `patch`, `isPending`)**
+  chosen over per-section bespoke prop interfaces. All eight sections need at least three
+  of the four; the small over-provisioning beats eight near-identical interfaces.
+
+- **`previewForScenario` (nested in Section5Sensitivity) stays inside its parent section**
+  rather than being hoisted to module scope. Hoisting would require passing the closure's
+  three captured values (`baseInput`, `inputsComplete`, and the implicit derivation of
+  `versorgerPreisEurKwh` substitution) as props — a wider blast radius than necessary.
+  The bug was about *component identity*, not *function identity inside a stable component*.
+
+- **Two regression tests, not one.** A second test covers a number input (Step 3
+  `anlageKwp`) in addition to the text input (Step 2 `objectName`). Both `Field` and
+  `NumberField` go through their respective sections' re-render path; testing both
+  ensures the section-component identity fix protects every input type.
+
+- **Carry-forward status flips (T-037/T-038a/T-038b/T-039/T-040)** committed as the
+  first commit on this branch, separate from the fix and the test, per the
+  orchestrator's binding decision.
+
+**Affected files:** `src/features/studies/components/study-form.tsx`,
+`src/features/studies/components/study-form.test.tsx`, `TASKS.md`.
+
+**Open question for the user:** none.
