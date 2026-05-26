@@ -3253,3 +3253,33 @@ resolved in this slice — see decision #3 below.
 - `src/app/api/uploads/route.ts` — **unverändert**, bleibt als API-Endpoint erhalten
 
 **Open question for the user:** nach Merge + Deploy: bestätige bitte manuell auf der Produktion, dass der BEFORE-Upload jetzt Toast „Erfolgreich" + Preview zeigt (siehe PR-Body „Manueller User-Test").
+
+---
+
+## 2026-05-26 — Persistent fixes aus Production-Debugging (env-check + nginx-cleanup, orchestrator-confirmed, binding)
+
+**Context:** Post-mortem aus der mehrstündigen Production-Debug-Session (Bild-Upload + Document-Generation hingen auf dem Hetzner-VPS). Zwei Gaps in den Deploy-Artefakten wurden aufgedeckt, die persistent gefixt werden müssen, damit sie bei einem Re-Setup nicht erneut auftreten.
+
+**Bug 1 — `PYTHON_SERVICE_API_KEY` fehlte in `.env.production.example`:**
+- Root cause: PR #27 (T-050a) hat `.env.production.example` mit den damals bekannten 5 User-spec-Vars + `CERTBOT_EMAIL` aufgesetzt. Zur Zeit von T-050a war Slice 3a noch nicht im Bild — der `PYTHON_SERVICE_API_KEY` (eingeführt mit der FastAPI X-API-Key-Auth in Slice 3a / PR #41) wurde nie nachträglich in die Example aufgenommen.
+- Folge: User-VPS hatte den Key nie gesetzt → Web-Container env hat `PYTHON_SERVICE_API_KEY=undefined` → `callProcessImage` (und `callDocumentsGenerate`) wirft `"PYTHON_SERVICE_API_KEY is not configured"` → Bild-Upload und Document-Generation brechen.
+
+**Bug 2 — nginx WebSocket-Header Anti-Pattern im Template:**
+- Root cause: PR #27 hat den nginx-Site-Template mit hardcoded `proxy_set_header Upgrade $http_upgrade;` + `proxy_set_header Connection "upgrade";` aufgesetzt — ohne conditional `map`-Block. Das ist klassischer Anti-Pattern und kann bei manchen multipart-Konstellationen Verbindungen zerstören.
+- **Nicht** der Root-Cause des Upload-Bugs (der war der API-Key, siehe Bug 1), aber prinzipiell unsauber. Next.js production braucht keine WebSocket-Upgrades (HMR ist dev-only).
+
+**Assumption / decision:**
+1. **`.env.production.example` listet `PYTHON_SERVICE_API_KEY` jetzt explizit** mit Generierungs-Hinweis `openssl rand -base64 32` und Erläuterung, dass web- und pyservice-Container denselben Wert teilen müssen (gleiche `.env.production` wird via `env_file:` an beide Container gemountet).
+2. **`deploy.sh` Schritt 0 erhält einen Required-Variables-Check.** REQUIRED_VARS-Array enthält `DATABASE_URL`, `POSTGRES_PASSWORD`, `AUTH_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `APP_URL`, `PYTHON_SERVICE_API_KEY`. Bei fehlender Variable bricht das Skript ab mit klarer Fehlermeldung + Hinweis auf `openssl rand -base64 32`. Schützt vor stillen Wiederholungen des Bugs bei künftigen Setups.
+3. **nginx-Site-Heredoc verzichtet bewusst auf WebSocket-Header.** Die beiden `proxy_set_header Upgrade` / `Connection "upgrade"`-Zeilen sind entfernt. Inline-Kommentar dokumentiert die Rationale: Next.js production braucht das nicht, hardcoded `Connection: upgrade` kann multipart zerstören, falls jemals nötig dann per `map`-block conditional in `nginx.conf` — nie hardcoded.
+4. **`docs/deploy-anleitung.md` §3 Tabelle dokumentiert `PYTHON_SERVICE_API_KEY` explizit** (analog der anderen secrets). „Wenn was schiefgeht"-Sektion ergänzt mit dem `sudo sed -i ...`-Befehl, mit dem alte VPS-Installationen die hardcoded WebSocket-Header einmalig nachträglich aus ihrer bereits angelegten nginx-Site entfernen können.
+5. **Kein `bash deploy.sh`-Re-Run beim User nötig.** Der User hat das Production-Issue bereits manuell auf seinem VPS gefixt (Key gesetzt, Container neu gestartet). Dieser PR macht den Fix nur permanent, damit es bei einem Re-Setup nicht wieder passiert.
+
+**Affected files:**
+- `.env.production.example` — neuer `PYTHON_SERVICE_API_KEY`-Block nach `APP_URL`
+- `deploy.sh` — Required-Variables-Check in Schritt 0; nginx-Site-Heredoc ohne WebSocket-Header (+ Inline-Kommentar); fehlende-Datei-Fehlermeldung erweitert um `PYTHON_SERVICE_API_KEY`
+- `docs/deploy-anleitung.md` — §3 Tabelle + „Wenn was schiefgeht"-Eintrag
+
+**Pause-Trigger-Check (§7):** Keine. Pure infrastructure cleanup — kein neuer Dep, kein Schema-Change, kein Auth-Logic-Wechsel.
+
+**Open question for the user:** —
