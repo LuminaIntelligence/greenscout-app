@@ -37,6 +37,7 @@ import { type StudyStepKey, updateStudyAction } from "@/features/studies/actions
 import { SENSITIVITY_DEFAULTS } from "@/features/studies/schemas/step5-sensitivity";
 import { CustomerSelect } from "@/features/studies/components/customer-select";
 import { t, type TranslationKey } from "@/i18n/de";
+import { composeAll, type StudyCalcInput } from "@/lib/calculations";
 
 // Silence the unused-import warning until F2 dashboard wires it.
 void _softDeleteStudyAction;
@@ -418,14 +419,25 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
   }
 
   function Section5Sensitivity() {
-    const energieAlsZahl = numericOrZero(values.pvErzeugungKwhJahr);
-    const quote = numericOrZero(values.eigenverbrauchsquoteProzent) / 100;
-    function previewFor(price: number | "") {
-      const p = numericOrZero(price);
-      // Vereinfachte Schätzung — echtes Calc-Modul kommt in Slice 2 (T-032).
-      // TODO(slice-2): replace with calculation module from T-032.
-      return energieAlsZahl * p * quote;
+    // Slice 2 (T-032) — replaced the simplified stub with the
+    // authoritative TS calc module. Each scenario substitutes its
+    // ct/kWh price into `versorgerPreisEurKwh` and runs composeAll()
+    // to derive the yearly + 20-year savings.
+    const baseInput = buildCalcInput(values);
+    const inputsComplete = isCalcInputComplete(values);
+
+    function previewForScenario(price: number | ""): { yearly: number; total: number } | null {
+      if (!inputsComplete || price === "" || price <= 0) {
+        return null;
+      }
+      const scenarioInput: StudyCalcInput = {
+        ...baseInput,
+        versorgerPreisEurKwh: price,
+      };
+      const derived = composeAll(scenarioInput);
+      return { yearly: derived.ersparnisProJahr, total: derived.ersparnis20Jahre };
     }
+
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">{t("studies.hint.sensitivity")}</p>
@@ -456,21 +468,33 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
           />
         </div>
         <div className="mt-2 space-y-1 text-sm">
-          <p className="text-muted-foreground">{t("studies.hint.sensitivity-preview")}</p>
-          <ul className="ml-4 list-disc">
-            <li>
-              S1: {formatEuro(previewFor(values.szenarioPreis1))} /{" "}
-              {t("studies.field.szenario-preis-1")}
-            </li>
-            <li>
-              S2: {formatEuro(previewFor(values.szenarioPreis2))} /{" "}
-              {t("studies.field.szenario-preis-2")}
-            </li>
-            <li>
-              S3: {formatEuro(previewFor(values.szenarioPreis3))} /{" "}
-              {t("studies.field.szenario-preis-3")}
-            </li>
-          </ul>
+          {inputsComplete ? (
+            <>
+              <p className="text-muted-foreground">{t("studies.hint.sensitivity-preview")}</p>
+              <ScenarioRow
+                label={t("studies.field.szenario-preis-1")}
+                price={values.szenarioPreis1}
+                preview={previewForScenario(values.szenarioPreis1)}
+                duration={baseInput.vertragslaufzeitJahre}
+              />
+              <ScenarioRow
+                label={t("studies.field.szenario-preis-2")}
+                price={values.szenarioPreis2}
+                preview={previewForScenario(values.szenarioPreis2)}
+                duration={baseInput.vertragslaufzeitJahre}
+              />
+              <ScenarioRow
+                label={t("studies.field.szenario-preis-3")}
+                price={values.szenarioPreis3}
+                preview={previewForScenario(values.szenarioPreis3)}
+                duration={baseInput.vertragslaufzeitJahre}
+              />
+            </>
+          ) : (
+            <p className="italic text-muted-foreground">
+              {t("studies.hint.sensitivity-incomplete")}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -745,12 +769,80 @@ function numericOrZero(value: number | ""): number {
 }
 
 function formatEuro(value: number): string {
-  // German-locale: 1.234,56 € — sentinel formatting until T-032
-  // calculation module lands.
+  // German-locale: 1.234,56 € — non-breaking space ( ) before €
+  // per SPEC §8.3.
   const fixed = value.toFixed(2);
   const [intPart, decPart] = fixed.split(".");
   const withThousand = (intPart ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${withThousand},${decPart}  €`;
+  return `${withThousand},${decPart} €`;
+}
+
+interface ScenarioRowProps {
+  label: string;
+  price: number | "";
+  preview: { yearly: number; total: number } | null;
+  duration: number;
+}
+
+function ScenarioRow({ label, price, preview, duration }: ScenarioRowProps) {
+  const priceLabel =
+    price === "" ? t("studies.hint.sensitivity-price-empty") : `${formatPrice(price)} / kWh`;
+  if (!preview) {
+    return (
+      <p>
+        <span className="font-medium">{label}</span> ({priceLabel}):{" "}
+        <span className="italic text-muted-foreground">
+          {t("studies.hint.sensitivity-incomplete")}
+        </span>
+      </p>
+    );
+  }
+  return (
+    <p>
+      <span className="font-medium">{label}</span> ({priceLabel}): {formatEuro(preview.yearly)} /
+      Jahr · {formatEuro(preview.total)} / {duration} {t("studies.field.vertragslaufzeit")}
+    </p>
+  );
+}
+
+function formatPrice(value: number): string {
+  // German-locale price formatting with 2-4 decimals depending on
+  // magnitude. Sensitivity prices are typically 0.35 EUR/kWh.
+  const fixed = value.toFixed(value < 1 ? 2 : 4);
+  return `${fixed.replace(".", ",")} €`;
+}
+
+/**
+ * Slice 2 — required inputs for the Step 5 calc preview to render
+ * meaningful numbers. Returns false if any of the four PV economics
+ * inputs is missing; the UI surfaces a hint in that case.
+ */
+function isCalcInputComplete(v: StudyFormValues): boolean {
+  return (
+    v.anlageKwp !== "" &&
+    v.pvErzeugungKwhJahr !== "" &&
+    v.pvEigenverbrauchKwhJahr !== "" &&
+    v.pvVerkaufEurKwh !== ""
+  );
+}
+
+/**
+ * Slice 2 — projects the wizard form state into the shape the
+ * `@/lib/calculations` module consumes. Missing optional numerics
+ * fall back to SPEC §4.5 defaults (pacht 100 EUR/kWp, contract 20y).
+ */
+function buildCalcInput(v: StudyFormValues): StudyCalcInput {
+  return {
+    anlageKwp: numericOrZero(v.anlageKwp),
+    pvErzeugungKwhJahr: numericOrZero(v.pvErzeugungKwhJahr),
+    pvEigenverbrauchKwhJahr: numericOrZero(v.pvEigenverbrauchKwhJahr),
+    pvVerkaufEurKwh: numericOrZero(v.pvVerkaufEurKwh),
+    verbrauchKwhJahr: numericOrZero(v.verbrauchKwhJahr),
+    versorgerPreisEurKwh: numericOrZero(v.versorgerPreisEurKwh),
+    pachtEurProKwp: v.pachtEurProKwp === "" ? 100 : v.pachtEurProKwp,
+    vertragslaufzeitJahre: v.vertragslaufzeitJahre === "" ? 20 : v.vertragslaufzeitJahre,
+    co2Override: false,
+  };
 }
 
 /**
