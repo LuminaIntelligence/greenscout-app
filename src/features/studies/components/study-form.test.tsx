@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -175,5 +176,71 @@ describe("StudyForm — single-page mode", () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(updateMock).toHaveBeenCalled();
+  });
+});
+
+// ─── Focus-loss regression (2026-05-26) ────────────────────────────────
+// Guards against a re-introduction of the bug where Section<N>
+// renderers were defined as nested functions inside `StudyForm`, which
+// caused React to unmount + remount the entire sub-tree on every parent
+// re-render (i.e. every keystroke). When the bug is present, only the
+// first character of a typed string lands in the input — the next
+// keystroke fires after `document.activeElement` has reset to <body>.
+//
+// We use `@testing-library/user-event` because `userEvent.type(...)`
+// dispatches one keydown/input/keyup cycle per character through the
+// real DOM, faithfully reproducing what happens in a browser. The
+// `fireEvent.change` shortcut used elsewhere in this file would NOT
+// catch the bug — it sets `input.value` in one shot and never relies on
+// focus.
+
+describe("StudyForm — focus-loss regression (nested-component re-mount bug)", () => {
+  const EMPTY_VALUES: StudyFormValues = {
+    ...VALUES,
+    objectName: "",
+    objectAddress: "",
+    objectCity: "",
+    flurstueck: "",
+  };
+
+  it("preserves focus and accepts every keystroke when typing into a Step 2 text input", async () => {
+    const user = userEvent.setup();
+    renderWithClient(
+      <StudyForm mode="single-page" studyId="study-1" initialValues={EMPTY_VALUES} />,
+    );
+
+    const objectName = screen.getByLabelText("Objektname") as HTMLInputElement;
+    objectName.focus();
+    expect(document.activeElement).toBe(objectName);
+
+    await user.type(objectName, "Hofgut Sonnenwiese");
+
+    // With the bug present, only "H" would land. With the fix in
+    // place, the full string is accepted AND focus is retained on the
+    // same DOM node.
+    expect(objectName.value).toBe("Hofgut Sonnenwiese");
+    expect(document.activeElement).toBe(objectName);
+  });
+
+  it("preserves focus and accepts every keystroke when typing into a Step 3 number input", async () => {
+    const user = userEvent.setup();
+    renderWithClient(
+      <StudyForm
+        mode="single-page"
+        studyId="study-1"
+        initialValues={{ ...VALUES, anlageKwp: "" }}
+      />,
+    );
+
+    const anlageKwp = screen.getByLabelText("Anlagengröße (kWp)") as HTMLInputElement;
+
+    anlageKwp.focus();
+    expect(document.activeElement).toBe(anlageKwp);
+
+    await user.type(anlageKwp, "150");
+
+    // Number inputs in jsdom store the typed digits as `.value`.
+    expect(anlageKwp.value).toBe("150");
+    expect(document.activeElement).toBe(anlageKwp);
   });
 });
