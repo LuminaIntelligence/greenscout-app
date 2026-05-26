@@ -19,6 +19,9 @@ import {
   gesamterzeugungVertragslaufzeit,
   gesamtvorteil,
   pachtEinnahmeEinmalig,
+  pvEigenverbrauchKwhGesamtVertragslaufzeit,
+  stromkostenMitPvEurJahr,
+  stromkostenOhnePvEurJahr,
 } from "./index";
 import type { StudyCalcInput } from "./types";
 
@@ -152,6 +155,50 @@ describe("co2FussballfelderProJahr", () => {
   });
 });
 
+describe("pvEigenverbrauchKwhGesamtVertragslaufzeit", () => {
+  it("is pvEigenverbrauch * vertragslaufzeit", () => {
+    expect(pvEigenverbrauchKwhGesamtVertragslaufzeit(makeInput())).toBeCloseTo(40_000 * 20, 6);
+  });
+
+  it("scales with non-default contract duration", () => {
+    expect(
+      pvEigenverbrauchKwhGesamtVertragslaufzeit(makeInput({ vertragslaufzeitJahre: 15 })),
+    ).toBeCloseTo(40_000 * 15, 6);
+  });
+});
+
+describe("stromkostenOhnePvEurJahr", () => {
+  it("is verbrauch * versorgerPreis (Slide 14 ohne PV)", () => {
+    expect(stromkostenOhnePvEurJahr(makeInput())).toBeCloseTo(60_000 * 0.4, 6);
+  });
+
+  it("rechenprobe 400.000 kWh * 0.35 = 140.000", () => {
+    const v = stromkostenOhnePvEurJahr(
+      makeInput({ verbrauchKwhJahr: 400_000, versorgerPreisEurKwh: 0.35 }),
+    );
+    expect(v).toBeCloseTo(140_000, 6);
+  });
+});
+
+describe("stromkostenMitPvEurJahr", () => {
+  it("residual + eigenverbrauch * EINSPEISE_VERGUETUNG_DEFAULT", () => {
+    // Default constant is 0.20 €/kWh.
+    const expected = (60_000 - 40_000) * 0.4 + 40_000 * 0.2;
+    expect(stromkostenMitPvEurJahr(makeInput())).toBeCloseTo(expected, 6);
+  });
+
+  it("rechenprobe (400.000-164.000)*0.35 + 164.000*0.20 = 115.400", () => {
+    const v = stromkostenMitPvEurJahr(
+      makeInput({
+        verbrauchKwhJahr: 400_000,
+        pvEigenverbrauchKwhJahr: 164_000,
+        versorgerPreisEurKwh: 0.35,
+      }),
+    );
+    expect(v).toBeCloseTo(115_400, 6);
+  });
+});
+
 describe("composeAll", () => {
   it("returns every DerivedValues field for a baseline input", () => {
     const derived = composeAll(makeInput());
@@ -165,6 +212,9 @@ describe("composeAll", () => {
       co2TonnenProJahr: expect.any(Number),
       co2HektarMischwald: expect.any(Number),
       co2FussballfelderProJahr: expect.any(Number),
+      pvEigenverbrauchKwhGesamtVertragslaufzeit: expect.any(Number),
+      stromkostenOhnePvEurJahr: expect.any(Number),
+      stromkostenMitPvEurJahr: expect.any(Number),
     });
   });
 
@@ -180,6 +230,9 @@ describe("composeAll", () => {
       co2TonnenProJahr: (95_000 * 0.474) / 1000,
       co2HektarMischwald: ((95_000 * 0.474) / 1000) * 0.0177,
       co2FussballfelderProJahr: ((95_000 * 0.474) / 1000) * 0.0177 * 1.28,
+      pvEigenverbrauchKwhGesamtVertragslaufzeit: 800_000,
+      stromkostenOhnePvEurJahr: 60_000 * 0.4,
+      stromkostenMitPvEurJahr: (60_000 - 40_000) * 0.4 + 40_000 * 0.2,
     });
   });
 

@@ -64,3 +64,7 @@ class DerivedValues(BaseModel):
     co2_tonnen_pro_jahr: float
     co2_hektar_mischwald: float
     co2_fussballfelder_pro_jahr: float
+    # Slice-3b additions per Slice-3a sign-off (see docs/pptx-mapping.md).
+    pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit: float
+    stromkosten_ohne_pv_eur_jahr: float
+    stromkosten_mit_pv_eur_jahr: float

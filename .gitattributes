@@ -7,3 +7,9 @@
 
 # Generic shell scripts
 *.sh text eol=lf
+
+# Python files: enforce LF so `ruff format --check` (line-ending = "lf"
+# in services/python/pyproject.toml) doesn't fail in lint-staged on Windows
+# checkouts with core.autocrlf=true. The format tool itself outputs LF; the
+# pre-commit gate sees the working-tree copy after lint-staged restores it.
+*.py text eol=lf

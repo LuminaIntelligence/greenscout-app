@@ -52,6 +52,10 @@ const MONETARY_FIELDS: ReadonlyArray<keyof DerivedValues> = [
   "pachtEinnahmeEinmalig",
   "gesamterzeugung20j",
   "gesamtvorteil",
+  // Slice-3b additions per Slice-3a sign-off.
+  "pvEigenverbrauchKwhGesamtVertragslaufzeit",
+  "stromkostenOhnePvEurJahr",
+  "stromkostenMitPvEurJahr",
 ];
 
 /** Fields that flow through the CO₂ derivation chain. */

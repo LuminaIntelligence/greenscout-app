@@ -25,7 +25,10 @@
         "gesamtvorteil": 456000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -50,7 +53,10 @@
         "gesamtvorteil": 38648,
         "co2TonnenProJahr": 4.503,
         "co2HektarMischwald": 0.0797031,
-        "co2FussballfelderProJahr": 0.102019968
+        "co2FussballfelderProJahr": 0.102019968,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 76000,
+        "stromkostenOhnePvEurJahr": 1710,
+        "stromkostenMitPvEurJahr": 1026
       }
     },
     {
@@ -75,7 +81,10 @@
         "gesamtvorteil": 3967500,
         "co2TonnenProJahr": 337.725,
         "co2HektarMischwald": 5.9777325,
-        "co2FussballfelderProJahr": 7.6514976
+        "co2FussballfelderProJahr": 7.6514976,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 8500000,
+        "stromkostenOhnePvEurJahr": 185600,
+        "stromkostenMitPvEurJahr": 134600
       }
     },
     {
@@ -100,7 +109,10 @@
         "gesamtvorteil": 412075,
         "co2TonnenProJahr": 22.515,
         "co2HektarMischwald": 0.3985155,
-        "co2FussballfelderProJahr": 0.5100998400000001
+        "co2FussballfelderProJahr": 0.5100998400000001,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 855000,
+        "stromkostenOhnePvEurJahr": 24750,
+        "stromkostenMitPvEurJahr": 14062.5
       }
     },
     {
@@ -125,7 +137,10 @@
         "gesamtvorteil": 400000,
         "co2TonnenProJahr": 90.06,
         "co2HektarMischwald": 1.594062,
-        "co2FussballfelderProJahr": 2.0403993600000003
+        "co2FussballfelderProJahr": 2.0403993600000003,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 0,
+        "stromkostenOhnePvEurJahr": 0,
+        "stromkostenMitPvEurJahr": 0
       }
     },
     {
@@ -150,7 +165,10 @@
         "gesamtvorteil": 256000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -175,7 +193,10 @@
         "gesamtvorteil": 342000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 600000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -200,7 +221,10 @@
         "gesamtvorteil": 570000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 1000000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -225,7 +249,10 @@
         "gesamtvorteil": 416000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 21000,
+        "stromkostenMitPvEurJahr": 15000
       }
     },
     {
@@ -250,7 +277,10 @@
         "gesamtvorteil": 456000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -275,7 +305,10 @@
         "gesamtvorteil": 496000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 27000,
+        "stromkostenMitPvEurJahr": 17000
       }
     },
     {
@@ -300,7 +333,10 @@
         "gesamtvorteil": 40000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 18000,
+        "stromkostenMitPvEurJahr": 14000
       }
     },
     {
@@ -328,7 +364,10 @@
         "gesamtvorteil": 456000,
         "co2TonnenProJahr": 50,
         "co2HektarMischwald": 0.9,
-        "co2FussballfelderProJahr": 1.15
+        "co2FussballfelderProJahr": 1.15,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -354,7 +393,10 @@
         "gesamtvorteil": 456000,
         "co2TonnenProJahr": 60,
         "co2HektarMischwald": 1.062,
-        "co2FussballfelderProJahr": 1.3593600000000001
+        "co2FussballfelderProJahr": 1.3593600000000001,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -379,7 +421,10 @@
         "gesamtvorteil": 456000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -404,7 +449,10 @@
         "gesamtvorteil": 566619.45,
         "co2TonnenProJahr": 55.671536999999994,
         "co2HektarMischwald": 0.9853862049,
-        "co2FussballfelderProJahr": 1.261294342272
+        "co2FussballfelderProJahr": 1.261294342272,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 1002515,
+        "stromkostenOhnePvEurJahr": 28978.33125,
+        "stromkostenMitPvEurJahr": 18326.609375
       }
     },
     {
@@ -429,7 +477,10 @@
         "gesamtvorteil": 6056,
         "co2TonnenProJahr": 0.4503,
         "co2HektarMischwald": 0.00797031,
-        "co2FussballfelderProJahr": 0.0102019968
+        "co2FussballfelderProJahr": 0.0102019968,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 12000,
+        "stromkostenOhnePvEurJahr": 1470,
+        "stromkostenMitPvEurJahr": 1338
       }
     },
     {
@@ -454,7 +505,10 @@
         "gesamtvorteil": 9025000,
         "co2TonnenProJahr": 900.6,
         "co2HektarMischwald": 15.940620000000001,
-        "co2FussballfelderProJahr": 20.403993600000003
+        "co2FussballfelderProJahr": 20.403993600000003,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 17000000,
+        "stromkostenOhnePvEurJahr": 336000.00000000006,
+        "stromkostenMitPvEurJahr": 268000
       }
     },
     {
@@ -479,7 +533,10 @@
         "gesamtvorteil": 0,
         "co2TonnenProJahr": 0,
         "co2HektarMischwald": 0,
-        "co2FussballfelderProJahr": 0
+        "co2FussballfelderProJahr": 0,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 0,
+        "stromkostenOhnePvEurJahr": 0,
+        "stromkostenMitPvEurJahr": 0
       }
     },
     {
@@ -504,7 +561,10 @@
         "gesamtvorteil": 646400,
         "co2TonnenProJahr": 36.024,
         "co2HektarMischwald": 0.6376248,
-        "co2FussballfelderProJahr": 0.816159744
+        "co2FussballfelderProJahr": 0.816159744,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 1520000,
+        "stromkostenOhnePvEurJahr": 38000,
+        "stromkostenMitPvEurJahr": 22800
       }
     },
     {
@@ -529,7 +589,10 @@
         "gesamtvorteil": 656000,
         "co2TonnenProJahr": 45.03,
         "co2HektarMischwald": 0.797031,
-        "co2FussballfelderProJahr": 1.0201996800000002
+        "co2FussballfelderProJahr": 1.0201996800000002,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 800000,
+        "stromkostenOhnePvEurJahr": 24000,
+        "stromkostenMitPvEurJahr": 16000
       }
     },
     {
@@ -554,7 +617,10 @@
         "gesamtvorteil": 1130800,
         "co2TonnenProJahr": 112.575,
         "co2HektarMischwald": 1.9925775000000001,
-        "co2FussballfelderProJahr": 2.5504992000000004
+        "co2FussballfelderProJahr": 2.5504992000000004,
+        "pvEigenverbrauchKwhGesamtVertragslaufzeit": 1900000,
+        "stromkostenOhnePvEurJahr": 57400,
+        "stromkostenMitPvEurJahr": 37450
       }
     }
   ]

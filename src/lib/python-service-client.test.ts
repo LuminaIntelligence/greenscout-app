@@ -41,6 +41,9 @@ const validDerivedValues: DerivedValues = {
   co2TonnenProJahr: 45.03,
   co2HektarMischwald: 0.797,
   co2FussballfelderProJahr: 1.02,
+  pvEigenverbrauchKwhGesamtVertragslaufzeit: 1_200_000,
+  stromkostenOhnePvEurJahr: 28000,
+  stromkostenMitPvEurJahr: 19000,
 };
 
 const validDocsInput: DocumentGenerateInput = {

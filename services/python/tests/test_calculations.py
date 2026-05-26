@@ -20,6 +20,9 @@ from app.domain.calculations import (
     gesamterzeugung_vertragslaufzeit,
     gesamtvorteil,
     pacht_einnahme_einmalig,
+    pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit,
+    stromkosten_mit_pv_eur_jahr,
+    stromkosten_ohne_pv_eur_jahr,
 )
 from app.schemas.calc import StudyCalcInput
 
@@ -133,6 +136,47 @@ def test_co2_fussballfelder_falls_back_when_override_missing() -> None:
     assert co2_fussballfelder_pro_jahr(make_input(co2_override=True)) == expected
 
 
+def test_pv_eigenverbrauch_gesamt_baseline() -> None:
+    assert pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit(make_input()) == Decimal(40_000) * Decimal(
+        20
+    )
+
+
+def test_pv_eigenverbrauch_gesamt_scales_with_duration() -> None:
+    out = pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit(make_input(vertragslaufzeit_jahre=15))
+    assert out == Decimal(40_000) * Decimal(15)
+
+
+def test_stromkosten_ohne_pv_baseline() -> None:
+    # 60_000 * 0.4 = 24_000.
+    assert stromkosten_ohne_pv_eur_jahr(make_input()) == Decimal("24000.00")
+
+
+def test_stromkosten_ohne_pv_rechenprobe() -> None:
+    # 400_000 * 0.35 = 140_000.
+    out = stromkosten_ohne_pv_eur_jahr(
+        make_input(verbrauch_kwh_jahr=400_000, versorger_preis_eur_kwh=0.35)
+    )
+    assert out == Decimal("140000.00")
+
+
+def test_stromkosten_mit_pv_baseline() -> None:
+    # (60_000 - 40_000) * 0.4 + 40_000 * 0.2 = 8_000 + 8_000 = 16_000.
+    assert stromkosten_mit_pv_eur_jahr(make_input()) == Decimal("16000.00")
+
+
+def test_stromkosten_mit_pv_rechenprobe() -> None:
+    # (400_000 - 164_000) * 0.35 + 164_000 * 0.20 = 82_600 + 32_800 = 115_400.
+    out = stromkosten_mit_pv_eur_jahr(
+        make_input(
+            verbrauch_kwh_jahr=400_000,
+            pv_eigenverbrauch_kwh_jahr=164_000,
+            versorger_preis_eur_kwh=0.35,
+        )
+    )
+    assert out == Decimal("115400.00")
+
+
 def test_compose_all_returns_derived_values_model() -> None:
     out = compose_all(make_input())
     assert out.ersparnis_pro_jahr == 12_800.0
@@ -144,6 +188,9 @@ def test_compose_all_returns_derived_values_model() -> None:
     assert out.co2_tonnen_pro_jahr == (95_000 * 0.474) / 1000
     assert out.co2_hektar_mischwald == ((95_000 * 0.474) / 1000) * 0.0177
     assert out.co2_fussballfelder_pro_jahr == ((95_000 * 0.474) / 1000) * 0.0177 * 1.28
+    assert out.pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit == 40_000 * 20
+    assert out.stromkosten_ohne_pv_eur_jahr == 24_000.0
+    assert out.stromkosten_mit_pv_eur_jahr == 16_000.0
 
 
 def test_compose_all_propagates_all_three_co2_overrides() -> None:

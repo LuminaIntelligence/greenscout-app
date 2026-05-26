@@ -57,6 +57,10 @@ _EXPECTED_FIELD_MAP: dict[str, str] = {
     "co2TonnenProJahr": "co2_tonnen_pro_jahr",
     "co2HektarMischwald": "co2_hektar_mischwald",
     "co2FussballfelderProJahr": "co2_fussballfelder_pro_jahr",
+    # Slice-3b additions per Slice-3a sign-off.
+    "pvEigenverbrauchKwhGesamtVertragslaufzeit": "pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit",
+    "stromkostenOhnePvEurJahr": "stromkosten_ohne_pv_eur_jahr",
+    "stromkostenMitPvEurJahr": "stromkosten_mit_pv_eur_jahr",
 }
 
 _MONETARY_FIELDS = (
@@ -66,6 +70,9 @@ _MONETARY_FIELDS = (
     "pacht_einnahme_einmalig",
     "gesamterzeugung_20j",
     "gesamtvorteil",
+    "pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit",
+    "stromkosten_ohne_pv_eur_jahr",
+    "stromkosten_mit_pv_eur_jahr",
 )
 _CO2_FIELDS = (
     "co2_tonnen_pro_jahr",

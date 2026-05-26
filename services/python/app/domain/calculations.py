@@ -28,6 +28,7 @@ from decimal import Decimal
 from app.domain.constants import (
     CO2_HA_MISCHWALD_PER_T_PER_YEAR,
     CO2_KG_PER_KWH_PV,
+    EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH,
     FOOTBALL_FIELDS_PER_HA,
 )
 from app.schemas.calc import DerivedValues, StudyCalcInput
@@ -98,6 +99,34 @@ def co2_fussballfelder_pro_jahr(inp: StudyCalcInput) -> float:
     return co2_hektar_mischwald(inp) * FOOTBALL_FIELDS_PER_HA
 
 
+def pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit(inp: StudyCalcInput) -> Decimal:
+    """kWh -- total self-consumption over the full contract. Slice-3a sign-off item 1."""
+    return _d(inp.pv_eigenverbrauch_kwh_jahr) * Decimal(inp.vertragslaufzeit_jahre)
+
+
+def stromkosten_ohne_pv_eur_jahr(inp: StudyCalcInput) -> Decimal:
+    """EUR / Jahr -- annual electricity cost WITHOUT a PV installation.
+
+    Slide 14 "Ohne PV" per Slice-3a sign-off item 2:
+    ``verbrauch_kwh_jahr * versorger_preis_eur_kwh``.
+    """
+    return _d(inp.verbrauch_kwh_jahr) * _d(inp.versorger_preis_eur_kwh)
+
+
+def stromkosten_mit_pv_eur_jahr(inp: StudyCalcInput) -> Decimal:
+    """EUR / Jahr -- annual electricity cost WITH the PV installation.
+
+    Slide 14 "Mit PV" per Slice-3a sign-off item 3:
+    ``(verbrauch - pv_eigenverbrauch) * versorger_preis
+       + pv_eigenverbrauch * EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH``.
+    """
+    residual_from_grid = (_d(inp.verbrauch_kwh_jahr) - _d(inp.pv_eigenverbrauch_kwh_jahr)) * _d(
+        inp.versorger_preis_eur_kwh
+    )
+    self_consumed = _d(inp.pv_eigenverbrauch_kwh_jahr) * _d(EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH)
+    return residual_from_grid + self_consumed
+
+
 def compose_all(inp: StudyCalcInput) -> DerivedValues:
     """Compose every derived value from a single input.
 
@@ -115,4 +144,9 @@ def compose_all(inp: StudyCalcInput) -> DerivedValues:
         co2_tonnen_pro_jahr=co2_tonnen_pro_jahr(inp),
         co2_hektar_mischwald=co2_hektar_mischwald(inp),
         co2_fussballfelder_pro_jahr=co2_fussballfelder_pro_jahr(inp),
+        pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit=float(
+            pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit(inp)
+        ),
+        stromkosten_ohne_pv_eur_jahr=float(stromkosten_ohne_pv_eur_jahr(inp)),
+        stromkosten_mit_pv_eur_jahr=float(stromkosten_mit_pv_eur_jahr(inp)),
     )
