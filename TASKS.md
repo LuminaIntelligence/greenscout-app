@@ -57,115 +57,7 @@
 
 ### Slice 5 — Studies CRUD (form + dashboard)
 
-### T-025 Study zod schema set (one schema per wizard step)
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-026, T-027, T-029
-- **Blocked by:** T-011, T-024
-- **Description:**
-  Define zod schemas under `src/features/studies/schemas/`: one per wizard step from **DECISIONS.md decision #5** plus a composed `studyFullSchema`. Steps: `step1-kunde.ts` (customer FK), `step2-objekt.ts` (objectName, address fields, flurstueck), `step3-pv-inputs.ts` (anlageKwp, pvErzeugung…, pacht€/kWp, Vertragslaufzeit), `step4-modul-spec.ts` (Modulanzahl, Modulfläche, Eigenverbrauchsquote, Netzeinspeisung), `step5-sensitivity.ts` (szenarioPreis1/2/3 with defaults 35/40/45), `step6-termine.ts` (terminVorschlag1/2), `step7-bilder.ts` (image presence checks), `step8-review.ts` (final validation, all required fields). Decimals validated as positive where applicable.
-- **Acceptance criteria:**
-  - [ ] Each step exports a discrete zod schema + an inferred TS type.
-  - [ ] Composed `studyFullSchema` accepts the union of all step inputs.
-  - [ ] Sensitivity defaults: 35 / 40 / 45 ct/kWh.
-  - [ ] Test cases: every required field, every default, every numeric lower-bound.
-  - [ ] No vague TODOs — schemas are committed to decision #5.
-- **Files likely touched:** `src/features/studies/schemas/**`, `src/features/studies/schemas/*.test.ts`.
-- **Pause-triggers anticipated:** none.
-
----
-
-### T-026 Study wizard layout (8-step)
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** L → split into T-026a / T-026b below
-- **Blocks:** T-028
-- **Blocked by:** T-025
-- **Description:**
-  Build the 8-step wizard at `/studies/new` and `/studies/[id]/edit` honouring `User.formPreference === 'WIZARD'`. Stepper UI, "Weiter"/"Zurück" buttons, per-step validation against the relevant T-025 schema, persistent draft (autosave to `DRAFT` status on each step transition). Step 5 sensitivity defaults pre-filled to 35/40/45. Step 7 (Bilder) is a placeholder until T-029 lands — wire empty slots with `Blocked by` annotation.
-- **Acceptance criteria:** see split tasks T-026a / T-026b.
-- **Files likely touched:** see split tasks.
-- **Pause-triggers anticipated:** §7.4 if visual layout strays beyond tokens.
-
----
-
-### T-026a Wizard shell + steps 1–4
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-026b, T-028
-- **Blocked by:** T-025
-- **Description:**
-  Build the wizard shell (`<StudyWizard>` with stepper, progress, prev/next), and implement Step 1 (Kunde — customer search/select), Step 2 (Objekt & Flurstück), Step 3 (PV-Inputs), Step 4 (Modul-/Anlagenspezifikation). Each step renders RHF form with its T-025 schema; "Weiter" validates that step only. Autosave to `Study` (status `DRAFT`) on every transition.
-- **Acceptance criteria:**
-  - [ ] Stepper shows 8 steps with current step highlighted in `plant-green`.
-  - [ ] Step-level zod validation blocks "Weiter" on invalid input with inline messages.
-  - [ ] Autosave verified by Playwright (refresh mid-wizard → previously entered fields retained).
-  - [ ] Customer selector reuses T-022 list endpoint.
-- **Files likely touched:** `src/features/studies/components/study-wizard/study-wizard.tsx`, `src/features/studies/components/study-wizard/step-1-kunde.tsx`, `step-2-objekt.tsx`, `step-3-pv-inputs.tsx`, `step-4-modul.tsx`.
-- **Pause-triggers anticipated:** §7.4 only on visual deviation.
-
----
-
-### T-026b Wizard steps 5–8
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-028
-- **Blocked by:** T-026a, T-029
-- **Description:**
-  Implement Step 5 (Sensitivitätsanalyse — 3 ct/kWh fields with defaults 35/40/45 and a live mini-table of resulting yearly savings using the TS calculation mirror T-017-equivalent — actual calc lib lands in T-018), Step 6 (Termine — two `DateTime` fields with `date-fns` German locale, `DD.MM.YYYY HH:mm`), Step 7 (Bilder — two upload slots BEFORE/AFTER backed by T-029), Step 8 (Review & Speichern — read-only summary, status flips to `READY` on save).
-- **Acceptance criteria:**
-  - [ ] Step 5 mini-table updates live as user types ct/kWh values.
-  - [ ] Step 6 dates render in `DD.MM.YYYY HH:mm` German format.
-  - [ ] Step 7 enforces exactly two images (BEFORE + AFTER required to advance to Step 8).
-  - [ ] Step 8 save flips status to `READY` and writes `AuditLog` `UPDATE` with diff.
-- **Files likely touched:** `src/features/studies/components/study-wizard/step-5-sensitivity.tsx`, `step-6-termine.tsx`, `step-7-bilder.tsx`, `step-8-review.tsx`.
-- **Pause-triggers anticipated:** §7.4 on visual deviation.
-
----
-
-### T-027 Study single-page layout (anchored sections)
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-028
-- **Blocked by:** T-026b
-- **Description:**
-  Build the single-page view honouring `User.formPreference === 'SINGLE_PAGE'`. Same eight sections as the wizard, all visible at once, with a sticky left sidebar of anchor links. Same T-025 schemas, same autosave behaviour. Save button at the bottom. Per decision #5: same content, just different presentation — no extra fields, no missing fields.
-- **Acceptance criteria:**
-  - [ ] Anchor links scroll to each section.
-  - [ ] Same zod schemas validate as the wizard.
-  - [ ] User can toggle between views via a profile preference (formPreference) — verified by Playwright.
-  - [ ] All eight sections present and labeled identically to the wizard steps.
-- **Files likely touched:** `src/features/studies/components/study-single-page/**`, `src/app/(app)/studies/[id]/page.tsx`.
-- **Pause-triggers anticipated:** §7.4 on visual drift.
-
----
-
-### T-028 Studies dashboard (TanStack Table, filters, status state machine)
-- **Status:** ⬜ TODO
-- **Feature:** studies
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-030, T-031, T-040
-- **Blocked by:** T-026b, T-027
-- **Description:**
-  Build `/dashboard` (the post-login landing page). TanStack Table columns: object name | customer | status badge | consultant | created | last generated | actions. Filters: status, consultant (admin only), customer. Sort: created desc by default. Pagination. Implement the status state machine: `DRAFT` → `READY` (after step 8 save) → `GENERATED` (after first document) — never backwards in MVP. F2 "Neue Studie" button visible. Berater sees only own studies; admin sees all (F7).
-- **Acceptance criteria:**
-  - [ ] Status badges use design tokens (`plant-green` for READY/GENERATED, neutral for DRAFT).
-  - [ ] Berater filter excludes others' studies; admin sees everything.
-  - [ ] Dashboard loads ≤1s with 1000 seeded studies (SPEC §6.2).
-  - [ ] State-machine transitions enforced server-side; invalid transitions rejected.
-  - [ ] Playwright covers F1 (login + dashboard load), F2 (open new-study form).
-- **Files likely touched:** `src/app/(app)/dashboard/page.tsx`, `src/features/studies/components/studies-table.tsx`, `src/features/studies/services/study-service.ts`.
-- **Pause-triggers anticipated:** §7.4 only on visual deviation.
+*(T-025, T-026 (Eltern), T-026a, T-026b, T-027 and T-028 carried forward to Recently completed — all gemerged via PR #39 as one Slice-5 vertical.)*
 
 ---
 
@@ -897,6 +789,36 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-028 ✅ Studies dashboard (TanStack Table, filters, status state machine)
+- **Merged:** 2026-05-26 via PR #39 (Slice 5 vertical, ein PR per User-Spec).
+- **Branch:** `feat/studies-crud-slice`
+- **Summary:** `/studies` Dashboard mit TanStack-Table (object name | customer | status badge | consultant | created | actions), Status-Filter via native `<select>` (siehe DECISIONS #9), `Neue Studie`-Button (F2). State-Machine `DRAFT → READY → GENERATED` server-seitig im `setStudyStatus`-Repo-Helper enforced via `STATUS_TRANSITIONS`-Allow-List + typed `InvalidStudyStatusTransitionError`. Berater sehen nur eigene Studien (Repo-Filter via `consultantId`); Admin sieht alles (F7 admin god-mode). `transition-status.ts` Server Action schreibt `STATUS_CHANGE`-Audit-Eintrag (additiv zur SPEC §5.1 allow-list per DECISIONS #7). Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5 (T-025/T-026/T-027/T-028) silent decisions per §14 (consolidated)".
+
+### T-027 ✅ Study single-page layout (anchored sections)
+- **Merged:** 2026-05-26 via PR #39 (Slice 5 vertical).
+- **Branch:** `feat/studies-crud-slice`
+- **Summary:** `mode="single-page"` Pfad in geteilter `StudyForm`-Komponente (siehe DECISIONS Slice-5 #4 — wizard und single-page teilen sich eine Komponente). Sticky-Left-Anchor-Nav mit acht Section-Cards (`#section-1`…`#section-8`), Save-Button am Ende iteriert alle Schritte sequenziell durch. Honors `User.formPreference === 'SINGLE_PAGE'`. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5 (T-025/T-026/T-027/T-028) silent decisions per §14 (consolidated)".
+
+### T-026b ✅ Wizard steps 5–8
+- **Merged:** 2026-05-26 via PR #39 (Slice 5 vertical).
+- **Branch:** `feat/studies-crud-slice`
+- **Summary:** Step 5 (Sensitivität — drei `szenarioPreis1/2/3`-Felder mit Defaults 35/40/45 ct/kWh + Mini-Preview-Liste als STUB markiert `TODO(slice-2): replace with calculation module from T-032`), Step 6 (Termine — `datetime-local`-Inputs, kein neues Plugin), Step 7 (Bilder — visible-placeholder mit Hint auf T-029a), Step 8 (Review — `SummaryRow`-List + `studies.bereit-markieren`-Button der `transition-status` `DRAFT → READY` triggert). Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5 (T-025/T-026/T-027/T-028) silent decisions per §14 (consolidated)".
+
+### T-026a ✅ Wizard shell + steps 1–4
+- **Merged:** 2026-05-26 via PR #39 (Slice 5 vertical).
+- **Branch:** `feat/studies-crud-slice`
+- **Summary:** `<StudyForm mode="wizard">` mit Stepper (8 Positionen, plant-green-Highlight), Prev/Next-Buttons, per-Step zod-Validierung gegen die jeweilige T-025-Schema, Autosave via `updateStudyAction` bei jedem Schritt-Übergang. Step 1 (Kunde via T-022 `CustomerSelect`), Step 2 (Objekt/Flurstück), Step 3 (PV-Inputs), Step 4 (Modul-/Anlagenspezifikation). Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5 (T-025/T-026/T-027/T-028) silent decisions per §14 (consolidated)".
+
+### T-025 ✅ Study zod schema set (one schema per wizard step)
+- **Merged:** 2026-05-26 via PR #39 (Slice 5 vertical).
+- **Branch:** `feat/studies-crud-slice`
+- **Summary:** Zehn neue Files unter `src/features/studies/schemas/`: `step1-kunde.ts` bis `step8-review.ts` (acht Step-Schemas), `study-full-schema.ts` (composed) + `common.ts` (Helpers wie `positiveDecimal`). Sensitivity-Defaults 35/40/45 ct/kWh exportiert als `SENSITIVITY_DEFAULTS`. Alle Schemas + Defaults sind co-located getestet. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 5 (T-025/T-026/T-027/T-028) silent decisions per §14 (consolidated)".
 
 ### T-024b ✅ Coverage gate honesty — global denominator = whole `src` tree
 - **Merged:** 2026-05-26 via PR #38.
