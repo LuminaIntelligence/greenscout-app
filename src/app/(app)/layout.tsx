@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppQueryClientProvider>
       <div className="flex min-h-screen flex-col bg-background">
-        <Topbar userEmail={session.user.email} />
+        <Topbar userEmail={session.user.email} userRole={session.user.role} />
         <main className="container mx-auto flex-1 p-6">{children}</main>
       </div>
     </AppQueryClientProvider>
