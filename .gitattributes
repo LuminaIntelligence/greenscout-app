@@ -13,3 +13,15 @@
 # checkouts with core.autocrlf=true. The format tool itself outputs LF; the
 # pre-commit gate sees the working-tree copy after lint-staged restores it.
 *.py text eol=lf
+
+# TypeScript / JavaScript files: enforce LF so `prettier --check`
+# (endOfLine = "lf" in prettier.config.mjs) doesn't fail in lint-staged
+# on Windows checkouts with core.autocrlf=true. The lint-staged stash /
+# restore cycle would otherwise re-introduce CRLF after `prettier --write`
+# already normalised the file to LF. Same rationale as the *.py rule above.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
