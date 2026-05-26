@@ -173,122 +173,19 @@
 
 ---
 
-### T-037 Apply `{{snake_case}}` placeholders to the PPTX template (post-sign-off)
-- **Status:** ⬜ TODO
-- **Feature:** python service (templates)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-038
-- **Blocked by:** T-036
-- **Description:**
-  After the user signs off `docs/pptx-mapping.md`, edit `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` using `python-pptx`: replace each red literal value with its `{{snake_case_key}}` placeholder, preserving run-level formatting (font, colour `#FF0000`, size). Set `auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` on text frames likely to receive long values (customer name, object address, object name). Image placeholder shapes (red-framed boxes) are tagged with a known shape name (`{{image_before}}`, `{{image_after}}`) so the generator can target them. Provide a one-off script `services/python/scripts/apply_placeholders.py` that performs the edits idempotently from `docs/pptx-mapping.md`.
-- **Acceptance criteria:**
-  - [ ] Every key from the signed-off mapping doc appears as `{{snake_case_key}}` exactly once in the template.
-  - [ ] Original formatting (font, red colour, size) preserved.
-  - [ ] `MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` set on the long-text frames.
-  - [ ] Image placeholders renamed so the generator can locate them by shape name.
-  - [ ] Script is idempotent: running it twice produces the same template byte-equal (or with deterministic diffs explained).
-- **Files likely touched:** `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx`, `services/python/scripts/apply_placeholders.py`.
-- **Pause-triggers anticipated:** §7.1 (`python-pptx` install).
-
----
-
-### T-038 PPTX generator service (placeholder replacement + image insertion)
-- **Status:** ⬜ TODO
-- **Feature:** python service (pptx)
-- **Type:** feat
-- **Effort:** L → split into T-038a / T-038b
-- **Blocks:** T-039, T-040
-- **Blocked by:** T-037, T-029b
-- **Description:**
-  Implement `app/services/pptx_generator.py` that, given a `StudyCalcInput` (already including all consultant/customer/object/calc fields) plus paths to processed BEFORE/AFTER images, opens the template, replaces every `{{snake_case_key}}` text run with the corresponding value (preserving formatting), and inserts the two images into the named image placeholder shapes (preserving shape position and scaling to fit). Output filename pattern: see T-039 doc-history convention. See split tasks for the actual breakdown.
-- **Acceptance criteria:** see split tasks.
-- **Files likely touched:** see split tasks.
-- **Pause-triggers anticipated:** §7.1 (already covered by T-037).
-
----
-
-### T-038a PPTX text-placeholder replacement
-- **Status:** ⬜ TODO
-- **Feature:** python service (pptx)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-038b, T-039
-- **Blocked by:** T-037
-- **Description:**
-  Implement the text-replacement half of `pptx_generator.py`: walk every shape in every slide, find `{{snake_case_key}}` tokens **across runs** (handling python-pptx's run-split quirk), replace with the corresponding value formatted per SPEC §8.3 (German numbers `1.234,56`, currency `27.500 €` with NBSP, dates `DD.MM.YYYY`). Preserve run-level font / colour / size. Long-text fields rely on `MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` set in T-037.
-- **Acceptance criteria:**
-  - [ ] Run-split tokens (e.g. `{{` in one run, `customer_name}}` in another) correctly stitched.
-  - [ ] Numbers formatted in German locale: `27.500 €` (NBSP between value and €).
-  - [ ] Dates formatted `DD.MM.YYYY HH:mm`.
-  - [ ] Unit test uses a fixture template with 5 known placeholders and asserts the output PPTX contains the expected text.
-  - [ ] Original formatting preserved (asserted via run.font checks).
-- **Files likely touched:** `services/python/app/services/pptx_generator.py`, `services/python/tests/test_pptx_text.py`, `services/python/tests/fixtures/mini_template.pptx`.
-- **Pause-triggers anticipated:** none (deps already added in T-037).
-
----
-
-### T-038b PPTX image-placeholder replacement
-- **Status:** ⬜ TODO
-- **Feature:** python service (pptx)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-039
-- **Blocked by:** T-038a, T-029b
-- **Description:**
-  Add image-insertion logic: locate shapes named `{{image_before}}` and `{{image_after}}`, capture their `left`, `top`, `width`, `height`, remove the placeholder shape, and add a new picture shape at the same position scaled to fit while preserving aspect ratio (centered within the box if there's any letterbox). Both images required — fail loud if either is missing for a study being generated.
-- **Acceptance criteria:**
-  - [ ] Output PPTX has two `Picture` shapes at exactly the positions of the original placeholders.
-  - [ ] Aspect ratio preserved (no stretch).
-  - [ ] Generation fails with a clear error if either image is missing.
-  - [ ] Pytest covers both happy path and missing-image path with fixture images.
-- **Files likely touched:** `services/python/app/services/pptx_generator.py`, `services/python/tests/test_pptx_images.py`.
-- **Pause-triggers anticipated:** none.
+*(T-037 carried forward to Recently completed — see entry below.)*
 
 ---
 
 ### Slice 9 — PDF rendering
 
-### T-039 LibreOffice headless PDF render + Python service Dockerfile update
-- **Status:** ⬜ TODO
-- **Feature:** python service (pdf)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-040, T-031 (history)
-- **Blocked by:** T-038b
-- **Description:**
-  Add `app/services/pdf_renderer.py` invoking `libreoffice --headless --convert-to pdf --outdir <out> <input.pptx>` via `subprocess.run` with a hard timeout of 30 s (SPEC §6.2 budget). Update `services/python/Dockerfile` to install LibreOffice (`apt-get install -y --no-install-recommends libreoffice`). Wire `POST /documents/generate` from T-035 to call PPTX gen (T-038) then PDF render. On render failure: structured error returned to the Next.js side, which surfaces as a banner per SPEC §4.9.
-- **Acceptance criteria:**
-  - [ ] PDF produced from a fixture PPTX in <30 s on a clean container.
-  - [ ] Timeout > 30 s aborts and returns a structured error (no zombie subprocess).
-  - [ ] Dockerfile installs LibreOffice; final image still builds in CI.
-  - [ ] Pytest covers happy + timeout + LibreOffice-missing error paths.
-  - [ ] Frontend banner renders on render failure (Playwright assertion).
-- **Files likely touched:** `services/python/app/services/pdf_renderer.py`, `services/python/Dockerfile`, `services/python/app/api/documents.py` (wiring), `src/features/documents/components/generation-banner.tsx`.
-- **Pause-triggers anticipated:** §7.1 (LibreOffice in Dockerfile — first time, must surface).
+*(T-038, T-038a, T-038b and T-039 carried forward to Recently completed — all gemerged via PR #42 as Slice-3b vertical.)*
 
 ---
 
 ### Slice 10 — Document history
 
-### T-040 Generated document persistence + per-study version list UI
-- **Status:** ⬜ TODO
-- **Feature:** documents
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-041
-- **Blocked by:** T-028, T-039
-- **Description:**
-  After successful generation, write two `GeneratedDocument` rows (one PPTX, one PDF) with `studyId`, `generatedById = currentUser`, `filename` per the naming convention below, and `generatedAt`. Files saved under `./generated/<studyId>/<filename>`. Update `Study.status = GENERATED` and `Study.generatedAt = now`. **Filename pattern** (proposed): `<consultantLastName>_<customerLastName>_<objectSlug>_v<NN>_<YYYY-MM-DD>.<ext>` — slug = lowercase ASCII-folded, max 40 chars. Version number = count of existing `GeneratedDocument` rows for that study + 1. All previous versions retained (no auto-purge in MVP). UI: a "Versionen" panel on the study detail page listing every version with download links serving `Content-Disposition: attachment`.
-- **Acceptance criteria:**
-  - [ ] Filename matches the proposed pattern.
-  - [ ] Version numbers monotonically increment per study, never reused.
-  - [ ] Download response sets `Content-Disposition: attachment` with the proper filename.
-  - [ ] Versions panel lists all entries newest-first.
-  - [ ] Audit-log `GENERATE_DOCUMENT` entry created per generation.
-  - [ ] Playwright covers F3 (generate from study detail), F4 (re-generate creates a new version).
-- **Files likely touched:** `src/features/documents/services/document-service.ts`, `src/features/documents/components/version-list.tsx`, `src/app/api/studies/[id]/documents/route.ts`, `src/app/(app)/studies/[id]/page.tsx` (panel).
-- **Pause-triggers anticipated:** §7.5 (api shape) only if existing endpoints change; here we're adding.
+*(T-040 carried forward to Recently completed — gemerged via PR #42 as part of the Slice-3b vertical.)*
 
 ---
 
@@ -681,6 +578,36 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-040 ✅ Generated document persistence + per-study version list UI
+- **Merged:** 2026-05-26 via PR #42 (Slice 3b vertical).
+- **Branch:** `feat/pptx-pdf-generator-and-versions`
+- **Summary:** `generateDocumentAction` Server Action wires the per-study "Dokument generieren"-Button on the study detail page to the Python `POST /api/documents/generate` endpoint via `callDocumentsGenerate`. On success, two `GeneratedDocument` rows (PPTX + PDF) are persisted with `studyId`, `generatedById`, `filename = <consultantLastName>_<customerLastName>_<objectSlug>_v<NN>_<YYYY-MM-DD>.<ext>` (slug = lowercase ASCII-folded, max 40 chars), `generatedAt`. Files written under `./generated/<studyId>/<filename>`. `Study.status` flipped to `GENERATED` and `Study.generatedAt = now` inside the same `$transaction` as the document rows. `AuditLog` `GENERATE_DOCUMENT` entry recorded per generation. Per-study "Versionen"-Panel lists every version newest-first with download buttons; `/api/studies/[id]/documents/[docId]/download` serves the file with `Content-Disposition: attachment` and the original filename preserved. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 3b (T-037/T-038a/T-038b/T-039/T-040) silent decisions per §14 (consolidated)".
+
+### T-039 ✅ LibreOffice headless PDF render + Python service Dockerfile update
+- **Merged:** 2026-05-26 via PR #42 (Slice 3b vertical).
+- **Branch:** `feat/pptx-pdf-generator-and-versions`
+- **Summary:** `services/python/app/services/pdf_renderer.py` invokes `libreoffice --headless --convert-to pdf --outdir <out> <input.pptx>` via `subprocess.run` with a hard 30 s timeout (SPEC §6.2). `services/python/Dockerfile` switched from `python:3.12-slim` to `python:3.12-bookworm` (alpine doesn't ship LibreOffice in a usable form) and installs `libreoffice` + `fonts-dejavu-core` via `apt-get install -y --no-install-recommends`. `POST /api/documents/generate` (T-035 stub replaced) now chains PPTX gen → PDF render → returns `DocumentGenerateResponse` with both file paths + metadata; structured error envelope surfaces timeout / missing-LibreOffice / render-fail cases so the Next.js banner can render the correct message per SPEC §4.9. Pytest covers happy, timeout, and LibreOffice-missing paths via subprocess mock + a real LibreOffice integration test gated behind `@pytest.mark.libreoffice`. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 3b (T-037/T-038a/T-038b/T-039/T-040) silent decisions per §14 (consolidated)".
+
+### T-038b ✅ PPTX image-placeholder replacement
+- **Merged:** 2026-05-26 via PR #42 (Slice 3b vertical).
+- **Branch:** `feat/pptx-pdf-generator-and-versions`
+- **Summary:** Image-insertion half of `pptx_generator.py`: locates shapes named `{{image_before}}` / `{{image_after}}`, captures `left/top/width/height`, removes the placeholder, inserts a new picture at the same position scaled to fit while preserving aspect ratio (centered with letterbox where needed). Both images required — `MissingImageError` raised with a clear message if either is absent, surfaced via the Next.js error banner. Pytest covers happy path + missing-image path with fixture images. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 3b (T-037/T-038a/T-038b/T-039/T-040) silent decisions per §14 (consolidated)".
+
+### T-038a ✅ PPTX text-placeholder replacement
+- **Merged:** 2026-05-26 via PR #42 (Slice 3b vertical).
+- **Branch:** `feat/pptx-pdf-generator-and-versions`
+- **Summary:** Text-replacement half of `services/python/app/services/pptx_generator.py`: walks every shape in every slide, finds `{{snake_case_key}}` tokens **across runs** (handles python-pptx's run-split quirk by stitching consecutive runs together when a token is split), replaces with the value formatted per SPEC §8.3 (German numbers `1.234,56`, currency `27.500 €` with NBSP, dates `DD.MM.YYYY HH:mm`). Run-level font / colour / size preserved. Long-text fields rely on `MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` set in T-037. Unit test uses a fixture template with 5 known placeholders + asserts run.font properties stay untouched. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 3b (T-037/T-038a/T-038b/T-039/T-040) silent decisions per §14 (consolidated)".
+
+### T-037 ✅ Apply `{{snake_case}}` placeholders to the PPTX template (post-sign-off)
+- **Merged:** 2026-05-26 via PR #42 (Slice 3b vertical).
+- **Branch:** `feat/pptx-pdf-generator-and-versions`
+- **Summary:** `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` edited via `python-pptx`: every red `#FF0000` literal from the signed-off `docs/pptx-mapping.md` replaced with its `{{snake_case_key}}` placeholder. Run-level formatting (font, red colour, size) preserved. `MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` set on long-text frames (customer name, object address, object name). Image-placeholder shapes renamed to `{{image_before}}` / `{{image_after}}` so the generator can locate them by shape name. One-off script `services/python/scripts/apply_placeholders.py` performs the edits idempotently from the mapping doc; running it twice produces deterministic results. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 3b (T-037/T-038a/T-038b/T-039/T-040) silent decisions per §14 (consolidated)".
 
 ### T-036 ✅ Author `docs/pptx-mapping.md` from the existing template
 - **Merged:** 2026-05-26 via PR #41 (Slice 3a vertical).
