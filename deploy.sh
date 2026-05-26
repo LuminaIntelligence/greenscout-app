@@ -76,10 +76,41 @@ if [ ! -f "$ENV_FILE" ]; then
     err "  - AUTH_SECRET               Auth.js v5 Session-Secret, openssl rand -base64 32"
     err "  - SETTINGS_ENCRYPTION_KEY   Verschlüsselungs-Key SMTP-Settings, openssl rand -base64 32"
     err "  - APP_URL                   Öffentliche App-Adresse (https://greenscout.lumina-intelligence.ai)"
+    err "  - PYTHON_SERVICE_API_KEY    Shared-Secret zwischen web- und pyservice-Container, openssl rand -base64 32"
     err "  - CERTBOT_EMAIL             (optional, nur beim ersten Cert-Lauf) — Let's-Encrypt-Mail"
     err ""
     err "Kopiere .env.production.example nach .env.production und trage die Werte ein."
     err "Niemals committen — .env.* ist via .gitignore ausgeschlossen."
+    exit 1
+fi
+
+# Required-Variables-Check. Verhindert Production-Bugs wie den fehlenden
+# PYTHON_SERVICE_API_KEY (Bild-Upload + Document-Generation hingen, weil
+# der web-Container 'undefined' an den pyservice weitergab) — siehe
+# DECISIONS-Eintrag "fix/env-production-example-and-nginx-template".
+REQUIRED_VARS=(
+    "DATABASE_URL"
+    "POSTGRES_PASSWORD"
+    "AUTH_SECRET"
+    "SETTINGS_ENCRYPTION_KEY"
+    "APP_URL"
+    "PYTHON_SERVICE_API_KEY"
+)
+missing=()
+for var in "${REQUIRED_VARS[@]}"; do
+    if ! grep -qE "^${var}=" "$ENV_FILE"; then
+        missing+=("$var")
+    fi
+done
+if [ ${#missing[@]} -gt 0 ]; then
+    err ""
+    err "Die folgenden required-Variablen fehlen in '$ENV_FILE':"
+    for var in "${missing[@]}"; do
+        err "  - $var"
+    done
+    err ""
+    err "Generiere geheime Werte z. B. mit:   openssl rand -base64 32"
+    err "Siehe .env.production.example für vollständige Liste."
     exit 1
 fi
 
@@ -228,8 +259,11 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header X-Forwarded-Host \$host;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        # WebSocket-Header bewusst NICHT gesetzt — Next.js production
+        # braucht das nicht (HMR ist dev-only). Falls jemals nötig:
+        # per map-block conditional in nginx.conf, nie hardcoded
+        # (hardcoded "Connection: upgrade" auf jedem Request ist ein
+        # Anti-Pattern und kann multipart-Uploads zerstören).
     }
 }
 NGINX_CONF
