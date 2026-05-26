@@ -2835,3 +2835,80 @@ The denominator went from 385 statements (pre-refactor) to 651 statements (post-
 - `DECISIONS.md` (this entry)
 
 **Open question for the user:** Sign-off on `docs/pptx-mapping.md` — see the six disambiguation questions in the doc. Comment `mapping signed-off` on the PR when satisfied; orchestrator dispatches Slice 3b.
+
+---
+
+## 2026-05-26 — Slice 3b: PPTX/PDF generator + versions UI (user-confirmed)
+
+**Context:** Slice 3b (this PR) implements the real PPTX→PDF pipeline that Slice 3a stubbed plus the per-study versions UI. The six disambiguation items the user resolved against `docs/pptx-mapping.md` (Slice 3a sign-off, 2026-05-26) are baked into the template (T-037), the calc-module, the document context, and the PPTX rendering.
+
+**The six binding user answers (resolved 2026-05-26):**
+
+1. **Slide 5 `468.982` literal:** map to `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` = `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`. Template literal was an inconsistent PV-Sol simulation excerpt; the formula keeps Slide 5 consistent with Slide 4's `gesamterzeugung_20j`. Phase 3 (SPEC §2.3) replaces with real PV-Sol output.
+2. **Slide 14 `140.000 €` "Ohne PV":** `{{stromkosten_ohne_pv_eur_jahr}}` = `verbrauch_kwh_jahr × versorger_preis_eur_kwh`. Rechenprobe `400.000 × 0,35 = 140.000 €`.
+3. **Slide 14 `115.400 €` "Mit PV":** `{{stromkosten_mit_pv_eur_jahr}}` = `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`. Avoided-cost reference is the regulatory Einspeisevergütung, NOT `pv_verkauf_eur_kwh` (the sales-to-grid price). PROVISIONAL 0,20 €/kWh — see follow-up below. Rechenprobe `(400.000 − 164.000) × 0,35 + 164.000 × 0,20 = 115.400 €`.
+4. **Slide 19 Telefon/E-Mail/Adresse:** stay static (central GreenScout e.V. line: `+49 172 3794240`, `projektberatung@greenscout-ev.de`, `Utechter Str. 5, 19217 Utecht`). Only `{{consultant_full_name}}` rotates per study.
+5. **Slide 4 + 5 image-shape mapping:** Slide 4 `Image 0` → `image_before`. Slide 5 `Grafik 2` → `image_before`, `Grafik 5` → `image_after`, `Grafik 10` stays static (brand mark). Post-merge visual check required.
+6. **Slide 9 `32` vs Slide 12/14/15 `35` ct/kWh:** unify on one `{{versorger_preis_ct_kwh}}` placeholder across all four slides.
+
+**§7 pause-triggers covered by the Slice-3a user sign-off (all approved, binding):**
+
+- **STUDY_INPUTS_EXTENSION via new derived values + EINSPEISE_VERGUETUNG_DEFAULT (§7.7 money):** user accepted the formula-based PROVISIONAL 0,20 €/kWh constant rather than a Study-schema field, so no §7.2 schema change.
+- **`python-pptx` + `Pillow` new top-level deps (§7.1):** pre-approved at the Slice 3b carve-out. Pinned to `python-pptx>=1.0.2,<2.0` and `Pillow>=11.0,<12.0`.
+
+**§7 pause-triggers NOT touched:**
+
+- **§7.10 architecture pivot — pyservice base image alpine → debian-slim:** briefing pre-approved this switch, but the Dockerfile was already on `python:3.12-slim` since T-007. Only an additive `apt-get install libreoffice-core libreoffice-impress fonts-dejavu fonts-liberation`. Image grew from ~230MB to ~800MB as expected.
+- **§7.2 schema change on `Study`:** deliberately avoided via the PROVISIONAL constant.
+
+**Silent §14 decisions (taste-level, recorded en bloc):**
+
+1. **`.gitattributes` adds `*.py text eol=lf`.** ruff's `line-ending = "lf"` was fighting Windows `core.autocrlf=true` on every commit. Matches the existing `.husky/* text eol=lf` precedent.
+2. **PPTX template overwritten in place rather than duplicated.** Pre-T-037 version lives in git history.
+3. **`scripts/apply-pptx-placeholders.py` ships hard-coded edits, not a re-parse of `docs/pptx-mapping.md`.** The mapping doc is human-curated contract; the script's edit table is execution source-of-truth. 83 edits applied idempotently.
+4. **PPTX generator: defensive paragraph-stitching across run boundaries** even though T-037 left placeholders inside single runs. Future template edits may split a placeholder.
+5. **Missing placeholder keys → empty string + structured warning, not exception.** Failing the whole generate on one missing Termin would be hostile UX.
+6. **Image-placeholder swap by remove-and-readd-at-same-position.** `shape.image.blob = …` cannot update the relationship to a new file; remove-add keeps geometry intact.
+7. **LibreOffice subprocess timeout 60 s** (SPEC §6.2 budget 30 s; 60 s defends against cold-container font scan).
+8. **`libreoffice-core + libreoffice-impress + fonts-dejavu + fonts-liberation`** rather than the full `libreoffice` meta-package. Smallest viable subset.
+9. **Container template path resolution: `/app/templates/...` wins, source-tree path as fallback.** `docker-compose.yml` bind-mounts `./templates:/app/templates:ro`.
+10. **Sensitivity-scenario fallback in Slice 3b:** the documents endpoint recomputes `szenario_N_ersparnis_eur` inline from the request body. Slice 3c can extend `DocumentGenerateRequest` to carry them precomputed.
+11. **`pyright` test-file-only `# pyright: ignore` pragmas.** python-pptx's type stubs underdescribe `Shape.shape_type` (single `Literal` tuple) and `BaseShape.text_frame`. Production code duck-types defensively; tests silence the noise via top-of-file pragmas.
+12. **Document version numbering UX: pair PPTX + PDF by `generatedAt` into a single "Version N".** Berater + Kunde talk about the pair as one document.
+13. **`/api/studies/[id]/documents/[docId]` path-traversal defense:** resolves the stored absolute path and confirms it sits inside `GENERATED_DIR`. Returns 403 if it would escape.
+14. **Server Action error mapping:** `errorCode: "incomplete"` reserved for the explicit DRAFT-state-gate, distinct from `"validation"` (zod) and `"pyservice"` (pyservice-side failure).
+
+**Affected files:**
+
+- `.gitattributes` (one-line `*.py text eol=lf` add)
+- `TASKS.md` (carry-forward T-035 + T-036)
+- `docs/pptx-mapping.md` (DRAFT → SIGNED OFF, six items inlined as Resolved)
+- `src/lib/calculations/{constants,types,index,parity}.{ts,test.ts}` (new fields + constant)
+- `services/python/app/domain/{constants,calculations}.py` (mirror)
+- `services/python/app/schemas/calc.py` (mirror)
+- `services/python/tests/{test_calculations,test_constants,test_parity}.py` (+ new cases)
+- `services/python/tests/fixtures/calc-parity-fixtures.json` (regenerated)
+- `services/python/requirements.txt` (+ python-pptx, + Pillow)
+- `services/python/Dockerfile` (+ LibreOffice apt install)
+- `services/python/app/services/{pptx_generator,pdf_renderer}.py` (full impl, was TODO)
+- `services/python/app/api/endpoints/documents.py` (full impl; replaces 501 stub)
+- `services/python/tests/{test_pptx_generator,test_pdf_renderer,test_api_documents}.py` (new/rewritten)
+- `scripts/apply-pptx-placeholders.py` (new — one-off T-037 migration; idempotent)
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` (83 edits applied)
+- `docker-compose.yml` (+ `./templates:/app/templates:ro` bind mount)
+- `src/features/studies/actions/generate-document.{ts,test.ts}` (new — Server Action + 17 cases)
+- `src/features/studies/components/{generate-document-button,study-document-list}.tsx` (new)
+- `src/app/api/studies/[id]/documents/[docId]/route.ts` (new — download handler)
+- `src/app/(app)/studies/[id]/page.tsx` (Dokumente section integrated)
+- `src/i18n/de.ts` (+ 15 keys)
+- `vitest.config.ts` (+ 100% per-pattern threshold for generate-document.ts)
+- `DECISIONS.md` (this entry)
+
+**Open follow-ups:**
+
+- **Real Einspeisevergütung lookup for 2026** (replace the 0,20 €/kWh PROVISIONAL constant).
+- **Slice 3c:** extend `DocumentGenerateRequest` with precomputed `szenario_n_ersparnis_eur`.
+- **Slice 4 (T-029a/b):** wire `imageBeforePath` / `imageAfterPath` through `generateDocumentAction` — currently both null, template placeholder graphics show through.
+- **Post-merge visual check** of the first generated PPTX: Slide 4 + Slide 5 image shapes should have received the photos.
+
+**Open question for the user:** none. The six sign-off items are resolved.
