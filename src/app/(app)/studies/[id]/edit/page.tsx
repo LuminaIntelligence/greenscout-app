@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { StudyForm, type StudyFormValues } from "@/features/studies/components/study-form";
 import { t } from "@/i18n/de";
 import { auth } from "@/lib/auth";
@@ -49,7 +50,7 @@ export default async function StudyEditPage({ params }: PageProps) {
   if (study === null) {
     notFound();
   }
-  if (session.user.role !== "ADMIN" && study.consultantId !== session.user.id) {
+  if (!canAccessStudy(session, study)) {
     notFound();
   }
 

@@ -29,6 +29,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
+import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { studyFullSchema } from "@/features/studies/schemas/study-full-schema";
 import { auth } from "@/lib/auth";
 import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
@@ -85,7 +86,7 @@ export async function transitionStudyStatusAction(
     return { ok: false, errorCode: "not-found" };
   }
 
-  if (session.user.role !== "ADMIN" && existing.consultantId !== session.user.id) {
+  if (!canAccessStudy(session, existing)) {
     return { ok: false, errorCode: "forbidden" };
   }
 

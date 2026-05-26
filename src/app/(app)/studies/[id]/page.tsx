@@ -4,12 +4,15 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { GenerateDocumentButton } from "@/features/studies/components/generate-document-button";
+import { HandoverDialog } from "@/features/studies/components/handover-dialog";
 import { StudyDeleteDialog } from "@/features/studies/components/study-delete-dialog";
 import { StudyDocumentList } from "@/features/studies/components/study-document-list";
 import { t, type TranslationKey } from "@/i18n/de";
 import { auth } from "@/lib/auth";
 import { findStudyById } from "@/lib/repositories/study.repository";
+import { listUsers } from "@/lib/repositories/user.repository";
 
 /**
  * T-028 `/studies/[id]` read-only detail page.
@@ -42,9 +45,24 @@ export default async function StudyDetailPage({ params }: PageProps) {
   if (study === null) {
     notFound();
   }
-  if (session.user.role !== "ADMIN" && study.consultantId !== session.user.id) {
+  if (!canAccessStudy(session, study)) {
     notFound();
   }
+
+  // T-030 — load the org's active berater + admin pool for the
+  // handover dropdown. The dialog filters out the current owner
+  // client-side; we expose only the columns the dialog needs.
+  const consultants = await listUsers(session.user.organizationId, {
+    active: true,
+    take: 200,
+  });
+  const consultantOptions = consultants.map((u) => ({
+    id: u.id,
+    firstName: u.firstName,
+    lastName: u.lastName,
+    email: u.email,
+    role: u.role,
+  }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -79,11 +97,19 @@ export default async function StudyDetailPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="outline">
           <Link href={`/studies/${study.id}/edit`}>{t("studies.action.edit")}</Link>
         </Button>
-        <StudyDeleteDialog studyId={study.id} studyObjectLabel={study.objectName || study.id} />
+        <div className="flex flex-wrap items-center gap-3">
+          <HandoverDialog
+            studyId={study.id}
+            studyObjectLabel={study.objectName || study.id}
+            currentConsultantId={study.consultantId}
+            consultants={consultantOptions}
+          />
+          <StudyDeleteDialog studyId={study.id} studyObjectLabel={study.objectName || study.id} />
+        </div>
       </div>
 
       <section className="space-y-3">

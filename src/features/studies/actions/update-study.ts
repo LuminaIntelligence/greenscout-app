@@ -31,6 +31,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
+import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { step1KundeSchema } from "@/features/studies/schemas/step1-kunde";
 import { step2ObjektSchema } from "@/features/studies/schemas/step2-objekt";
 import { step3PvInputsSchema } from "@/features/studies/schemas/step3-pv-inputs";
@@ -176,9 +177,10 @@ export async function updateStudyAction(rawInput: unknown): Promise<UpdateStudyR
     return { ok: false, errorCode: "not-found" };
   }
 
-  // BERATER may only edit their own studies (F6 hand-over is T-030);
-  // ADMIN has god-mode per SPEC §4.3 F7.
-  if (session.user.role !== "ADMIN" && existing.consultantId !== session.user.id) {
+  // BERATER may only edit their own studies (F6 hand-over is the
+  // separate `handoverStudyAction`); ADMIN has god-mode per SPEC §4.3
+  // F7. `canAccessStudy` is the single source of truth for this rule.
+  if (!canAccessStudy(session, existing)) {
     return { ok: false, errorCode: "forbidden" };
   }
 
