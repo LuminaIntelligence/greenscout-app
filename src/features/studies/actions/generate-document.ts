@@ -38,6 +38,7 @@ import { createAuditEntry } from "@/lib/repositories/audit-log.repository";
 import { findCustomerById } from "@/lib/repositories/customer.repository";
 import { createDocument } from "@/lib/repositories/generated-document.repository";
 import { findStudyById, markStudyGenerated } from "@/lib/repositories/study.repository";
+import { listStudyImages } from "@/lib/repositories/study-image.repository";
 import { findUserById } from "@/lib/repositories/user.repository";
 
 export type GenerateDocumentResult =
@@ -122,16 +123,23 @@ export async function generateDocumentAction(rawInput: unknown): Promise<Generat
     .filter((s) => s.length > 0)
     .join(" ");
 
+  // Slice 4 — load the per-study image uploads (T-029a) so the Python
+  // service can swap the BEFORE / AFTER placeholder shapes on slides 4
+  // + 5. Missing images fall back to null and the template's
+  // placeholder graphics survive (pptx_generator log will note the
+  // skip).
+  const studyImages = await listStudyImages(studyId);
+  const imageBeforePath = studyImages.find((i) => i.type === "BEFORE")?.filename ?? null;
+  const imageAfterPath = studyImages.find((i) => i.type === "AFTER")?.filename ?? null;
+
   const pyResult = await callDocumentsGenerate({
     study: calcInput,
     derivedValues: derived,
     customerName: customerName || "Kunde",
     objectName: study.objectName || "Studie",
     consultantName: consultantName || consultant.email,
-    // Image upload is Slice 4 — Slice 3b sends nulls so the template's
-    // placeholder graphics survive in the output PPTX.
-    imageBeforePath: null,
-    imageAfterPath: null,
+    imageBeforePath,
+    imageAfterPath,
   });
 
   if (!pyResult.ok) {
