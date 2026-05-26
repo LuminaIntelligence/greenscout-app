@@ -5,12 +5,20 @@
  * section.
  *
  * One instance per slot (`BEFORE` / `AFTER`). Drag-and-drop or
- * click-to-select. Calls `/api/uploads` with a multipart body; on
- * success calls back the parent with the freshly stored image's
- * metadata so the wizard can update its local state.
+ * click-to-select. Calls the `uploadStudyImageAction` Server Action
+ * with a FormData payload; on success calls back the parent with the
+ * freshly stored image's metadata so the wizard can update its local
+ * state.
  *
- * Failure-mode mapping: the route handler returns a typed
- * `errorCode`; this component translates it into a German toast via
+ * **Hotfix note.** The browser path uses a Server Action rather than
+ * `fetch('/api/uploads', ...)` because production nginx returned 502
+ * for the multipart `POST` route handler while it correctly forwards
+ * Server-Action `POST`s. See DECISIONS.md → "Hotfix: Upload via Server
+ * Action statt Route Handler". The `/api/uploads` route remains in
+ * place for future API consumers.
+ *
+ * Failure-mode mapping: the Server Action returns a typed `errorCode`;
+ * this component translates it into a German toast via
  * `src/i18n/de.ts`. Unknown codes fall back to a generic server toast.
  *
  * @see SPEC.md §4.6
@@ -20,6 +28,7 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { uploadStudyImageAction } from "@/features/studies/actions/upload-study-image";
 import { t, type TranslationKey } from "@/i18n/de";
 
 export interface UploadedImageInfo {
@@ -55,19 +64,6 @@ const ERROR_CODE_TO_KEY: Record<string, TranslationKey> = {
   server: "studies.error.upload.server",
 };
 
-interface ApiUploadResponse {
-  ok?: boolean;
-  errorCode?: string;
-  image?: {
-    id: string;
-    kind: "BEFORE" | "AFTER";
-    url: string;
-    widthPx: number;
-    heightPx: number;
-    mimeType: string;
-  };
-}
-
 export function StudyImageUpload({
   studyId,
   kind,
@@ -96,20 +92,20 @@ export function StudyImageUpload({
 
     setIsUploading(true);
     try {
-      const response = await fetch("/api/uploads", {
-        method: "POST",
-        body: formData,
-      });
-      const json = (await response.json().catch(() => ({}))) as ApiUploadResponse;
-      if (!response.ok || json.ok !== true || !json.image) {
-        const code = json.errorCode ?? "server";
-        const key = ERROR_CODE_TO_KEY[code] ?? "studies.error.upload.server";
+      // Hotfix — Server Action instead of `fetch('/api/uploads', ...)`.
+      // Same FormData → same service code, but the request travels the
+      // Server Action pipeline which nginx forwards correctly in prod.
+      // See DECISIONS.md → "Hotfix: Upload via Server Action statt Route Handler".
+      const result = await uploadStudyImageAction(formData);
+      if (!result.ok) {
+        const key = ERROR_CODE_TO_KEY[result.errorCode] ?? "studies.error.upload.server";
         toast.error(t(key));
         return;
       }
       toast.success(t("studies.toast.image-uploaded"));
-      onUploaded(json.image);
-    } catch {
+      onUploaded(result.image);
+    } catch (err) {
+      console.error("[upload] server action failed", err);
       toast.error(t("studies.error.upload.server"));
     } finally {
       setIsUploading(false);

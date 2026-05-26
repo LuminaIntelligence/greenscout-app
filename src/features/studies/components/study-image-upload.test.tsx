@@ -2,16 +2,15 @@
  * T-029a — Tests for the StudyImageUpload widget.
  *
  * Drives the component with `@testing-library/user-event` against a
- * mocked `fetch`. The DataTransfer / drag-events are dispatched
- * manually because `user-event` does not yet expose a drag-drop API.
+ * mocked `uploadStudyImageAction` Server Action (post-hotfix). The
+ * DataTransfer / drag-events are dispatched manually because
+ * `user-event` does not yet expose a drag-drop API.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
-
-import { StudyImageUpload, type UploadedImageInfo } from "./study-image-upload";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -20,12 +19,15 @@ vi.mock("sonner", () => ({
   },
 }));
 
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+vi.mock("@/features/studies/actions/upload-study-image", () => ({
+  uploadStudyImageAction: vi.fn(),
+}));
+
+import { uploadStudyImageAction } from "@/features/studies/actions/upload-study-image";
+
+import { StudyImageUpload, type UploadedImageInfo } from "./study-image-upload";
+
+const mockedAction = vi.mocked(uploadStudyImageAction);
 
 function makeFile(
   name = "photo.jpg",
@@ -47,12 +49,19 @@ function makeUploaded(over?: Partial<UploadedImageInfo>): UploadedImageInfo {
   };
 }
 
+function actionOk(image: UploadedImageInfo) {
+  return {
+    ok: true as const,
+    image: {
+      ...image,
+      fileSizeBytes: 12345,
+      wasReplacement: false,
+    },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
 });
 
 describe("StudyImageUpload — empty slot", () => {
@@ -103,19 +112,14 @@ describe("StudyImageUpload — empty slot", () => {
 });
 
 describe("StudyImageUpload — file picker happy path", () => {
-  it("posts /api/uploads on file select + invokes onUploaded", async () => {
+  it("calls uploadStudyImageAction on file select + invokes onUploaded", async () => {
     const onUploaded = vi.fn();
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      const body = init?.body as FormData;
-      expect(body.get("kind")).toBe("BEFORE");
-      expect(body.get("studyId")).toBe("s1");
-      expect(body.get("file")).toBeInstanceOf(File);
-      return jsonResponse(200, {
-        ok: true,
-        image: makeUploaded(),
-      });
+    mockedAction.mockImplementationOnce(async (formData) => {
+      expect(formData.get("kind")).toBe("BEFORE");
+      expect(formData.get("studyId")).toBe("s1");
+      expect(formData.get("file")).toBeInstanceOf(File);
+      return actionOk(makeUploaded());
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     const user = userEvent.setup();
     render(
@@ -132,15 +136,13 @@ describe("StudyImageUpload — file picker happy path", () => {
   });
 
   it("ignores empty file-input change events", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
     const onUploaded = vi.fn();
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={onUploaded} />,
     );
     const input = screen.getByTestId("upload-file-input-before") as HTMLInputElement;
     fireEvent.change(input, { target: { files: null } });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockedAction).not.toHaveBeenCalled();
     expect(onUploaded).not.toHaveBeenCalled();
   });
 
@@ -149,8 +151,6 @@ describe("StudyImageUpload — file picker happy path", () => {
     // change handler still has an internal `disabled || isUploading`
     // guard. We dispatch the change event directly on the input — which
     // remains in the DOM — to exercise that guard.
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
     render(
       <StudyImageUpload
         studyId="s1"
@@ -162,18 +162,17 @@ describe("StudyImageUpload — file picker happy path", () => {
     );
     const input = screen.getByTestId("upload-file-input-before") as HTMLInputElement;
     fireEvent.change(input, { target: { files: [makeFile()] } });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockedAction).not.toHaveBeenCalled();
   });
 });
 
 describe("StudyImageUpload — error responses", () => {
   it("toasts the German error message on file-too-large", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        jsonResponse(400, { ok: false, errorCode: "file-too-large", detail: "10485760" }),
-      ),
-    );
+    mockedAction.mockResolvedValueOnce({
+      ok: false,
+      errorCode: "file-too-large",
+      message: "10485760",
+    });
     const user = userEvent.setup();
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={vi.fn()} />,
@@ -186,10 +185,10 @@ describe("StudyImageUpload — error responses", () => {
   });
 
   it("toasts the generic server error on an unknown errorCode", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => jsonResponse(500, { ok: false, errorCode: "weird-thing" })),
-    );
+    mockedAction.mockResolvedValueOnce({
+      ok: false,
+      errorCode: "weird-thing" as never,
+    });
     const user = userEvent.setup();
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={vi.fn()} />,
@@ -201,11 +200,8 @@ describe("StudyImageUpload — error responses", () => {
     });
   });
 
-  it("toasts when the response status is ok but json.ok=false", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => jsonResponse(200, { ok: false, errorCode: "server" })),
-    );
+  it("toasts when the action returns ok=false with errorCode 'server'", async () => {
+    mockedAction.mockResolvedValueOnce({ ok: false, errorCode: "server" });
     const user = userEvent.setup();
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={vi.fn()} />,
@@ -217,15 +213,9 @@ describe("StudyImageUpload — error responses", () => {
     });
   });
 
-  it("toasts when json body is empty", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          // Return invalid JSON so the .catch in performUpload kicks in.
-          new Response("not-json", { status: 400 }),
-      ),
-    );
+  it("toasts when the Server Action itself throws (network / serialization)", async () => {
+    mockedAction.mockRejectedValueOnce(new Error("ECONNRESET"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const user = userEvent.setup();
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={vi.fn()} />,
@@ -235,24 +225,8 @@ describe("StudyImageUpload — error responses", () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalled();
     });
-  });
-
-  it("toasts on a network-level fetch throw", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new Error("ECONNRESET");
-      }),
-    );
-    const user = userEvent.setup();
-    render(
-      <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={vi.fn()} />,
-    );
-    const input = screen.getByTestId("upload-file-input-before") as HTMLInputElement;
-    await user.upload(input, makeFile());
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalled();
-    });
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });
 
@@ -289,14 +263,8 @@ describe("StudyImageUpload — current image preview", () => {
   });
 
   it("uploads a replacement file via the same flow", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        jsonResponse(200, {
-          ok: true,
-          image: makeUploaded({ id: "img-2", widthPx: 1024, heightPx: 768 }),
-        }),
-      ),
+    mockedAction.mockResolvedValueOnce(
+      actionOk(makeUploaded({ id: "img-2", widthPx: 1024, heightPx: 768 })),
     );
     const onUploaded = vi.fn();
     const user = userEvent.setup();
@@ -350,10 +318,7 @@ describe("StudyImageUpload — drag/drop", () => {
   });
 
   it("dropping a file triggers the upload flow", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => jsonResponse(200, { ok: true, image: makeUploaded() })),
-    );
+    mockedAction.mockResolvedValueOnce(actionOk(makeUploaded()));
     const onUploaded = vi.fn();
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={onUploaded} />,
@@ -367,15 +332,13 @@ describe("StudyImageUpload — drag/drop", () => {
   });
 
   it("a drop without files is a no-op", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
     render(
       <StudyImageUpload studyId="s1" kind="BEFORE" currentImage={null} onUploaded={vi.fn()} />,
     );
     const dropzone = screen.getByTestId("upload-dropzone-before");
     fireEvent.drop(dropzone, { dataTransfer: dataTransferWith([]) });
-    // No fetch should be triggered for an empty drop.
-    expect(fetchMock).not.toHaveBeenCalled();
+    // No action should be triggered for an empty drop.
+    expect(mockedAction).not.toHaveBeenCalled();
   });
 
   it("dragEnter while disabled does NOT apply the highlight (defensive branch)", () => {
@@ -395,8 +358,6 @@ describe("StudyImageUpload — drag/drop", () => {
   });
 
   it("drop is ignored when disabled", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
     render(
       <StudyImageUpload
         studyId="s1"
@@ -408,14 +369,11 @@ describe("StudyImageUpload — drag/drop", () => {
     );
     const dropzone = screen.getByTestId("upload-dropzone-before");
     fireEvent.drop(dropzone, { dataTransfer: dataTransferWith([makeFile()]) });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mockedAction).not.toHaveBeenCalled();
   });
 
   it("supports drag/drop on the preview tile when an image is already set", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => jsonResponse(200, { ok: true, image: makeUploaded({ id: "img-3" }) })),
-    );
+    mockedAction.mockResolvedValueOnce(actionOk(makeUploaded({ id: "img-3" })));
     const onUploaded = vi.fn();
     render(
       <StudyImageUpload
