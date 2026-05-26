@@ -7,8 +7,12 @@ useDefault = true
 
 # Allowlist .env.example because it intentionally contains placeholder values
 # like REPLACE_WITH_32_BYTE_BASE64 that gitleaks defaults might false-positive on.
+# Test files under services/python/tests/test_api_*.py are allowlisted for the
+# same reason — the X-API-Key fixture value is a deliberately fake string used
+# only to drive the verify_api_key dependency.
 [allowlist]
-description = "Placeholder values in .env.example are not real secrets."
+description = "Placeholder values in .env.example and Python API-key test fixtures are not real secrets."
 paths = [
   '''\.env\.example''',
+  '''services/python/tests/test_api_.*\.py''',
 ]

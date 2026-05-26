@@ -163,79 +163,7 @@
 
 ### Slice 7 — Calculation logic (TS + Py mirror)
 
-### T-031 Calculation constants modules (TS + Py) with CO₂ provisional marker
-- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
-- **Feature:** calculations
-- **Type:** feat
-- **Effort:** S
-- **Blocks:** T-032 (calc), T-033 (calc), T-037
-- **Blocked by:** T-001, T-006
-- **Description:**
-  Per **DECISIONS.md decision #2**, create both `src/lib/calculations/constants.ts` and `services/python/app/domain/constants.py` exporting named constants for: `CO2_KG_PER_KWH_PV = 0.474`, `CO2_HA_MISCHWALD_PER_T_PER_YEAR = 0.0177` with inline marker `// PROVISIONAL — value pending GreenScout confirmation, see docs/calc-sources.md` (and `# PROVISIONAL …` in Python), `FOOTBALL_FIELDS_PER_HA = 1.28`, `DEFAULT_PACHT_EUR_PER_KWP = 100`, `DEFAULT_VERTRAGSLAUFZEIT_JAHRE = 20`, `DEFAULT_SENSITIVITY_CT_KWH = [35, 40, 45]`. Also create `docs/calc-sources.md` with a table `Konstante | Wert | Quelle | Stand | Anmerkung`. Tests assert constants are *referenced* (not their numeric value).
-- **Acceptance criteria:**
-  - [ ] All six constants exported on both sides with identical numeric values.
-  - [ ] PROVISIONAL marker present on the Mischwald constant in both files.
-  - [ ] `docs/calc-sources.md` exists with at least the six rows above.
-  - [ ] Tests assert constants exist and are referenced (not their numeric value, per decision #2).
-- **Files likely touched:** `src/lib/calculations/constants.ts`, `services/python/app/domain/constants.py`, `docs/calc-sources.md`, plus `*.test.ts` and `test_constants.py`.
-- **Pause-triggers anticipated:** none.
-
----
-
-### T-032 TS calculation module (live preview)
-- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
-- **Feature:** calculations
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-033, T-034
-- **Blocked by:** T-031
-- **Description:**
-  Implement `src/lib/calculations/index.ts` with pure functions per SPEC §4.7: `ersparnisProJahr`, `ersparnisProMonat`, `ersparnis20Jahre`, `pachtEinnahmeEinmalig`, `gesamterzeugung20j`, `gesamtvorteil`, plus CO₂ derivatives (`co2TonnenProJahr`, `co2HektarMischwald`, `co2FussballfelderProJahr`). Inputs as a typed `StudyCalcInput` object. All functions pure, side-effect-free, deterministic. **100% line + branch coverage**. Use the constants module from T-031. Honor `co2Override` semantics: when override is true, the override values flow through unchanged.
-- **Acceptance criteria:**
-  - [ ] Every formula from SPEC §4.7 implemented exactly.
-  - [ ] `co2Override` short-circuits override values through without recomputation.
-  - [ ] Coverage report shows 100% lines + branches on this module.
-  - [ ] Snapshot test of a representative input matches an explicit expected output (no floating-point drift surprises).
-- **Files likely touched:** `src/lib/calculations/index.ts`, `src/lib/calculations/types.ts`, `src/lib/calculations/*.test.ts`.
-- **Pause-triggers anticipated:** none.
-
----
-
-### T-033 Python calculation module (authoritative for document generation)
-- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
-- **Feature:** calculations (python)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-034, T-037
-- **Blocked by:** T-031
-- **Description:**
-  Implement `services/python/app/domain/calculations.py` mirroring T-032 exactly. Pydantic v2 `StudyCalcInput` model, pure functions, references constants from T-031 Python side. **100% coverage** via pytest. Use `Decimal` arithmetic (not `float`) for monetary values to match Prisma's `Decimal` columns and avoid drift.
-- **Acceptance criteria:**
-  - [ ] All formulas implemented identically to T-032.
-  - [ ] `Decimal` used for all monetary intermediates; results convertible to float only at the API boundary.
-  - [ ] Pytest coverage = 100% on `app/domain/calculations.py`.
-  - [ ] `co2Override` semantics match TS.
-- **Files likely touched:** `services/python/app/domain/calculations.py`, `services/python/app/schemas/calc.py`, `services/python/tests/test_calculations.py`.
-- **Pause-triggers anticipated:** none.
-
----
-
-### T-034 Parity tests — TS vs Python calculation outputs
-- **Status:** 🟦 IN PROGRESS (in PR for Slice 2 — `feat/calculations-slice`)
-- **Feature:** calculations
-- **Type:** test
-- **Effort:** M
-- **Blocks:** T-040
-- **Blocked by:** T-032, T-033
-- **Description:**
-  Author a parity-test harness: a JSON fixture of 20+ representative `StudyCalcInput` cases (including edge cases — zero eigenverbrauch, large kWp, override-on, sensitivity boundaries). A Vitest suite runs each through `src/lib/calculations`; a pytest suite runs the same fixtures through `services/python/app/domain/calculations.py`. Both must produce results within `1e-6` of each other for monetary fields and within `1e-4` for CO₂ derivatives. Fixtures live in `tests/fixtures/calc-parity/` (shared).
-- **Acceptance criteria:**
-  - [ ] At least 20 fixtures covering happy path + edges (zero, max, override on/off, all three sensitivity prices).
-  - [ ] Both test suites consume the same fixture JSON.
-  - [ ] CI runs both suites and fails the PR if any fixture mismatches.
-  - [ ] Tolerance bounds documented in `docs/calc-sources.md`.
-- **Files likely touched:** `tests/fixtures/calc-parity/*.json`, `src/lib/calculations/parity.test.ts`, `services/python/tests/test_calculations_parity.py`.
-- **Pause-triggers anticipated:** none.
+*(T-031, T-032, T-033 and T-034 carried forward to Recently completed — all gemerged via PR #40 as Slice 2 vertical.)*
 
 ---
 
@@ -789,6 +717,30 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### T-034 ✅ Parity tests — TS vs Python calculation outputs
+- **Merged:** 2026-05-26 via PR #40 (Slice 2 vertical).
+- **Branch:** `feat/calculations-slice`
+- **Summary:** 22-fixture shared JSON suite (`services/python/tests/fixtures/calc-parity-fixtures.json`, generated by `scripts/generate-calc-parity-fixtures.mjs` from the TS `composeAll()` as source-of-truth) covering baseline + edges (zero/large/sensitivity 35/40/45 ct/kWh / override on+off / decimal-heavy / 15-/20-/25-year contracts / extreme 1 kWp / 2000 kWp / verkauf>versorger pathological / all-zero / high-pacht 200 / typical). Vitest suite `src/lib/calculations/parity.test.ts` + pytest suite `services/python/tests/test_parity.py` consume the same fixture file. Tolerance budget: `1e-6` relative for monetary fields, `1e-4` for CO₂ derivatives — documented in `docs/calc-sources.md`. CI runs both suites; any mismatch fails the PR. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 2 (T-031/T-032/T-033/T-034) silent decisions per §14 (consolidated)".
+
+### T-033 ✅ Python calculation module (authoritative for document generation)
+- **Merged:** 2026-05-26 via PR #40 (Slice 2 vertical).
+- **Branch:** `feat/calculations-slice`
+- **Summary:** `services/python/app/domain/calculations.py` mirrors T-032 field-for-field. `Decimal` arithmetic on monetary intermediates via `Decimal(str(value))` pattern (private `_d()` helper) — `float` only at the `compose_all()` API boundary that serialises through the pydantic `DerivedValues` model. CO₂ derivatives stay on the float pathway (the underlying constants 0.474 / 0.0177 / 1.28 are themselves 3–4-sig-fig approximations). Pydantic v2 `StudyCalcInput` model in `services/python/app/schemas/calc.py` with `extra="forbid"`, `frozen=True`, non-negative validation on every physical input. `co2_override` semantics match the TS side: short-circuits when override is true AND the override value is not None. 22 pytest cases at 100 % coverage on `calculations.py`; `pytest-cov` added to `requirements-dev.txt` (pytest plugin, taste-level per §14.2). Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 2 (T-031/T-032/T-033/T-034) silent decisions per §14 (consolidated)".
+
+### T-032 ✅ TS calculation module (live preview)
+- **Merged:** 2026-05-26 via PR #40 (Slice 2 vertical).
+- **Branch:** `feat/calculations-slice`
+- **Summary:** `src/lib/calculations/index.ts` ships every formula from SPEC §4.7 plus the three CO₂ derivatives. Pure-functional, deterministic. Types in `src/lib/calculations/types.ts`. `composeAll()` single-shot helper for callers wanting the full output. `co2Override` short-circuits when both `co2Override === true` AND the respective override is defined. 100 % per-pattern Vitest threshold on `src/lib/calculations/**` enforced (added in T-015b, no longer dormant). Wizard Step 5 sensitivity preview replaced its T-026b STUB with live `composeAll()`: each `szenarioPreis*` substitutes into `versorgerPreisEurKwh` and re-runs the pipeline. `buildCalcInput()` defaults missing optionals to SPEC §4.5 (`pachtEurProKwp=100`, `vertragslaufzeitJahre=20`). `isCalcInputComplete()` gates the preview on four required inputs. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 2 (T-031/T-032/T-033/T-034) silent decisions per §14 (consolidated)".
+
+### T-031 ✅ Calculation constants modules (TS + Py) with CO₂ provisional marker
+- **Merged:** 2026-05-26 via PR #40 (Slice 2 vertical).
+- **Branch:** `feat/calculations-slice`
+- **Summary:** Six named constants exported on both sides with identical numeric values: `CO2_KG_PER_KWH_PV = 0.474`, `CO2_HA_MISCHWALD_PER_T_PER_YEAR = 0.0177` (marked `// PROVISIONAL` in TS and `# PROVISIONAL` in Py per DECISIONS "CO₂ Mischwald-Faktor provisional"), `FOOTBALL_FIELDS_PER_HA = 1.28`, `DEFAULT_PACHT_EUR_PER_KWP = 100`, `DEFAULT_VERTRAGSLAUFZEIT_JAHRE = 20`, `DEFAULT_SENSITIVITY_CT_KWH = [35, 40, 45]`. `docs/calc-sources.md` ships the living constant register (`Konstante | Wert | Quelle | Stand | Anmerkung`) plus the T-034 parity tolerance contract. Tests assert *referenced* (not the literal numeric value) so a future correction stays a one-liner per decision #2. Status-Flip carry-forward.
+- **Decisions:** siehe `DECISIONS.md` Eintrag "Slice 2 (T-031/T-032/T-033/T-034) silent decisions per §14 (consolidated)".
 
 ### T-028 ✅ Studies dashboard (TanStack Table, filters, status state machine)
 - **Merged:** 2026-05-26 via PR #39 (Slice 5 vertical, ein PR per User-Spec).

@@ -2755,3 +2755,83 @@ The denominator went from 385 statements (pre-refactor) to 651 statements (post-
 - `DECISIONS.md` (this entry)
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-26 — Slice 3a (T-035/T-036) silent decisions per §14 (consolidated)
+
+**Context:** Slice 3 of 8 toward the MVP. Split by the orchestrator into two sub-PRs to honour the sign-off gate baked into T-036: T-036 produces `docs/pptx-mapping.md`; the user reviews and confirms; **then** Slice 3b (T-037..T-040) dispatches. Slice 3a (this PR) covers T-035 (FastAPI endpoints + Next.js client) and T-036 (mapping doc + stdlib-only inspect helper).
+
+**Decisions taken (silent, §14.2):**
+
+1. **Stateless Python service — no DB connection.** Per the orchestrator's binding pre-decision: Next.js owns Prisma; the Python service receives the full request body verbatim. Eliminates double DB config, schema-drift surface, and a `DATABASE_URL` requirement on the Python container. Documented as the binding contract in the briefing; recorded here for traceability.
+
+2. **`POST /api/calc` body shape = `StudyCalcInput` verbatim.** No wrapper envelope, no transport-level metadata. The pydantic model from T-033 doubles as the wire format. Symmetric on the response side: `DerivedValues` direct, not nested under `{ data: ... }`. Rationale: this is a private internal endpoint, not a public API; YAGNI on envelopes.
+
+3. **`POST /api/documents/generate` is a 501 STUB in Slice 3a** but with a fully-typed request and response schema (`DocumentGenerateRequest`, `DocumentGenerateResponse`, `DocumentGeneratePendingResponse`). Pydantic validates the request body even though the handler stubs — so the Next.js client can iterate against 422s now and only the Python-side wiring needs to flip when Slice 3b lands. The 501 body is itself a typed model so the client sees consistent JSON, not opaque text.
+
+4. **`GET /version` is unauthenticated** (same operations-friendly class as `/health`). Rationale: ops dashboards / canary scripts / Docker health probes should not need an API key to identify the running image. The X-API-Key gate is only on **mutating / compute-bearing** endpoints (`/api/calc`, `/api/documents/generate`).
+
+5. **`X-API-Key` validation via `secrets.compare_digest` for constant-time comparison.** Defense-in-depth against timing-side-channel attacks against the shared secret. Pattern matches the T-017a verify-first hardening on the Auth.js side.
+
+6. **`X-API-Key` env var is **lazily required**.** `verify_api_key` raises 500 (not at import time) when `PYTHON_SERVICE_API_KEY` is unset. Keeps `/health` and `/version` reachable in test environments that omit the env entirely, but fails loud on the first protected request — no silent fallback to a default key.
+
+7. **Next.js client: discriminated `PythonServiceCallResult<T>`.** Two-variant union: `{ ok: true; data }` or `{ ok: false; kind: "unauthorized" | "bad-request" | "validation" | "not-implemented" | "server-error" | "timeout" | "network"; status?; message }`. No raw fetch errors escape the module — callers always get a typed result. Rationale: the SPEC §4.9 error-handling matrix needs to dispatch on error class (banner vs. toast vs. full error page); a typed `kind` lets the caller branch without parsing error messages.
+
+8. **Camel/snake translation lives in the Next.js client, not in either domain layer.** The pydantic models stay snake_case (Python convention); the TS interfaces stay camelCase (TS convention). The client owns a two-line `camelToSnake` / `snakeToCamel` translator pair applied at the request/response boundary. Already-established pattern from the Slice-2 T-034 parity tests where the fixture file's TS-camelCase keys are translated at the Python test boundary.
+
+9. **`PYTHON_SERVICE_TIMEOUT_SECONDS` default = 60.** Aligned with the documented `.env.example` value. Falls back to 60 on missing / invalid / zero / negative env values — never blocks forever, never sets a 0-second timeout (which would defeat the purpose). Per-call timeout via `AbortController` so a stuck pyservice never wedges a Next.js handler.
+
+10. **`Number.isFinite + > 0` guard on the timeout value.** Defensive: `Number("not-a-number")` is `NaN`; `Number("-5")` is `-5`. Either would silently break the timeout if not guarded. Test coverage exercises three variants (missing / invalid / zero/negative).
+
+11. **`scripts/inspect-pptx.py` is stdlib-only (`zipfile` + `xml.etree.ElementTree`)** — no `python-pptx` dependency. Reasoning: the briefing asserted python-pptx was already installed; it wasn't. Adding a new top-level dep is a §7.1 pause-trigger. Inspecting the template via the OOXML zip is straightforward and removes the dep question entirely from this slice. python-pptx is approved scope for T-037 (placeholder application) and will be added there with its own §7.1 surface in Slice 3b.
+
+12. **UTF-8 stdout reconfiguration in the inspect script.** Windows-default cp1252 console blows up on subscript ₂ and umlauts. The script reconfigures `sys.stdout` / `sys.stderr` to UTF-8 in `main()` with a try/except fallback — safe on POSIX (no-op) and forces UTF-8 on Windows.
+
+13. **`docs/pptx-mapping.md` author convention: human-curated atop machine-extracted dump.** The mapping doc itself cannot be mechanically regenerated — assigning snake_case keys and binding Source fields requires SPEC + DECISIONS context. The dump from `inspect-pptx.py` is the raw evidence; the markdown is the curated interpretation, with explicit disambiguation flags for the six items needing user input.
+
+14. **Six explicit disambiguation questions surfaced in `docs/pptx-mapping.md`** rather than silent assumptions: PV-Sol literal interpretation on Slide 5, Slide 14 "Ohne PV" / "Mit PV" formula assumptions, Slide 19 contact-line ownership (central vs. per-consultant), image placeholder shape-name assignments, Slide 9 `32 vs. 35` ct/kWh inconsistency. Each ships with a "default assumption if no other answer" so Slice 3b can proceed without re-blocking on every item.
+
+15. **`.gitleaks.toml` allowlist extension for `services/python/tests/test_api_*.py`.** The X-API-Key fixture value is a deliberately fake string (`test-fake-not-a-secret-fixture-value-only`) but its entropy was still high enough to trip the `generic-api-key` rule. Allowlist scope is narrow: only the three test files. Same precedent as the `.env.example` allowlist that already lived in the config.
+
+16. **Per-pattern 100 % Vitest threshold on `src/lib/python-service-client.ts`.** Trust-boundary class: outbound HTTP + shared-secret auth + camel/snake translation. Same threshold class as the customer/study Server Actions. 26 tests cover every branch (translation helpers, env-resolve happy/missing-URL/missing-key/invalid-timeout, callCalc happy/401/422/500/400/501/timeout/network/non-Error-throw/invalid-JSON, callDocumentsGenerate happy/501/200/timeout/network/non-Error-throw, real-timeout-via-setTimeout).
+
+17. **`from __future__ import annotations` deliberately NOT used in `app/schemas/documents.py`** even though it is used in `app/schemas/calc.py`. Pydantic v2 needs runtime access to nested model classes (`DerivedValues`, `StudyCalcInput`, `datetime`) to resolve `Field(...)` type-binding; ruff's TC001/TC003 would otherwise demand they move into a `TYPE_CHECKING` block where pydantic can't see them. Pragmatic call: trade one module's stylistic consistency for a cleaner ruff pass.
+
+18. **Test files (`test_api_*.py`) deliberately omit `from __future__ import annotations`.** Matches the existing `test_health.py` pattern — keeps `TestClient` as a runtime import (required by the parameter annotation on test functions where pytest needs to introspect the fixture type at runtime) without tripping ruff TC002.
+
+19. **NOT touching `.env.production.example` in Slice 3a.** The briefing called out `PYTHON_SERVICE_API_KEY` for the production example file — but only after a deploy trigger. Slice 3a doesn't deploy; deferring the prod-example edit avoids a stale-config commit that would survive even if Slice 3b's deploy plan changes. T-050a (production deploy) owns that file.
+
+**§14.4 smell test — why this is decide-and-document and not a pause-trigger:**
+
+- §7.1 (new top-level dependency): **no new deps.** `pytest-cov` was added in Slice 2; `python-pptx` deferred to Slice 3b/T-037 where it's truly needed. The inspect helper is stdlib-only.
+- §7.3 (auth/security): **shared-secret schema was pre-approved.** `PYTHON_SERVICE_API_KEY` has lived in `.env.example` since T-006. This slice just implements the gate that the schema described. Not new auth logic.
+- §7.4 (UI/UX visible changes): **none.** Slice 3a touches the Python service + Next.js client library only — no React components, no UI strings.
+- §7.5 (breaking API changes): **none.** All endpoints are new. The Python service had only `/health` before; the addition is purely additive.
+- §7.6 (external integrations): **none.** Python service is internal. The only HTTP is Next.js → pyservice inside the Docker network.
+- §7.7 (money): **none new.** The calc pipeline carries SPEC §4.7 formulas unchanged from Slice 2.
+- §7.11 (DSGVO): **none.** No personal data touched; the calc endpoint is stateless and accepts only PV-numeric inputs.
+
+**Affected files:**
+
+- `services/python/app/api/dependencies.py` (new — `verify_api_key`)
+- `services/python/app/api/endpoints/__init__.py` (new)
+- `services/python/app/api/endpoints/calc.py` (new — POST /api/calc)
+- `services/python/app/api/endpoints/documents.py` (new — POST /api/documents/generate STUB)
+- `services/python/app/api/endpoints/version.py` (new — GET /version)
+- `services/python/app/schemas/documents.py` (new — request/response/pending schemas)
+- `services/python/app/schemas/version.py` (new)
+- `services/python/app/main.py` (router wiring)
+- `services/python/tests/test_api_calc.py` (new — 9 tests)
+- `services/python/tests/test_api_documents.py` (new — 5 tests)
+- `services/python/tests/test_api_version.py` (new — 2 tests)
+- `src/lib/python-service-client.ts` (new — callCalc + callDocumentsGenerate)
+- `src/lib/python-service-client.test.ts` (new — 26 tests, 100 % coverage)
+- `vitest.config.ts` (per-pattern 100 % threshold added)
+- `scripts/inspect-pptx.py` (new — stdlib-only PPTX dumper, T-036 helper)
+- `docs/pptx-mapping.md` (new — 19-slide mapping table, sign-off gated)
+- `.gitleaks.toml` (allowlist extension for test_api_*.py)
+- `TASKS.md` (Slice 2 carry-forward in a separate first commit)
+- `DECISIONS.md` (this entry)
+
+**Open question for the user:** Sign-off on `docs/pptx-mapping.md` — see the six disambiguation questions in the doc. Comment `mapping signed-off` on the PR when satisfied; orchestrator dispatches Slice 3b.
