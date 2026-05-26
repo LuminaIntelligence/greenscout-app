@@ -47,6 +47,10 @@ import { transitionStudyStatusAction } from "@/features/studies/actions/transiti
 import { type StudyStepKey, updateStudyAction } from "@/features/studies/actions/update-study";
 import { SENSITIVITY_DEFAULTS } from "@/features/studies/schemas/step5-sensitivity";
 import { CustomerSelect } from "@/features/studies/components/customer-select";
+import {
+  StudyImageUpload,
+  type UploadedImageInfo,
+} from "@/features/studies/components/study-image-upload";
 import { t, type TranslationKey } from "@/i18n/de";
 import { composeAll, type StudyCalcInput } from "@/lib/calculations";
 
@@ -81,6 +85,8 @@ export interface StudyFormValues {
   szenarioPreis3: number | "";
   terminVorschlag1: string;
   terminVorschlag2: string;
+  bildBefore: UploadedImageInfo | null;
+  bildAfter: UploadedImageInfo | null;
 }
 
 export const STEP_KEYS: readonly StudyStepKey[] = [
@@ -118,12 +124,17 @@ export interface StudyFormProps {
  * Replaces the closure-capture that the previous in-line sections
  * relied on. `patch` is the field-level setter; sections never see
  * the raw `setValues` setter.
+ *
+ * `studyId` is required by Section7Bilder's image-upload widget so it
+ * can target the right study on the upload endpoint. The other
+ * sections ignore it.
  */
 interface SectionRenderProps {
   values: StudyFormValues;
   stepErrors: Record<string, string>;
   patch: <K extends keyof StudyFormValues>(field: K, value: StudyFormValues[K]) => void;
   isPending: boolean;
+  studyId: string;
 }
 
 export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
@@ -280,7 +291,7 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
   // nested-component identity → React unmounts + remounts the sub-tree
   // → focused input is torn out → next keystroke lands nowhere.
 
-  const sectionProps: SectionRenderProps = { values, stepErrors, patch, isPending };
+  const sectionProps: SectionRenderProps = { values, stepErrors, patch, isPending, studyId };
   const sectionRenderers: ReadonlyArray<(props: SectionRenderProps) => React.JSX.Element> = [
     Section1Kunde,
     Section2Objekt,
@@ -651,17 +662,25 @@ function Section6Termine({ values, stepErrors, patch, isPending }: SectionRender
   );
 }
 
-function Section7Bilder(_props: SectionRenderProps) {
+function Section7Bilder({ values, patch, isPending, studyId }: SectionRenderProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t("studies.hint.images-placeholder")}</p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="border-muted-foreground/40 bg-muted/30 flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-          {t("studies.field.bild-before")}
-        </div>
-        <div className="border-muted-foreground/40 bg-muted/30 flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-          {t("studies.field.bild-after")}
-        </div>
+        <StudyImageUpload
+          studyId={studyId}
+          kind="BEFORE"
+          currentImage={values.bildBefore}
+          onUploaded={(image) => patch("bildBefore", image)}
+          disabled={isPending}
+        />
+        <StudyImageUpload
+          studyId={studyId}
+          kind="AFTER"
+          currentImage={values.bildAfter}
+          onUploaded={(image) => patch("bildAfter", image)}
+          disabled={isPending}
+        />
       </div>
     </div>
   );

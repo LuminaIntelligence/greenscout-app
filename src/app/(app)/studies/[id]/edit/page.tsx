@@ -5,6 +5,7 @@ import { StudyForm, type StudyFormValues } from "@/features/studies/components/s
 import { t } from "@/i18n/de";
 import { auth } from "@/lib/auth";
 import { findStudyById } from "@/lib/repositories/study.repository";
+import { listStudyImages } from "@/lib/repositories/study-image.repository";
 import { findUserById } from "@/lib/repositories/user.repository";
 
 /**
@@ -58,6 +59,11 @@ export default async function StudyEditPage({ params }: PageProps) {
   const mode: "wizard" | "single-page" =
     consultant?.formPreference === "SINGLE_PAGE" ? "single-page" : "wizard";
 
+  // T-029a — hydrate Step-7 image previews from the StudyImage table.
+  const images = await listStudyImages(study.id);
+  const before = images.find((i) => i.type === "BEFORE") ?? null;
+  const after = images.find((i) => i.type === "AFTER") ?? null;
+
   const initialValues: StudyFormValues = {
     customerId: study.customerId,
     objectName: study.objectName,
@@ -82,6 +88,28 @@ export default async function StudyEditPage({ params }: PageProps) {
     szenarioPreis3: asNumberInput(study.szenarioPreis3),
     terminVorschlag1: asDateInput(study.terminVorschlag1),
     terminVorschlag2: asDateInput(study.terminVorschlag2),
+    bildBefore:
+      before === null
+        ? null
+        : {
+            id: before.id,
+            kind: "BEFORE",
+            url: `/api/uploads/${before.id}`,
+            widthPx: before.widthPx,
+            heightPx: before.heightPx,
+            mimeType: before.mimeType,
+          },
+    bildAfter:
+      after === null
+        ? null
+        : {
+            id: after.id,
+            kind: "AFTER",
+            url: `/api/uploads/${after.id}`,
+            widthPx: after.widthPx,
+            heightPx: after.heightPx,
+            mimeType: after.mimeType,
+          },
   };
 
   return (

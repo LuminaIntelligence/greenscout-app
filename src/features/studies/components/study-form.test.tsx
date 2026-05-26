@@ -49,6 +49,8 @@ const VALUES: StudyFormValues = {
   szenarioPreis3: 0.45,
   terminVorschlag1: "2026-06-01T10:00",
   terminVorschlag2: "2026-06-02T10:00",
+  bildBefore: null,
+  bildAfter: null,
 };
 
 function renderWithClient(ui: React.ReactNode) {
@@ -139,9 +141,9 @@ describe("StudyForm — single-page mode", () => {
     expect(screen.getByText(/Erst Schritte 3 \+ 4 ausfüllen/)).toBeInTheDocument();
   });
 
-  it("displays the placeholder hint for images step", () => {
+  it("displays the image-upload section hint for images step", () => {
     renderWithClient(<StudyForm mode="single-page" studyId="study-1" initialValues={VALUES} />);
-    expect(screen.getByText(/Bilder-Upload wird in einem späteren Schritt/)).toBeInTheDocument();
+    expect(screen.getByText(/Lade zwei Fotos hoch/)).toBeInTheDocument();
   });
 
   it("displays the review hint in Step 8", () => {
