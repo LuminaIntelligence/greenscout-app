@@ -19,6 +19,17 @@
  * Step 8 "Studie als bereit markieren" calls `transitionStudyStatusAction`
  * with `DRAFT → READY`, which gates on `studyFullSchema` server-side.
  *
+ * Focus-loss regression fix (2026-05-26): the eight `Section<N>`
+ * renderers were originally defined as *nested* functions inside this
+ * component. Every parent re-render — including the one that fires
+ * after every keystroke via `setValues` — produced fresh component
+ * identities, which forced React to unmount + remount the entire
+ * sub-tree. That tore the focused `<input>` element out of the DOM,
+ * `document.activeElement` reset to `<body>`, and the next keystroke
+ * landed nowhere. All sections now live at module scope and receive
+ * their state through explicit props, so the input identity is stable
+ * across re-renders.
+ *
  * @see DECISIONS.md → Wizard-Step layout (decision #5)
  */
 
@@ -100,6 +111,19 @@ export interface StudyFormProps {
   mode: "wizard" | "single-page";
   studyId: string;
   initialValues: StudyFormValues;
+}
+
+/**
+ * Shared props every Section component receives from the parent.
+ * Replaces the closure-capture that the previous in-line sections
+ * relied on. `patch` is the field-level setter; sections never see
+ * the raw `setValues` setter.
+ */
+interface SectionRenderProps {
+  values: StudyFormValues;
+  stepErrors: Record<string, string>;
+  patch: <K extends keyof StudyFormValues>(field: K, value: StudyFormValues[K]) => void;
+  isPending: boolean;
 }
 
 export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
@@ -250,325 +274,14 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
   }
 
   // ─── Section renderers ────────────────────────────────────────────
-  // Each `Section<N>` is a stateless render block; the parent owns
-  // `values` + `stepErrors`. Inputs use unstyled HTML number-mode where
-  // appropriate; German-locale parsing is handled inside the zod
-  // helpers (numeric strings parsed as numbers).
+  // Sections are defined at module scope (see bottom of file) so that
+  // their identity is stable across re-renders. Without this, typing
+  // into any input fires `setValues` → re-renders parent → fresh
+  // nested-component identity → React unmounts + remounts the sub-tree
+  // → focused input is torn out → next keystroke lands nowhere.
 
-  function Section1Kunde() {
-    return (
-      <div className="space-y-3">
-        <Label htmlFor="customerId">{t("studies.field.customer")}</Label>
-        <CustomerSelect
-          value={values.customerId || undefined}
-          onChange={(next) => patch("customerId", next)}
-          disabled={isPending}
-        />
-        <FieldError name="customerId" errors={stepErrors} />
-      </div>
-    );
-  }
-
-  function Section2Objekt() {
-    return (
-      <div className="space-y-4">
-        <Field
-          label={t("studies.field.object-name")}
-          name="objectName"
-          value={values.objectName}
-          onChange={(v) => patch("objectName", v)}
-          errors={stepErrors}
-        />
-        <Field
-          label={t("studies.field.object-address")}
-          name="objectAddress"
-          value={values.objectAddress}
-          onChange={(v) => patch("objectAddress", v)}
-          errors={stepErrors}
-        />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field
-            label={t("studies.field.object-zip")}
-            name="objectZipCode"
-            value={values.objectZipCode}
-            onChange={(v) => patch("objectZipCode", v)}
-            errors={stepErrors}
-            className="sm:col-span-1"
-          />
-          <Field
-            label={t("studies.field.object-city")}
-            name="objectCity"
-            value={values.objectCity}
-            onChange={(v) => patch("objectCity", v)}
-            errors={stepErrors}
-            className="sm:col-span-2"
-          />
-        </div>
-        <Field
-          label={t("studies.field.flurstueck")}
-          name="flurstueck"
-          value={values.flurstueck}
-          onChange={(v) => patch("flurstueck", v)}
-          errors={stepErrors}
-        />
-      </div>
-    );
-  }
-
-  function Section3PvInputs() {
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <NumberField
-          label={t("studies.field.anlage-kwp")}
-          name="anlageKwp"
-          value={values.anlageKwp}
-          onChange={(v) => patch("anlageKwp", v)}
-          errors={stepErrors}
-        />
-        <NumberField
-          label={t("studies.field.pv-erzeugung")}
-          name="pvErzeugungKwhJahr"
-          value={values.pvErzeugungKwhJahr}
-          onChange={(v) => patch("pvErzeugungKwhJahr", v)}
-          errors={stepErrors}
-        />
-        <NumberField
-          label={t("studies.field.pv-eigenverbrauch")}
-          name="pvEigenverbrauchKwhJahr"
-          value={values.pvEigenverbrauchKwhJahr}
-          onChange={(v) => patch("pvEigenverbrauchKwhJahr", v)}
-          errors={stepErrors}
-        />
-        <NumberField
-          label={t("studies.field.pv-verkauf")}
-          name="pvVerkaufEurKwh"
-          value={values.pvVerkaufEurKwh}
-          onChange={(v) => patch("pvVerkaufEurKwh", v)}
-          errors={stepErrors}
-          step="0.001"
-        />
-        <NumberField
-          label={t("studies.field.verbrauch")}
-          name="verbrauchKwhJahr"
-          value={values.verbrauchKwhJahr}
-          onChange={(v) => patch("verbrauchKwhJahr", v)}
-          errors={stepErrors}
-        />
-        <NumberField
-          label={t("studies.field.versorger-preis")}
-          name="versorgerPreisEurKwh"
-          value={values.versorgerPreisEurKwh}
-          onChange={(v) => patch("versorgerPreisEurKwh", v)}
-          errors={stepErrors}
-          step="0.001"
-        />
-        <NumberField
-          label={t("studies.field.pacht")}
-          name="pachtEurProKwp"
-          value={values.pachtEurProKwp}
-          onChange={(v) => patch("pachtEurProKwp", v)}
-          errors={stepErrors}
-        />
-        <NumberField
-          label={t("studies.field.vertragslaufzeit")}
-          name="vertragslaufzeitJahre"
-          value={values.vertragslaufzeitJahre}
-          onChange={(v) => patch("vertragslaufzeitJahre", v)}
-          errors={stepErrors}
-          step="1"
-        />
-      </div>
-    );
-  }
-
-  function Section4Modul() {
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <NumberField
-          label={t("studies.field.modul-anzahl")}
-          name="modulAnzahl"
-          value={values.modulAnzahl}
-          onChange={(v) => patch("modulAnzahl", v)}
-          errors={stepErrors}
-          step="1"
-        />
-        <NumberField
-          label={t("studies.field.modul-flaeche")}
-          name="modulFlaecheM2"
-          value={values.modulFlaecheM2}
-          onChange={(v) => patch("modulFlaecheM2", v)}
-          errors={stepErrors}
-        />
-        <NumberField
-          label={t("studies.field.eigenverbrauchsquote")}
-          name="eigenverbrauchsquoteProzent"
-          value={values.eigenverbrauchsquoteProzent}
-          onChange={(v) => patch("eigenverbrauchsquoteProzent", v)}
-          errors={stepErrors}
-          step="0.1"
-        />
-        <NumberField
-          label={t("studies.field.netzeinspeisung")}
-          name="netzeinspeisungKwhJahr"
-          value={values.netzeinspeisungKwhJahr}
-          onChange={(v) => patch("netzeinspeisungKwhJahr", v)}
-          errors={stepErrors}
-        />
-      </div>
-    );
-  }
-
-  function Section5Sensitivity() {
-    // Slice 2 (T-032) — replaced the simplified stub with the
-    // authoritative TS calc module. Each scenario substitutes its
-    // ct/kWh price into `versorgerPreisEurKwh` and runs composeAll()
-    // to derive the yearly + 20-year savings.
-    const baseInput = buildCalcInput(values);
-    const inputsComplete = isCalcInputComplete(values);
-
-    function previewForScenario(price: number | ""): { yearly: number; total: number } | null {
-      if (!inputsComplete || price === "" || price <= 0) {
-        return null;
-      }
-      const scenarioInput: StudyCalcInput = {
-        ...baseInput,
-        versorgerPreisEurKwh: price,
-      };
-      const derived = composeAll(scenarioInput);
-      return { yearly: derived.ersparnisProJahr, total: derived.ersparnis20Jahre };
-    }
-
-    return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{t("studies.hint.sensitivity")}</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <NumberField
-            label={t("studies.field.szenario-preis-1")}
-            name="szenarioPreis1"
-            value={values.szenarioPreis1}
-            onChange={(v) => patch("szenarioPreis1", v)}
-            errors={stepErrors}
-            step="0.01"
-          />
-          <NumberField
-            label={t("studies.field.szenario-preis-2")}
-            name="szenarioPreis2"
-            value={values.szenarioPreis2}
-            onChange={(v) => patch("szenarioPreis2", v)}
-            errors={stepErrors}
-            step="0.01"
-          />
-          <NumberField
-            label={t("studies.field.szenario-preis-3")}
-            name="szenarioPreis3"
-            value={values.szenarioPreis3}
-            onChange={(v) => patch("szenarioPreis3", v)}
-            errors={stepErrors}
-            step="0.01"
-          />
-        </div>
-        <div className="mt-2 space-y-1 text-sm">
-          {inputsComplete ? (
-            <>
-              <p className="text-muted-foreground">{t("studies.hint.sensitivity-preview")}</p>
-              <ScenarioRow
-                label={t("studies.field.szenario-preis-1")}
-                price={values.szenarioPreis1}
-                preview={previewForScenario(values.szenarioPreis1)}
-                duration={baseInput.vertragslaufzeitJahre}
-              />
-              <ScenarioRow
-                label={t("studies.field.szenario-preis-2")}
-                price={values.szenarioPreis2}
-                preview={previewForScenario(values.szenarioPreis2)}
-                duration={baseInput.vertragslaufzeitJahre}
-              />
-              <ScenarioRow
-                label={t("studies.field.szenario-preis-3")}
-                price={values.szenarioPreis3}
-                preview={previewForScenario(values.szenarioPreis3)}
-                duration={baseInput.vertragslaufzeitJahre}
-              />
-            </>
-          ) : (
-            <p className="italic text-muted-foreground">
-              {t("studies.hint.sensitivity-incomplete")}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  function Section6Termine() {
-    return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="terminVorschlag1">{t("studies.field.termin-vorschlag-1")}</Label>
-          <Input
-            id="terminVorschlag1"
-            type="datetime-local"
-            value={values.terminVorschlag1}
-            onChange={(e) => patch("terminVorschlag1", e.target.value)}
-            disabled={isPending}
-          />
-          <FieldError name="terminVorschlag1" errors={stepErrors} />
-        </div>
-        <div>
-          <Label htmlFor="terminVorschlag2">{t("studies.field.termin-vorschlag-2")}</Label>
-          <Input
-            id="terminVorschlag2"
-            type="datetime-local"
-            value={values.terminVorschlag2}
-            onChange={(e) => patch("terminVorschlag2", e.target.value)}
-            disabled={isPending}
-          />
-          <FieldError name="terminVorschlag2" errors={stepErrors} />
-        </div>
-      </div>
-    );
-  }
-
-  function Section7Bilder() {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">{t("studies.hint.images-placeholder")}</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="border-muted-foreground/40 bg-muted/30 flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-            {t("studies.field.bild-before")}
-          </div>
-          <div className="border-muted-foreground/40 bg-muted/30 flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
-            {t("studies.field.bild-after")}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function Section8Review() {
-    return (
-      <div className="space-y-4 text-sm">
-        <p className="text-muted-foreground">{t("studies.hint.review")}</p>
-        <Separator />
-        <SummaryRow label={t("studies.field.object-name")} value={values.objectName} />
-        <SummaryRow label={t("studies.field.object-address")} value={values.objectAddress} />
-        <SummaryRow
-          label={t("studies.field.object-zip") + " / " + t("studies.field.object-city")}
-          value={`${values.objectZipCode} ${values.objectCity}`.trim()}
-        />
-        <SummaryRow label={t("studies.field.flurstueck")} value={values.flurstueck} />
-        <SummaryRow label={t("studies.field.anlage-kwp")} value={String(values.anlageKwp)} />
-        <SummaryRow
-          label={t("studies.field.pv-erzeugung")}
-          value={String(values.pvErzeugungKwhJahr)}
-        />
-        <SummaryRow label={t("studies.field.termin-vorschlag-1")} value={values.terminVorschlag1} />
-        <SummaryRow label={t("studies.field.termin-vorschlag-2")} value={values.terminVorschlag2} />
-      </div>
-    );
-  }
-
-  const sectionRenderers = [
+  const sectionProps: SectionRenderProps = { values, stepErrors, patch, isPending };
+  const sectionRenderers: ReadonlyArray<(props: SectionRenderProps) => React.JSX.Element> = [
     Section1Kunde,
     Section2Objekt,
     Section3PvInputs,
@@ -603,7 +316,7 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
                 <h3 className="mb-4 font-heading text-lg text-forest-green">
                   {idx + 1}. {t(WIZARD_STEP_TITLES[idx] as TranslationKey)}
                 </h3>
-                <Renderer />
+                <Renderer {...sectionProps} />
               </CardContent>
             </Card>
           ))}
@@ -635,7 +348,7 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
           <h2 className="mb-4 font-heading text-xl text-forest-green">
             {stepIndex + 1}. {t(WIZARD_STEP_TITLES[stepIndex] as TranslationKey)}
           </h2>
-          <ActiveSection />
+          <ActiveSection {...sectionProps} />
         </CardContent>
       </Card>
       <div className="flex items-center justify-between">
@@ -660,6 +373,319 @@ export function StudyForm({ mode, studyId, initialValues }: StudyFormProps) {
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Section renderers (module-scope; stable identity across renders) ──
+
+function Section1Kunde({ values, stepErrors, patch, isPending }: SectionRenderProps) {
+  return (
+    <div className="space-y-3">
+      <Label htmlFor="customerId">{t("studies.field.customer")}</Label>
+      <CustomerSelect
+        value={values.customerId || undefined}
+        onChange={(next) => patch("customerId", next)}
+        disabled={isPending}
+      />
+      <FieldError name="customerId" errors={stepErrors} />
+    </div>
+  );
+}
+
+function Section2Objekt({ values, stepErrors, patch }: SectionRenderProps) {
+  return (
+    <div className="space-y-4">
+      <Field
+        label={t("studies.field.object-name")}
+        name="objectName"
+        value={values.objectName}
+        onChange={(v) => patch("objectName", v)}
+        errors={stepErrors}
+      />
+      <Field
+        label={t("studies.field.object-address")}
+        name="objectAddress"
+        value={values.objectAddress}
+        onChange={(v) => patch("objectAddress", v)}
+        errors={stepErrors}
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Field
+          label={t("studies.field.object-zip")}
+          name="objectZipCode"
+          value={values.objectZipCode}
+          onChange={(v) => patch("objectZipCode", v)}
+          errors={stepErrors}
+          className="sm:col-span-1"
+        />
+        <Field
+          label={t("studies.field.object-city")}
+          name="objectCity"
+          value={values.objectCity}
+          onChange={(v) => patch("objectCity", v)}
+          errors={stepErrors}
+          className="sm:col-span-2"
+        />
+      </div>
+      <Field
+        label={t("studies.field.flurstueck")}
+        name="flurstueck"
+        value={values.flurstueck}
+        onChange={(v) => patch("flurstueck", v)}
+        errors={stepErrors}
+      />
+    </div>
+  );
+}
+
+function Section3PvInputs({ values, stepErrors, patch }: SectionRenderProps) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <NumberField
+        label={t("studies.field.anlage-kwp")}
+        name="anlageKwp"
+        value={values.anlageKwp}
+        onChange={(v) => patch("anlageKwp", v)}
+        errors={stepErrors}
+      />
+      <NumberField
+        label={t("studies.field.pv-erzeugung")}
+        name="pvErzeugungKwhJahr"
+        value={values.pvErzeugungKwhJahr}
+        onChange={(v) => patch("pvErzeugungKwhJahr", v)}
+        errors={stepErrors}
+      />
+      <NumberField
+        label={t("studies.field.pv-eigenverbrauch")}
+        name="pvEigenverbrauchKwhJahr"
+        value={values.pvEigenverbrauchKwhJahr}
+        onChange={(v) => patch("pvEigenverbrauchKwhJahr", v)}
+        errors={stepErrors}
+      />
+      <NumberField
+        label={t("studies.field.pv-verkauf")}
+        name="pvVerkaufEurKwh"
+        value={values.pvVerkaufEurKwh}
+        onChange={(v) => patch("pvVerkaufEurKwh", v)}
+        errors={stepErrors}
+        step="0.001"
+      />
+      <NumberField
+        label={t("studies.field.verbrauch")}
+        name="verbrauchKwhJahr"
+        value={values.verbrauchKwhJahr}
+        onChange={(v) => patch("verbrauchKwhJahr", v)}
+        errors={stepErrors}
+      />
+      <NumberField
+        label={t("studies.field.versorger-preis")}
+        name="versorgerPreisEurKwh"
+        value={values.versorgerPreisEurKwh}
+        onChange={(v) => patch("versorgerPreisEurKwh", v)}
+        errors={stepErrors}
+        step="0.001"
+      />
+      <NumberField
+        label={t("studies.field.pacht")}
+        name="pachtEurProKwp"
+        value={values.pachtEurProKwp}
+        onChange={(v) => patch("pachtEurProKwp", v)}
+        errors={stepErrors}
+      />
+      <NumberField
+        label={t("studies.field.vertragslaufzeit")}
+        name="vertragslaufzeitJahre"
+        value={values.vertragslaufzeitJahre}
+        onChange={(v) => patch("vertragslaufzeitJahre", v)}
+        errors={stepErrors}
+        step="1"
+      />
+    </div>
+  );
+}
+
+function Section4Modul({ values, stepErrors, patch }: SectionRenderProps) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <NumberField
+        label={t("studies.field.modul-anzahl")}
+        name="modulAnzahl"
+        value={values.modulAnzahl}
+        onChange={(v) => patch("modulAnzahl", v)}
+        errors={stepErrors}
+        step="1"
+      />
+      <NumberField
+        label={t("studies.field.modul-flaeche")}
+        name="modulFlaecheM2"
+        value={values.modulFlaecheM2}
+        onChange={(v) => patch("modulFlaecheM2", v)}
+        errors={stepErrors}
+      />
+      <NumberField
+        label={t("studies.field.eigenverbrauchsquote")}
+        name="eigenverbrauchsquoteProzent"
+        value={values.eigenverbrauchsquoteProzent}
+        onChange={(v) => patch("eigenverbrauchsquoteProzent", v)}
+        errors={stepErrors}
+        step="0.1"
+      />
+      <NumberField
+        label={t("studies.field.netzeinspeisung")}
+        name="netzeinspeisungKwhJahr"
+        value={values.netzeinspeisungKwhJahr}
+        onChange={(v) => patch("netzeinspeisungKwhJahr", v)}
+        errors={stepErrors}
+      />
+    </div>
+  );
+}
+
+function Section5Sensitivity({ values, stepErrors, patch }: SectionRenderProps) {
+  // Slice 2 (T-032) — replaced the simplified stub with the
+  // authoritative TS calc module. Each scenario substitutes its
+  // ct/kWh price into `versorgerPreisEurKwh` and runs composeAll()
+  // to derive the yearly + 20-year savings.
+  const baseInput = buildCalcInput(values);
+  const inputsComplete = isCalcInputComplete(values);
+
+  function previewForScenario(price: number | ""): { yearly: number; total: number } | null {
+    if (!inputsComplete || price === "" || price <= 0) {
+      return null;
+    }
+    const scenarioInput: StudyCalcInput = {
+      ...baseInput,
+      versorgerPreisEurKwh: price,
+    };
+    const derived = composeAll(scenarioInput);
+    return { yearly: derived.ersparnisProJahr, total: derived.ersparnis20Jahre };
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">{t("studies.hint.sensitivity")}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <NumberField
+          label={t("studies.field.szenario-preis-1")}
+          name="szenarioPreis1"
+          value={values.szenarioPreis1}
+          onChange={(v) => patch("szenarioPreis1", v)}
+          errors={stepErrors}
+          step="0.01"
+        />
+        <NumberField
+          label={t("studies.field.szenario-preis-2")}
+          name="szenarioPreis2"
+          value={values.szenarioPreis2}
+          onChange={(v) => patch("szenarioPreis2", v)}
+          errors={stepErrors}
+          step="0.01"
+        />
+        <NumberField
+          label={t("studies.field.szenario-preis-3")}
+          name="szenarioPreis3"
+          value={values.szenarioPreis3}
+          onChange={(v) => patch("szenarioPreis3", v)}
+          errors={stepErrors}
+          step="0.01"
+        />
+      </div>
+      <div className="mt-2 space-y-1 text-sm">
+        {inputsComplete ? (
+          <>
+            <p className="text-muted-foreground">{t("studies.hint.sensitivity-preview")}</p>
+            <ScenarioRow
+              label={t("studies.field.szenario-preis-1")}
+              price={values.szenarioPreis1}
+              preview={previewForScenario(values.szenarioPreis1)}
+              duration={baseInput.vertragslaufzeitJahre}
+            />
+            <ScenarioRow
+              label={t("studies.field.szenario-preis-2")}
+              price={values.szenarioPreis2}
+              preview={previewForScenario(values.szenarioPreis2)}
+              duration={baseInput.vertragslaufzeitJahre}
+            />
+            <ScenarioRow
+              label={t("studies.field.szenario-preis-3")}
+              price={values.szenarioPreis3}
+              preview={previewForScenario(values.szenarioPreis3)}
+              duration={baseInput.vertragslaufzeitJahre}
+            />
+          </>
+        ) : (
+          <p className="italic text-muted-foreground">{t("studies.hint.sensitivity-incomplete")}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Section6Termine({ values, stepErrors, patch, isPending }: SectionRenderProps) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div>
+        <Label htmlFor="terminVorschlag1">{t("studies.field.termin-vorschlag-1")}</Label>
+        <Input
+          id="terminVorschlag1"
+          type="datetime-local"
+          value={values.terminVorschlag1}
+          onChange={(e) => patch("terminVorschlag1", e.target.value)}
+          disabled={isPending}
+        />
+        <FieldError name="terminVorschlag1" errors={stepErrors} />
+      </div>
+      <div>
+        <Label htmlFor="terminVorschlag2">{t("studies.field.termin-vorschlag-2")}</Label>
+        <Input
+          id="terminVorschlag2"
+          type="datetime-local"
+          value={values.terminVorschlag2}
+          onChange={(e) => patch("terminVorschlag2", e.target.value)}
+          disabled={isPending}
+        />
+        <FieldError name="terminVorschlag2" errors={stepErrors} />
+      </div>
+    </div>
+  );
+}
+
+function Section7Bilder(_props: SectionRenderProps) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">{t("studies.hint.images-placeholder")}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="border-muted-foreground/40 bg-muted/30 flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+          {t("studies.field.bild-before")}
+        </div>
+        <div className="border-muted-foreground/40 bg-muted/30 flex h-40 items-center justify-center rounded border border-dashed text-sm text-muted-foreground">
+          {t("studies.field.bild-after")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section8Review({ values }: SectionRenderProps) {
+  return (
+    <div className="space-y-4 text-sm">
+      <p className="text-muted-foreground">{t("studies.hint.review")}</p>
+      <Separator />
+      <SummaryRow label={t("studies.field.object-name")} value={values.objectName} />
+      <SummaryRow label={t("studies.field.object-address")} value={values.objectAddress} />
+      <SummaryRow
+        label={t("studies.field.object-zip") + " / " + t("studies.field.object-city")}
+        value={`${values.objectZipCode} ${values.objectCity}`.trim()}
+      />
+      <SummaryRow label={t("studies.field.flurstueck")} value={values.flurstueck} />
+      <SummaryRow label={t("studies.field.anlage-kwp")} value={String(values.anlageKwp)} />
+      <SummaryRow
+        label={t("studies.field.pv-erzeugung")}
+        value={String(values.pvErzeugungKwhJahr)}
+      />
+      <SummaryRow label={t("studies.field.termin-vorschlag-1")} value={values.terminVorschlag1} />
+      <SummaryRow label={t("studies.field.termin-vorschlag-2")} value={values.terminVorschlag2} />
     </div>
   );
 }
@@ -769,12 +795,12 @@ function numericOrZero(value: number | ""): number {
 }
 
 function formatEuro(value: number): string {
-  // German-locale: 1.234,56 € — non-breaking space ( ) before €
+  // German-locale: 1.234,56 € — non-breaking space ( ) before €
   // per SPEC §8.3.
   const fixed = value.toFixed(2);
   const [intPart, decPart] = fixed.split(".");
   const withThousand = (intPart ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${withThousand},${decPart} €`;
+  return `${withThousand},${decPart} €`;
 }
 
 interface ScenarioRowProps {
