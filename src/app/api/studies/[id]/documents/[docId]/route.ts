@@ -3,6 +3,7 @@ import { resolve as resolvePath, sep as pathSep } from "node:path";
 
 import { NextResponse } from "next/server";
 
+import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { findStudyById } from "@/lib/repositories/study.repository";
@@ -69,7 +70,7 @@ export async function GET(
   if (study === null) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (session.user.role !== "ADMIN" && study.consultantId !== session.user.id) {
+  if (!canAccessStudy(session, study)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

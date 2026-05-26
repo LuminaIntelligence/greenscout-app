@@ -15,6 +15,7 @@ vi.mock("@/lib/db", () => {
   const user = {
     findFirst: vi.fn(),
     findMany: vi.fn(),
+    count: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/lib/db", () => {
 import { prisma } from "@/lib/db";
 
 import {
+  countUsers,
   createUser,
   findUserByEmail,
   findUserById,
@@ -213,5 +215,41 @@ describe("user.repository — hard delete", () => {
     expect(prisma.user.delete).toHaveBeenCalledWith({
       where: { id: "user-1", organizationId: ORG },
     });
+  });
+});
+
+describe("user.repository — countUsers (T-041a)", () => {
+  it("applies organizationId + soft-delete filter by default", async () => {
+    await countUsers(ORG);
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: { organizationId: ORG, deletedAt: null },
+    });
+  });
+
+  it("opts into soft-deleted rows when requested", async () => {
+    await countUsers(ORG, { includeDeleted: true });
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: { organizationId: ORG },
+    });
+  });
+
+  it("applies role filter when present", async () => {
+    await countUsers(ORG, { role: "ADMIN" });
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: { organizationId: ORG, deletedAt: null, role: "ADMIN" },
+    });
+  });
+
+  it("applies active filter when present", async () => {
+    await countUsers(ORG, { active: false });
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: { organizationId: ORG, deletedAt: null, active: false },
+    });
+  });
+
+  it("returns the Prisma count directly", async () => {
+    vi.mocked(prisma.user.count).mockResolvedValueOnce(42);
+    const total = await countUsers(ORG);
+    expect(total).toBe(42);
   });
 });

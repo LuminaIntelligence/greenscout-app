@@ -245,4 +245,59 @@ describe("de translation dictionary", () => {
     const filled = t("studies.wizard.step").replace("{current}", "3").replace("{total}", "8");
     expect(filled).toBe("Schritt 3 von 8");
   });
+
+  // ─── T-030 Handover (F6) ───────────────────────────────────────────
+  it("returns the German string for T-030 handover dialog keys", () => {
+    expect(t("studies.handover.action")).toBe("Studie übergeben");
+    expect(t("studies.handover.dialog.title")).toBe("Studie an einen anderen Berater übergeben?");
+    expect(t("studies.handover.dialog.confirm")).toBe("Übergeben");
+    expect(t("studies.handover.dialog.cancel")).toBe("Abbrechen");
+    expect(t("studies.handover.field.target")).toBe("Neue Beraterin / neuer Berater");
+    expect(t("studies.handover.field.target.placeholder")).toBe("Bitte auswählen…");
+    expect(t("studies.handover.toast.success")).toBe("Studie übergeben.");
+  });
+
+  it("preserves {object} interpolation on the handover dialog description", () => {
+    expect(t("studies.handover.dialog.description")).toContain("{object}");
+    const filled = t("studies.handover.dialog.description").replace("{object}", "Hofgut");
+    expect(filled).toContain("Hofgut");
+  });
+
+  // ─── T-041a Admin user management ──────────────────────────────────
+  it("returns the German string for T-041a users dashboard keys", () => {
+    expect(t("app.nav.users")).toBe("Nutzer");
+    expect(t("users.page.title")).toBe("Nutzer");
+    expect(t("users.action.new")).toBe("Neuer Nutzer");
+    expect(t("users.action.deactivate")).toBe("Deaktivieren");
+    expect(t("users.column.name")).toBe("Name");
+    expect(t("users.column.email")).toBe("E-Mail");
+    expect(t("users.column.role")).toBe("Rolle");
+    expect(t("users.role.admin")).toBe("Admin");
+    expect(t("users.role.berater")).toBe("Berater");
+    expect(t("users.state.active")).toBe("Aktiv");
+    expect(t("users.state.inactive")).toBe("Deaktiviert");
+  });
+
+  it("returns the German string for T-041a user form + validation keys", () => {
+    expect(t("users.field.email")).toBe("E-Mail-Adresse");
+    expect(t("users.field.first-name")).toBe("Vorname");
+    expect(t("users.field.last-name")).toBe("Nachname");
+    expect(t("users.field.role")).toBe("Rolle");
+    expect(t("users.error.email-required")).toBe("E-Mail-Adresse ist erforderlich.");
+    expect(t("users.error.email-invalid")).toBe("Bitte gib eine gültige E-Mail-Adresse ein.");
+    expect(t("users.error.first-name-required")).toBe("Vorname ist erforderlich.");
+    expect(t("users.error.email-taken")).toBe("Diese E-Mail-Adresse ist bereits vergeben.");
+  });
+
+  it("preserves {name} interpolation on the deactivate dialog description", () => {
+    expect(t("users.deactivate.dialog.description")).toContain("{name}");
+    const filled = t("users.deactivate.dialog.description").replace("{name}", "Anna Beispiel");
+    expect(filled).toContain("Anna Beispiel");
+  });
+
+  it("returns the German string for T-041a temp-password dialog keys", () => {
+    expect(t("users.temp-password.dialog.title")).toBe("Temporäres Passwort");
+    expect(t("users.temp-password.action.copy")).toBe("In Zwischenablage kopieren");
+    expect(t("users.temp-password.action.close")).toBe("Schließen");
+  });
 });

@@ -39,15 +39,22 @@ import { t } from "@/i18n/de";
 
 interface TopbarProps {
   userEmail: string;
+  // T-041a — admin-only "Nutzer" nav link gating. The Server Component
+  // layout passes the session role through; the topbar conditionally
+  // appends the admin nav entry.
+  userRole: "ADMIN" | "BERATER";
 }
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { href: "/studies", labelKey: "app.nav.studies" as const },
   { href: "/customers", labelKey: "app.nav.customers" as const },
 ];
 
-export function Topbar({ userEmail }: TopbarProps) {
+const ADMIN_NAV_ITEMS = [{ href: "/users", labelKey: "app.nav.users" as const }];
+
+export function Topbar({ userEmail, userRole }: TopbarProps) {
   const pathname = usePathname();
+  const navItems = userRole === "ADMIN" ? [...BASE_NAV_ITEMS, ...ADMIN_NAV_ITEMS] : BASE_NAV_ITEMS;
 
   return (
     <header className="sticky top-0 z-50 h-14 border-b border-border bg-background">
@@ -60,7 +67,7 @@ export function Topbar({ userEmail }: TopbarProps) {
         </Link>
 
         <nav className="hidden items-center gap-1 sm:flex" aria-label="Hauptnavigation">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link

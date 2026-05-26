@@ -40,6 +40,12 @@ interface ListUsersOptions extends FindOptions {
   orderBy?: Prisma.UserOrderByWithRelationInput;
 }
 
+interface CountUsersOptions {
+  role?: Role;
+  active?: boolean;
+  includeDeleted?: boolean;
+}
+
 function clampTake(take?: number): number {
   if (take === undefined) return DEFAULT_TAKE;
   return Math.min(Math.max(take, 1), MAX_TAKE);
@@ -93,6 +99,27 @@ export async function listUsers(
     orderBy: options.orderBy ?? { createdAt: "desc" },
     take: clampTake(options.take),
     skip: options.skip ?? 0,
+  });
+}
+
+/**
+ * Total count of users matching the filter, used by the T-041a admin
+ * users dashboard pagination. Mirrors `countCustomers` from the
+ * Customer repo.
+ */
+export async function countUsers(
+  organizationId: string,
+  options: CountUsersOptions = {},
+  tx?: PrismaTransaction,
+): Promise<number> {
+  const client: Client = tx ?? prisma;
+  return client.user.count({
+    where: {
+      organizationId,
+      ...(options.role ? { role: options.role } : {}),
+      ...(options.active !== undefined ? { active: options.active } : {}),
+      ...(options.includeDeleted ? {} : { deletedAt: null }),
+    },
   });
 }
 

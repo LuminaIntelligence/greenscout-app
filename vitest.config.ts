@@ -283,6 +283,54 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // T-030 — 100% on the handover-study Server Action. Same
+        // trust-boundary class as the other studies actions: input →
+        // session → repo lookups → audit + revalidate. Every branch
+        // (validation, no-session, not-found, BERATER vs ADMIN, target
+        // missing / inactive, idempotent no-op, happy path, audit
+        // attribution to the session user, server-throws, missing
+        // headers) is covered by handover-study.test.ts.
+        "src/features/studies/actions/handover-study.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // T-030 — 100% on the can-access-study helper. The single
+        // source of truth for F7 admin god-mode + F6 ownership; every
+        // branch (no session, no user object, ADMIN, owner, foreign
+        // berater) is covered by can-access-study.test.ts.
+        "src/features/auth/utils/can-access-study.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // T-041a — 100% on the admin user-management Server Actions.
+        // Same trust-boundary class as the customers + studies
+        // actions: input → session → admin-role gate → repo write →
+        // audit. Every branch (no session, non-admin, schema
+        // validation, email-taken, idempotent no-op, self-deactivate
+        // guard, happy path, server-throws, missing headers) is
+        // covered by the co-located *.test.ts files.
+        "src/features/users/actions/create-user.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/features/users/actions/update-user.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        "src/features/users/actions/deactivate-user.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
       },
     },
   },

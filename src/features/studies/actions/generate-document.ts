@@ -30,6 +30,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
+import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { composeAll } from "@/lib/calculations";
 import type { StudyCalcInput } from "@/lib/calculations/types";
 import { auth } from "@/lib/auth";
@@ -76,7 +77,7 @@ export async function generateDocumentAction(rawInput: unknown): Promise<Generat
   if (study === null) {
     return { ok: false, errorCode: "not-found" };
   }
-  if (session.user.role !== "ADMIN" && study.consultantId !== session.user.id) {
+  if (!canAccessStudy(session, study)) {
     return { ok: false, errorCode: "forbidden" };
   }
 
