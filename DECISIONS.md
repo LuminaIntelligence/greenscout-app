@@ -3230,3 +3230,26 @@ resolved in this slice — see decision #3 below.
 - Server-side session invalidation when deactivating a logged-in user (currently enforced on next login only; see decision 3).
 
 **Open question for the user:** none. Slice 5a is complete and self-contained per the orchestrator brief.
+
+---
+
+## 2026-05-26 — Hotfix: Upload via Server Action statt Route Handler (orchestrator-confirmed, binding)
+
+**Context:** Production-Deploy auf Hetzner-VPS (`greenscout.lumina-intelligence.ai`) ist beim Bild-Upload blockiert: nginx returnt `502 Bad Gateway` *spezifisch* für `POST /api/uploads` (multipart/form-data). Dieselbe nginx-Konfiguration forwarded `POST` für Server Actions (z. B. `POST /studies/<id>/edit`) hundertfach pro Tag erfolgreich (200er in den access.log). Nach 10+ Runden remote-Debugging konnte das nginx-spezifische Problem nicht reproduzierbar isoliert werden — möglich sind upstream-buffering, multipart-handshake mit `Expect: 100-continue`, oder ein subtleres header-stripping. Pragmatik vor Eleganz: der Slice-4-Service `processStudyImageUpload` ist gut isoliert, der HTTP-Entry-Point ist austauschbar.
+
+**Assumption / decision:**
+1. **Browser-Pfad wechselt von Route Handler auf Server Action.** Neue `uploadStudyImageAction` in `src/features/studies/actions/upload-study-image.ts` ist ein dünner FormData → Service-Adapter (identisch zu dem Route Handler — selbe FormData-Felder, selber `processStudyImageUpload`-Call, selbe Audit-Logs). Das `<StudyImageUpload>`-Widget ruft direkt die Server Action statt `fetch('/api/uploads', ...)`. nginx behandelt den Server-Action-Endpoint (URL-Muster `POST /studies/...` oder Root) identisch zu allen anderen Server-Action-Calls die heute funktionieren — kein neuer Bug-Surface.
+2. **Route Handler `POST /api/uploads` bleibt erhalten.** NICHT gelöscht. Bleibt verfügbar für zukünftige API-Konsumenten (mobile-App, externe Integrationen), erhält den existierenden Test-Surface, und vermeidet dass das nginx-Mystery uns in Zukunft erneut zwingt umzustellen.
+3. **`GET /api/uploads/[id]` (Bild-Download / Preview) bleibt unverändert.** GET-Routes durch nginx funktionieren einwandfrei (Bild-Previews via `<img src="/api/uploads/<id>">` werden in Production heute schon rendered). Kein Bug bekannt.
+4. **`next.config.ts` → `experimental.serverActions.bodySizeLimit = "15mb"`.** Default ist 1 MB; SPEC §4.6 erlaubt Bilder bis 10 MB. 15 MB-Budget deckt 10 MB Payload + multipart-encoding-overhead. API ist in Next.js 15.5 weiterhin unter `experimental.*` (Quelle: Next.js-Docs via context7-Lookup vor commit).
+5. **Lock-in:** bei künftigen Multipart-Endpoints im Browser-Flow **immer** Server Actions wählen, nicht Route Handler. Wenn nginx das eigentliche Multipart-Routing-Problem irgendwann auflöst, kann diese Regel zurückgenommen werden — bis dahin gilt sie binding.
+
+**Affected files:**
+- `src/features/studies/actions/upload-study-image.ts` (new) + co-located test (19 cases, 100% per-pattern coverage)
+- `src/features/studies/components/study-image-upload.tsx` (refactored: `fetch('/api/uploads')` → `uploadStudyImageAction(formData)`; doc-comment aktualisiert; Error-Handling vereinfacht — keine `response.ok` / `json.parse`-Branches mehr)
+- `src/features/studies/components/study-image-upload.test.tsx` (refactored: `vi.stubGlobal('fetch')` → `vi.mock('@/features/studies/actions/upload-study-image')`)
+- `next.config.ts` (`experimental.serverActions.bodySizeLimit = "15mb"`)
+- `vitest.config.ts` (per-pattern 100% threshold für `upload-study-image.ts`)
+- `src/app/api/uploads/route.ts` — **unverändert**, bleibt als API-Endpoint erhalten
+
+**Open question for the user:** nach Merge + Deploy: bestätige bitte manuell auf der Produktion, dass der BEFORE-Upload jetzt Toast „Erfolgreich" + Preview zeigt (siehe PR-Body „Manueller User-Test").
