@@ -34,3 +34,8 @@ def test_default_vertragslaufzeit_jahre_is_twenty() -> None:
 
 def test_default_sensitivity_ct_kwh_matches_wizard_defaults() -> None:
     assert constants.DEFAULT_SENSITIVITY_CT_KWH == (35, 40, 45)
+
+
+def test_einspeise_verguetung_default_is_positive_number() -> None:
+    assert isinstance(constants.EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH, float)
+    assert 0 < constants.EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH < 1

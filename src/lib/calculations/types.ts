@@ -77,4 +77,31 @@ export interface DerivedValues {
   co2HektarMischwald: number;
   /** count — football-field equivalent per year. */
   co2FussballfelderProJahr: number;
+  /**
+   * kWh — total self-consumption over the full contract.
+   * Slide 5 placeholder `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}`.
+   * Formula: `pvEigenverbrauchKwhJahr × vertragslaufzeitJahre`.
+   * Per Slice-3a sign-off item 1 — see `docs/pptx-mapping.md`.
+   */
+  pvEigenverbrauchKwhGesamtVertragslaufzeit: number;
+  /**
+   * € / Jahr — annual electricity cost WITHOUT a PV installation.
+   * Slide 14 placeholder `{{stromkosten_ohne_pv_eur_jahr}}`.
+   * Formula: `verbrauchKwhJahr × versorgerPreisEurKwh`.
+   * Per Slice-3a sign-off item 2 — see `docs/pptx-mapping.md`.
+   */
+  stromkostenOhnePvEurJahr: number;
+  /**
+   * € / Jahr — annual electricity cost WITH the PV installation.
+   * Slide 14 placeholder `{{stromkosten_mit_pv_eur_jahr}}`.
+   * Formula: `(verbrauch − pv_eigenverbrauch) × versorger_preis
+   *           + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`.
+   * The Einspeisevergütung is the avoided-cost reference for the
+   * self-consumed share — NOT the consultant-entered
+   * `pvVerkaufEurKwh` (which is the sales-to-grid price).
+   * Per Slice-3a sign-off item 3 — see `docs/pptx-mapping.md` and
+   * the PROVISIONAL marker on `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`
+   * in `constants.ts`.
+   */
+  stromkostenMitPvEurJahr: number;
 }

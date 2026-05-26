@@ -13,6 +13,7 @@
 import {
   CO2_HA_MISCHWALD_PER_T_PER_YEAR,
   CO2_KG_PER_KWH_PV,
+  EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH,
   FOOTBALL_FIELDS_PER_HA,
 } from "./constants";
 import type { DerivedValues, StudyCalcInput } from "./types";
@@ -81,6 +82,38 @@ export function co2FussballfelderProJahr(input: StudyCalcInput): number {
 }
 
 /**
+ * kWh — total self-consumption over the full contract.
+ * Slide 5 placeholder; per Slice-3a sign-off item 1.
+ */
+export function pvEigenverbrauchKwhGesamtVertragslaufzeit(input: StudyCalcInput): number {
+  return input.pvEigenverbrauchKwhJahr * input.vertragslaufzeitJahre;
+}
+
+/**
+ * € / Jahr — annual electricity cost without a PV installation.
+ * Slide 14 "Ohne PV"; per Slice-3a sign-off item 2.
+ */
+export function stromkostenOhnePvEurJahr(input: StudyCalcInput): number {
+  return input.verbrauchKwhJahr * input.versorgerPreisEurKwh;
+}
+
+/**
+ * € / Jahr — annual electricity cost with the PV installation.
+ * Slide 14 "Mit PV"; per Slice-3a sign-off item 3.
+ *
+ * Formula: residual-from-grid at supplier price + self-consumed
+ * share valued at the PROVISIONAL Einspeisevergütung constant
+ * (NOT the consultant-entered `pvVerkaufEurKwh`, which is the
+ * sales-to-grid price, not the avoided-cost reference).
+ */
+export function stromkostenMitPvEurJahr(input: StudyCalcInput): number {
+  const residualFromGrid =
+    (input.verbrauchKwhJahr - input.pvEigenverbrauchKwhJahr) * input.versorgerPreisEurKwh;
+  const selfConsumed = input.pvEigenverbrauchKwhJahr * EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH;
+  return residualFromGrid + selfConsumed;
+}
+
+/**
  * Compose every derived value from a single input. Single-shot helper
  * for callers that want the full output (Step 5 preview, document
  * generator, etc.).
@@ -96,5 +129,8 @@ export function composeAll(input: StudyCalcInput): DerivedValues {
     co2TonnenProJahr: co2TonnenProJahr(input),
     co2HektarMischwald: co2HektarMischwald(input),
     co2FussballfelderProJahr: co2FussballfelderProJahr(input),
+    pvEigenverbrauchKwhGesamtVertragslaufzeit: pvEigenverbrauchKwhGesamtVertragslaufzeit(input),
+    stromkostenOhnePvEurJahr: stromkostenOhnePvEurJahr(input),
+    stromkostenMitPvEurJahr: stromkostenMitPvEurJahr(input),
   };
 }

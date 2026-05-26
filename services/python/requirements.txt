@@ -2,3 +2,7 @@ fastapi>=0.115,<1.0
 uvicorn[standard]>=0.32,<1.0
 pydantic>=2.9,<3.0
 python-multipart>=0.0.12,<1.0
+# T-037/T-038 — PPTX templating (DECISIONS "PPTX placeholder discovery flow", §7.1 user-approved).
+python-pptx>=1.0.2,<2.0
+# T-038b — image placeholder replacement uses Pillow's image handling utilities.
+Pillow>=11.0,<12.0

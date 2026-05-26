@@ -18,6 +18,7 @@ import {
   DEFAULT_PACHT_EUR_PER_KWP,
   DEFAULT_SENSITIVITY_CT_KWH,
   DEFAULT_VERTRAGSLAUFZEIT_JAHRE,
+  EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH,
   FOOTBALL_FIELDS_PER_HA,
 } from "./constants";
 
@@ -50,6 +51,12 @@ describe("calculation constants", () => {
 
   it("exports DEFAULT_SENSITIVITY_CT_KWH as the wizard's three defaults", () => {
     expect(DEFAULT_SENSITIVITY_CT_KWH).toEqual([35, 40, 45]);
+  });
+
+  it("exports a positive provisional EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH", () => {
+    expect(typeof EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBe("number");
+    expect(EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBeGreaterThan(0);
+    expect(EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBeLessThan(1);
   });
 
   it("constants are frozen-like immutables (readonly array)", () => {

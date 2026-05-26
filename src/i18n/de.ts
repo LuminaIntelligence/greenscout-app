@@ -297,6 +297,31 @@ export const de = {
   "studies.delete.toast.error.not-found": "Studie nicht gefunden.",
   "studies.delete.toast.error.server":
     "Beim Löschen ist ein Fehler aufgetreten. Bitte erneut versuchen.",
+  // ─── T-040 Document generation + version list ──────────────────────
+  "studies.document.section-title": "Dokumente",
+  "studies.document.section-subtitle":
+    "Generierte PPTX- und PDF-Versionen dieser Studie. Neue Generierung erzeugt eine neue Version – alte bleiben erhalten.",
+  "studies.document.generate-button": "Dokument generieren",
+  "studies.document.generating": "Generierung läuft…",
+  "studies.document.toast.success": "Dokumente wurden erstellt.",
+  "studies.document.toast.error.incomplete":
+    'Die Studie ist noch nicht bereit. Markiere sie zuerst als „bereit".',
+  "studies.document.toast.error.pyservice":
+    "Dokumentenservice nicht erreichbar oder Generierung fehlgeschlagen. Bitte später erneut versuchen.",
+  "studies.document.toast.error.forbidden":
+    "Du bist nicht berechtigt, ein Dokument für diese Studie zu generieren.",
+  "studies.document.toast.error.not-found":
+    "Studie, Kunde oder Berater konnten nicht gefunden werden.",
+  "studies.document.toast.error.server":
+    "Bei der Dokumenterstellung ist ein Fehler aufgetreten. Bitte erneut versuchen.",
+  "studies.document.toast.error.validation": "Ungültige Anfrage.",
+  "studies.document.list.empty": "Noch keine Dokumente generiert.",
+  "studies.document.list.column.version": "Version",
+  "studies.document.list.column.format": "Format",
+  "studies.document.list.column.created-at": "Erstellt am",
+  "studies.document.list.column.generated-by": "Von",
+  "studies.document.list.column.actions": "Aktion",
+  "studies.document.list.action.download": "Herunterladen",
 } as const;
 
 export type TranslationKey = keyof typeof de;

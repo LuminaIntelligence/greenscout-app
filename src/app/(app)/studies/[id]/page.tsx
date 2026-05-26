@@ -4,7 +4,9 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { GenerateDocumentButton } from "@/features/studies/components/generate-document-button";
 import { StudyDeleteDialog } from "@/features/studies/components/study-delete-dialog";
+import { StudyDocumentList } from "@/features/studies/components/study-document-list";
 import { t, type TranslationKey } from "@/i18n/de";
 import { auth } from "@/lib/auth";
 import { findStudyById } from "@/lib/repositories/study.repository";
@@ -83,6 +85,21 @@ export default async function StudyDetailPage({ params }: PageProps) {
         </Button>
         <StudyDeleteDialog studyId={study.id} studyObjectLabel={study.objectName || study.id} />
       </div>
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-2xl text-forest-green">
+              {t("studies.document.section-title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t("studies.document.section-subtitle")}
+            </p>
+          </div>
+          <GenerateDocumentButton studyId={study.id} disabled={study.status === "DRAFT"} />
+        </div>
+        <StudyDocumentList studyId={study.id} />
+      </section>
     </div>
   );
 }
