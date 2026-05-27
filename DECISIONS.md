@@ -3283,3 +3283,30 @@ resolved in this slice — see decision #3 below.
 **Pause-Trigger-Check (§7):** Keine. Pure infrastructure cleanup — kein neuer Dep, kein Schema-Change, kein Auth-Logic-Wechsel.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-27 — Hotfix: Document-Generation 422 — diagnostic log + defensive checks (orchestrator-confirmed, binding)
+
+**Context:** Production-Browser-Klick auf „Dokument generieren" auf `greenscout.lumina-intelligence.ai` returnt `{"ok":false,"errorCode":"pyservice","message":"Python-Service antwortete mit Status 422."}`. Pyservice-422 zeigt `loc: ["body", "study"], type: "missing"` — der Top-Level-Key `study` fehlt im body, was strukturell unmöglich erscheint (siehe `callDocumentsGenerate`-Code: `wireBody.study` wird unconditional gesetzt). Mehrere Stunden Production-Debugging haben den Code-Fehler nicht enttarnt; der echte outbound-Body wird nirgends geloggt, dadurch ist die Mode nicht diagnostizierbar.
+
+**Assumption / decision:** Zwei-stufiger Fix, beide Stufen permanent (keine temporären Hacks).
+
+1. **Stufe 1 — Diagnostic log (permanent).** `console.error("[callDocumentsGenerate] outbound body (truncated 800):", ...)` direkt vor dem `postJson`-Call in `src/lib/python-service-client.ts`. Body wird auf 800 chars truncated, um große studies + derived_values + image-paths nicht den Log-Stream zu fluten. Rationale: zukünftige Production-Bugs auf demselben Pfad sollen in einer Log-Zeile diagnostizierbar sein, nicht durch mehrstündiges Remote-Debugging.
+
+2. **Stufe 2 — Defensive checks (permanent).** Drei Schichten:
+   - `callDocumentsGenerate` short-circuit mit `kind: "validation", status: 0, message: "Calc-Input fehlt — input.study ist leer."` wenn `input.study` null/undefined/`Object.keys.length === 0`. Analog für `input.derivedValues`.
+   - `translateKeys` defensiv: bei `null`/`undefined` `obj` → `console.error` + return `{}` (statt `Object.entries(undefined)` zu werfen). Die Signatur erlaubt jetzt explizit `T | null | undefined`.
+   - Beide Defensiv-Schichten sind tests-mit-100%-coverage-belegt (per-pattern threshold auf `src/lib/python-service-client.ts` bleibt 100%).
+
+3. **Test-Setup: `console.error` wird via `vi.spyOn` gemockt.** Sonst flutet der neue Diagnostic-Log das Test-Output. Tests asserten gegen den Mock-call (Prefix-Check + truncation-branch).
+
+4. **Wahrscheinlichste Production-Ursache (Hypothese, post-PR verifizierbar):** Web-Container läuft auf stale Image vom Slice-3a Stub (PR #41) — vor Slice-3b (PR #42) wo `callDocumentsGenerate` erweitert wurde. Dann würde alt-shape Body an neu-shape Endpoint gehen → 422. Manueller User-Test nach Merge: `bash deploy.sh` (`--force-recreate web`) + Browser-Klick + `docker logs greenscout-web --since=1m | grep callDocumentsGenerate` zeigt jetzt den echten outbound-body → Body kopieren → an orchestrator zurückschicken zur Ursachen-Bestätigung.
+
+**Affected files:**
+- `src/lib/python-service-client.ts` — diagnostic log + defensive `translateKeys` + defensive `callDocumentsGenerate`
+- `src/lib/python-service-client.test.ts` — `console.error`-spy in `beforeEach`; +9 neue Test-Cases (translateKeys null/undefined, callDocumentsGenerate empty-study × 3 + empty-derived × 3, diagnostic-log non-truncated + truncated)
+
+**Pause-Trigger-Check (§7):** Keine. Pure observability + defensive coding — keine neuen Deps, keine API-Shape-Änderungen (downstream-Consumer sehen weiterhin dieselben Result-Shapes; nur neue `validation`-Fälle mit `status: 0` als Signal "client-side short-circuit"), keine Auth/Security-Logic.
+
+**Open question for the user:** nach Merge + Deploy: bestätige bitte den outbound-body-Log aus den Container-Logs zurück an den Orchestrator (Schritt 5 der Test-Anleitung im PR-Body) — damit wir die Production-Ursache final pinpoint können.

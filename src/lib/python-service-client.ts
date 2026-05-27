@@ -85,11 +85,22 @@ function snakeToCamel(key: string): string {
  *
  * Calc inputs/outputs are flat objects; nested object translation is
  * handled at the call site (see `callDocumentsGenerate`).
+ *
+ * Defensive: if the caller hands in `null` or `undefined`, log + return
+ * `{}` instead of throwing. The post-mortem on the production 422-on-
+ * /api/documents/generate trail showed that an empty study sub-object
+ * surfaces downstream as pydantic's `Field required` on every required
+ * leaf — surfacing the empty input at the boundary makes that mode
+ * diagnosable from one log line instead of a wall of pydantic detail.
  */
 function translateKeys<T extends Record<string, unknown>>(
-  obj: T,
+  obj: T | null | undefined,
   translate: (key: string) => string,
 ): Record<string, unknown> {
+  if (obj === null || obj === undefined) {
+    console.error("[translateKeys] received null/undefined obj — returning empty object");
+    return {};
+  }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     out[translate(k)] = v;
@@ -206,6 +217,36 @@ export interface DocumentGenerateOutput {
 export async function callDocumentsGenerate(
   input: DocumentGenerateInput,
 ): Promise<PythonServiceCallResult<DocumentGenerateOutput>> {
+  // Defensive — surface empty calc-input at the boundary instead of
+  // letting it travel as `study: {}` / `derived_values: {}` into a
+  // pyservice 422 with `loc: ["body", "study"]` + `type: "missing"`.
+  // Documented post-mortem: production-debug 2026-05-27.
+  if (input.study === null || input.study === undefined || Object.keys(input.study).length === 0) {
+    console.error("[callDocumentsGenerate] input.study is empty/null/undefined:", input.study);
+    return {
+      ok: false,
+      kind: "validation",
+      status: 0,
+      message: "Calc-Input fehlt — input.study ist leer.",
+    };
+  }
+  if (
+    input.derivedValues === null ||
+    input.derivedValues === undefined ||
+    Object.keys(input.derivedValues).length === 0
+  ) {
+    console.error(
+      "[callDocumentsGenerate] input.derivedValues is empty/null/undefined:",
+      input.derivedValues,
+    );
+    return {
+      ok: false,
+      kind: "validation",
+      status: 0,
+      message: "Calc-Output fehlt — derivedValues ist leer.",
+    };
+  }
+
   const wireBody = {
     study: translateKeys(input.study as unknown as Record<string, unknown>, camelToSnake),
     derived_values: translateKeys(
@@ -218,6 +259,16 @@ export async function callDocumentsGenerate(
     image_before_path: input.imageBeforePath,
     image_after_path: input.imageAfterPath,
   };
+
+  // Diagnostic log — sichtbar in container logs für Production-Debugging.
+  // Truncated auf 800 chars um große studies + derived_values + bilder-paths
+  // nicht den Log-Stream zu fluten. Permanent — Slice 3b/Hotfix post-mortem
+  // (2026-05-27): pyservice-422 ohne body-trace ist nicht diagnostizierbar.
+  const wireBodyJson = JSON.stringify(wireBody);
+  console.error(
+    "[callDocumentsGenerate] outbound body (truncated 800):",
+    wireBodyJson.length > 800 ? wireBodyJson.slice(0, 800) + "…[truncated]" : wireBodyJson,
+  );
 
   let result: { status: number; json: unknown };
   try {
