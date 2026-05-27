@@ -50,9 +50,9 @@ _INPUT_FIELD_MAP: dict[str, str] = {
 _EXPECTED_FIELD_MAP: dict[str, str] = {
     "ersparnisProJahr": "ersparnis_pro_jahr",
     "ersparnisProMonat": "ersparnis_pro_monat",
-    "ersparnis20Jahre": "ersparnis_20_jahre",
+    "ersparnis20Jahre": "ersparnis20_jahre",
     "pachtEinnahmeEinmalig": "pacht_einnahme_einmalig",
-    "gesamterzeugung20j": "gesamterzeugung_20j",
+    "gesamterzeugung20j": "gesamterzeugung20j",
     "gesamtvorteil": "gesamtvorteil",
     "co2TonnenProJahr": "co2_tonnen_pro_jahr",
     "co2HektarMischwald": "co2_hektar_mischwald",
@@ -66,9 +66,9 @@ _EXPECTED_FIELD_MAP: dict[str, str] = {
 _MONETARY_FIELDS = (
     "ersparnis_pro_jahr",
     "ersparnis_pro_monat",
-    "ersparnis_20_jahre",
+    "ersparnis20_jahre",
     "pacht_einnahme_einmalig",
-    "gesamterzeugung_20j",
+    "gesamterzeugung20j",
     "gesamtvorteil",
     "pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit",
     "stromkosten_ohne_pv_eur_jahr",

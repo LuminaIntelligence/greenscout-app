@@ -181,9 +181,9 @@ def test_compose_all_returns_derived_values_model() -> None:
     out = compose_all(make_input())
     assert out.ersparnis_pro_jahr == 12_800.0
     assert out.ersparnis_pro_monat == 12_800.0 / 12
-    assert out.ersparnis_20_jahre == 256_000.0
+    assert out.ersparnis20_jahre == 256_000.0
     assert out.pacht_einnahme_einmalig == 200_000.0
-    assert out.gesamterzeugung_20j == 1_900_000.0
+    assert out.gesamterzeugung20j == 1_900_000.0
     assert out.gesamtvorteil == 456_000.0
     assert out.co2_tonnen_pro_jahr == (95_000 * 0.474) / 1000
     assert out.co2_hektar_mischwald == ((95_000 * 0.474) / 1000) * 0.0177

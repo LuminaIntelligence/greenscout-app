@@ -137,9 +137,9 @@ def compose_all(inp: StudyCalcInput) -> DerivedValues:
     return DerivedValues(
         ersparnis_pro_jahr=float(ersparnis_pro_jahr(inp)),
         ersparnis_pro_monat=float(ersparnis_pro_monat(inp)),
-        ersparnis_20_jahre=float(ersparnis_gesamt_vertragslaufzeit(inp)),
+        ersparnis20_jahre=float(ersparnis_gesamt_vertragslaufzeit(inp)),
         pacht_einnahme_einmalig=float(pacht_einnahme_einmalig(inp)),
-        gesamterzeugung_20j=float(gesamterzeugung_vertragslaufzeit(inp)),
+        gesamterzeugung20j=float(gesamterzeugung_vertragslaufzeit(inp)),
         gesamtvorteil=float(gesamtvorteil(inp)),
         co2_tonnen_pro_jahr=co2_tonnen_pro_jahr(inp),
         co2_hektar_mischwald=co2_hektar_mischwald(inp),

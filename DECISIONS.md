@@ -3310,3 +3310,28 @@ resolved in this slice — see decision #3 below.
 **Pause-Trigger-Check (§7):** Keine. Pure observability + defensive coding — keine neuen Deps, keine API-Shape-Änderungen (downstream-Consumer sehen weiterhin dieselben Result-Shapes; nur neue `validation`-Fälle mit `status: 0` als Signal "client-side short-circuit"), keine Auth/Security-Logic.
 
 **Open question for the user:** nach Merge + Deploy: bestätige bitte den outbound-body-Log aus den Container-Logs zurück an den Orchestrator (Schritt 5 der Test-Anleitung im PR-Body) — damit wir die Production-Ursache final pinpoint können.
+
+---
+
+## 2026-05-27 — DerivedValues schema-naming-mismatch (Web ↔ Pyservice 422 root cause)
+
+**Context:** Production-Browser-Klick „Dokument generieren" liefert nach dem PR-#48-Deploy weiterhin 422. Der nun verfügbare Diagnostic-Log enttarnt die echte Ursache: der Pyservice meldet `extra_forbidden` auf `derived_values.ersparnis20_jahre` und `derived_values.gesamterzeugung20j` plus `missing` auf `ersparnis_20_jahre` und `gesamterzeugung_20j`. Die zehn anderen `derived_values`-Felder matchen exakt — nur die beiden Felder mit Ziffern-Boundary brechen.
+
+**Root cause:** Die TS-Source-of-Truth-Felder heißen `ersparnis20Jahre` und `gesamterzeugung20j` (klassisches camelCase, Ziffer als Token-Boundary). Der TS-`camelToSnake`-Translator setzt einen Underscore nur vor Großbuchstaben — Ziffern triggern keinen Underscore. Output: `ersparnis20_jahre`, `gesamterzeugung20j`. Pyservice-`DerivedValues`-Schema hatte stattdessen `ersparnis_20_jahre` und `gesamterzeugung_20j` (Underscore VOR der `20`). Result: pydantic mit `extra="forbid"` wirft 422 für die Web-Keys + `missing` für die Pyservice-Keys.
+
+**Assumption / decision:** **Pyservice-Schema umbenennen, NICHT TS.** Die TS-Convention `ersparnis20Jahre` ist idiomatisch korrektes camelCase und in Studies-Form, Live-Preview, parity-Fixtures und Tests verankert. Der `camelToSnake`-Translator ist die einzige zentrale Konvertierungs-Stelle; ihn auf Ziffer-Sensitivität zu erweitern wäre breaking für `co2TonnenProJahr` & Konsorten (würde zu `c_o_2_tonnen_pro_jahr` mutieren). Pyservice-Side ist ein einziges 2-Feld-Rename + Tests + ein doc-Snippet.
+
+**Affected files:**
+- `services/python/app/schemas/calc.py` — `ersparnis_20_jahre` → `ersparnis20_jahre`, `gesamterzeugung_20j` → `gesamterzeugung20j` (inkl. Inline-Kommentar mit cross-ref hierher).
+- `services/python/app/domain/calculations.py` — `compose_all`-Output-Keys angepasst.
+- `services/python/app/api/endpoints/documents.py` — `derived.ersparnis_20_jahre` / `derived.gesamterzeugung_20j` Attribute-Zugriffe angepasst.
+- `services/python/tests/test_calculations.py`, `test_api_calc.py`, `test_api_documents.py`, `test_parity.py` — alle Test-Assertions + Field-Maps umbenannt.
+- `src/lib/python-service-client.test.ts` — Wire-format-Mock-Response-Keys umbenannt (TS-side derived-values Interface bleibt unverändert).
+- `SPEC.md` §4.7 — Formel-Block aktualisiert + Field-name-note erklärt die Konvention.
+- `docs/pptx-mapping.md` — Python-Attribut-Referenzen aktualisiert.
+
+**Parity-Fixtures (`services/python/tests/fixtures/calc-parity-fixtures.json`):** unverändert — die Fixtures nutzen bewusst camelCase (TS-source-of-truth-Konvention), beide Test-Suiten (Vitest + pytest) translaten am Boundary in ihre jeweilige Snake-/Camel-Form. Nach dem Pyservice-Rename übersetzt `_EXPECTED_FIELD_MAP["ersparnis20Jahre"] = "ersparnis20_jahre"` korrekt.
+
+**Pause-Trigger-Check (§7):** Keine. Reines Naming-Konsistenz-Fix auf der Wire-Format-Boundary. Kein neuer Dep, keine DB-Schema-Änderung (Felder leben rein in-memory zwischen Web und Pyservice), keine Auth-/Security-Logic, keine Money-Berechnung — nur Feld-Benennung.
+
+**Open question for the user:** nach Merge + `--force-recreate pyservice`: PPTX-Generierung end-to-end laufen lassen und visuell prüfen dass die zwei Slide-Werte (Slide-4 "X kWh auf 20 Jahre" + Slide-13 "ca. X € in 20 Jahren") plausibel sind — der Code-Path war bislang nie erfolgreich durchlaufen, ein latentes Folge-Bug wäre möglich.
