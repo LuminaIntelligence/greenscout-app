@@ -46,9 +46,9 @@ def _valid_request_payload() -> dict[str, Any]:
         "derived_values": {
             "ersparnis_pro_jahr": 16200.0,
             "ersparnis_pro_monat": 1350.0,
-            "ersparnis_20_jahre": 324000.0,
+            "ersparnis20_jahre": 324000.0,
             "pacht_einnahme_einmalig": 200000.0,
-            "gesamterzeugung_20j": 1900000.0,
+            "gesamterzeugung20j": 1900000.0,
             "gesamtvorteil": 524000.0,
             "co2_tonnen_pro_jahr": 45.03,
             "co2_hektar_mischwald": 0.797,

@@ -57,11 +57,11 @@ def test_calc_happy_path_returns_compose_all(client: TestClient) -> None:
     expected = compose_all(StudyCalcInput(**payload))
     assert _close(body["ersparnis_pro_jahr"], expected.ersparnis_pro_jahr, _TOLERANCE_MONETARY)
     assert _close(body["ersparnis_pro_monat"], expected.ersparnis_pro_monat, _TOLERANCE_MONETARY)
-    assert _close(body["ersparnis_20_jahre"], expected.ersparnis_20_jahre, _TOLERANCE_MONETARY)
+    assert _close(body["ersparnis20_jahre"], expected.ersparnis20_jahre, _TOLERANCE_MONETARY)
     assert _close(
         body["pacht_einnahme_einmalig"], expected.pacht_einnahme_einmalig, _TOLERANCE_MONETARY
     )
-    assert _close(body["gesamterzeugung_20j"], expected.gesamterzeugung_20j, _TOLERANCE_MONETARY)
+    assert _close(body["gesamterzeugung20j"], expected.gesamterzeugung20j, _TOLERANCE_MONETARY)
     assert _close(body["gesamtvorteil"], expected.gesamtvorteil, _TOLERANCE_MONETARY)
     assert _close(body["co2_tonnen_pro_jahr"], expected.co2_tonnen_pro_jahr, _TOLERANCE_CO2)
     assert _close(body["co2_hektar_mischwald"], expected.co2_hektar_mischwald, _TOLERANCE_CO2)
