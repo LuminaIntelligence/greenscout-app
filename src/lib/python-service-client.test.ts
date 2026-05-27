@@ -68,6 +68,12 @@ beforeEach(() => {
   vi.stubEnv("PYTHON_SERVICE_URL", "http://pyservice:8000");
   vi.stubEnv("PYTHON_SERVICE_API_KEY", _API_KEY);
   vi.stubEnv("PYTHON_SERVICE_TIMEOUT_SECONDS", "30");
+  // Silence the permanent diagnostic `console.error` lines from
+  // `callDocumentsGenerate` + the defensive `translateKeys` fallback so
+  // they don't flood the test output. The lines themselves are
+  // production-only observability and not asserted on (so production
+  // logs stay rich without making the unit suite noisy).
+  vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
@@ -95,6 +101,28 @@ describe("translation helpers", () => {
       __internals.camelToSnake,
     );
     expect(out).toEqual({ anlage_kwp: 100, pv_erzeugung_kwh_jahr: 200 });
+  });
+
+  it("translateKeys returns {} and logs when given null (defensive branch)", () => {
+    const out = __internals.translateKeys(
+      null as unknown as Record<string, unknown>,
+      __internals.camelToSnake,
+    );
+    expect(out).toEqual({});
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("[translateKeys] received null/undefined"),
+    );
+  });
+
+  it("translateKeys returns {} and logs when given undefined (defensive branch)", () => {
+    const out = __internals.translateKeys(
+      undefined as unknown as Record<string, unknown>,
+      __internals.camelToSnake,
+    );
+    expect(out).toEqual({});
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("[translateKeys] received null/undefined"),
+    );
   });
 });
 
@@ -418,6 +446,164 @@ describe("callDocumentsGenerate", () => {
       expect(result.kind).toBe("network");
       expect(result.message).toContain("Netzwerkfehler");
     }
+  });
+
+  it("logs the diagnostic outbound body line before posting (non-truncated branch)", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(200, {
+        pptx_path: "/generated/x.pptx",
+        pdf_path: "/generated/x.pdf",
+        generated_at: "2026-05-26T10:00:00Z",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Hand-rolled minimal input with a small body so the non-truncated
+    // branch fires (serialised wireBody well under 800 chars).
+    const smallInput: DocumentGenerateInput = {
+      ...validDocsInput,
+      study: { anlageKwp: 1 } as unknown as StudyCalcInput,
+      derivedValues: { ersparnisProJahr: 1 } as unknown as DerivedValues,
+      customerName: "A",
+      objectName: "B",
+      consultantName: "C",
+      imageBeforePath: null,
+      imageAfterPath: null,
+    };
+    await callDocumentsGenerate(smallInput);
+
+    const logCalls = (console.error as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const outboundLine = logCalls.find(
+      (call) =>
+        typeof call[0] === "string" && call[0].includes("[callDocumentsGenerate] outbound body"),
+    );
+    expect(outboundLine).toBeDefined();
+    expect(outboundLine?.[1]).not.toContain("…[truncated]");
+  });
+
+  it("truncates the diagnostic log to 800 chars on large bodies", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(200, {
+        pptx_path: "/generated/x.pptx",
+        pdf_path: "/generated/x.pdf",
+        generated_at: "2026-05-26T10:00:00Z",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Inflate the input by stuffing a long object_name to push the
+    // serialised body well past 800 chars.
+    const longInput: DocumentGenerateInput = {
+      ...validDocsInput,
+      objectName: "X".repeat(2000),
+    };
+    await callDocumentsGenerate(longInput);
+
+    const logCalls = (console.error as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const outboundLine = logCalls.find(
+      (call) =>
+        typeof call[0] === "string" && call[0].includes("[callDocumentsGenerate] outbound body"),
+    );
+    expect(outboundLine).toBeDefined();
+    expect(outboundLine?.[1]).toContain("…[truncated]");
+    // The truncated string itself is 800 chars + suffix; assert the
+    // 800-char slice is preserved.
+    const payload = outboundLine?.[1] as string;
+    expect(payload.length).toBe(800 + "…[truncated]".length);
+  });
+
+  it("short-circuits with validation when input.study is empty", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callDocumentsGenerate({
+      ...validDocsInput,
+      study: {} as unknown as StudyCalcInput,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+      expect(result.status).toBe(0);
+      expect(result.message).toContain("input.study ist leer");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits with validation when input.study is null", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callDocumentsGenerate({
+      ...validDocsInput,
+      study: null as unknown as StudyCalcInput,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits with validation when input.study is undefined", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callDocumentsGenerate({
+      ...validDocsInput,
+      study: undefined as unknown as StudyCalcInput,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits with validation when input.derivedValues is empty", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callDocumentsGenerate({
+      ...validDocsInput,
+      derivedValues: {} as unknown as DerivedValues,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+      expect(result.status).toBe(0);
+      expect(result.message).toContain("derivedValues ist leer");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits with validation when input.derivedValues is null", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callDocumentsGenerate({
+      ...validDocsInput,
+      derivedValues: null as unknown as DerivedValues,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("short-circuits with validation when input.derivedValues is undefined", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callDocumentsGenerate({
+      ...validDocsInput,
+      derivedValues: undefined as unknown as DerivedValues,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("validation");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
