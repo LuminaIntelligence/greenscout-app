@@ -160,11 +160,18 @@ Reference calculations from the Excel:
 ```
 ersparnis_pro_jahr      = (versorger_preis_eur_kwh - pv_verkauf_eur_kwh) * pv_eigenverbrauch_kwh
 ersparnis_pro_monat     = ersparnis_pro_jahr / 12
-ersparnis_20_jahre      = ersparnis_pro_jahr * 20
+ersparnis20_jahre       = ersparnis_pro_jahr * 20
 pacht_einnahme_einmalig = anlage_kwp * pacht_eur_pro_kwp
-gesamterzeugung_20j     = pv_erzeugung_kwh_jahr * 20
-gesamtvorteil           = ersparnis_20_jahre + pacht_einnahme_einmalig
+gesamterzeugung20j      = pv_erzeugung_kwh_jahr * 20
+gesamtvorteil           = ersparnis20_jahre + pacht_einnahme_einmalig
 ```
+
+> **Field-name note.** The two `…20…` fields keep the digit attached to the
+> preceding token (`ersparnis20_jahre`, `gesamterzeugung20j`) — no underscore
+> before the digit. This matches the exact wire format produced by the TS
+> `camelToSnake` translator on the source-of-truth TS field names
+> (`ersparnis20Jahre`, `gesamterzeugung20j`). The Python `DerivedValues`
+> schema uses the same names. See DECISIONS 2026-05-27.
 
 CO₂ values (approximate, agreed with GreenScout):
 - 1 kWh PV ≈ 0.474 kg CO₂ avoided (German grid mix).

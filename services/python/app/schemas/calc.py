@@ -57,9 +57,13 @@ class DerivedValues(BaseModel):
 
     ersparnis_pro_jahr: float
     ersparnis_pro_monat: float
-    ersparnis_20_jahre: float
+    # Field names use the exact wire format produced by the TS
+    # `camelToSnake` translator on `ersparnis20Jahre` /
+    # `gesamterzeugung20j` (no underscore before digit boundaries).
+    # See DECISIONS 2026-05-27 — DerivedValues schema naming mismatch.
+    ersparnis20_jahre: float
     pacht_einnahme_einmalig: float
-    gesamterzeugung_20j: float
+    gesamterzeugung20j: float
     gesamtvorteil: float
     co2_tonnen_pro_jahr: float
     co2_hektar_mischwald: float

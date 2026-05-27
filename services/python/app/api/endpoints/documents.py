@@ -180,8 +180,8 @@ def _build_context(req: DocumentGenerateRequest) -> dict[str, str]:
         "pacht_einnahme_einmalig_eur": _format_currency_eur(derived.pacht_einnahme_einmalig),
         "ersparnis_pro_jahr_eur": _format_currency_eur(derived.ersparnis_pro_jahr),
         "ersparnis_pro_monat_eur": _format_currency_eur(derived.ersparnis_pro_monat),
-        "ersparnis_gesamt_vertragslaufzeit_eur": _format_currency_eur(derived.ersparnis_20_jahre),
-        "gesamterzeugung_vertragslaufzeit_kwh": _format_kwh(derived.gesamterzeugung_20j),
+        "ersparnis_gesamt_vertragslaufzeit_eur": _format_currency_eur(derived.ersparnis20_jahre),
+        "gesamterzeugung_vertragslaufzeit_kwh": _format_kwh(derived.gesamterzeugung20j),
         "gesamtvorteil_eur": _format_currency_eur(derived.gesamtvorteil),
         "pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit": _format_kwh(
             derived.pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit

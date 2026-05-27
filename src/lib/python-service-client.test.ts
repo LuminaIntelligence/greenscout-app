@@ -180,9 +180,9 @@ describe("callCalc", () => {
       return jsonResponse(200, {
         ersparnis_pro_jahr: 16200,
         ersparnis_pro_monat: 1350,
-        ersparnis_20_jahre: 324000,
+        ersparnis20_jahre: 324000,
         pacht_einnahme_einmalig: 200000,
-        gesamterzeugung_20j: 1_900_000,
+        gesamterzeugung20j: 1_900_000,
         gesamtvorteil: 524000,
         co2_tonnen_pro_jahr: 45.03,
         co2_hektar_mischwald: 0.797,
