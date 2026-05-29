@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Production-debug post-Slice-5a — Hotfix-Serie PRs #46–#49 ✅
+- **Merged:** 2026-05-26 / 2026-05-27 via PRs #46 (Image upload via Server Action statt Route Handler), #47 (Persistent deploy fixes: env-check + nginx-cleanup), #48 (Document-Generation 422 — diagnostic log + defensive checks), #49 (DerivedValues schema naming mismatch Web ↔ pyservice).
+- **Branches:** `fix/image-upload-server-action`, `fix/deploy-env-and-nginx`, `fix/document-generation-422-diagnostic`, `fix/pyservice-derived-values-naming-mismatch`.
+- **Summary:** Vier-PR-Serie aus dem ersten Production-Test der end-to-end-Pipeline auf `greenscout.lumina-intelligence.ai`. (#46) Image upload schlug fehl, weil der Route-Handler kein Server-Action war — neu wired via `uploadStudyImageAction` mit `serverActions.bodySizeLimit` in `next.config.ts`. (#47) Persistente Deploy-Issues aus dem Post-mortem: `PYTHON_SERVICE_API_KEY` in `.env.production.example` ergänzt, Pre-flight-Check in `deploy.sh` ergänzt, nginx-WebSocket-Header entfernt (war für Next.js 15 nicht nötig). (#48) Document-Generation lieferte 422 ohne nutzbaren Detail-Log; `callDocumentsGenerate` mit Diagnostic-Log + Defensive-Checks für `translateKeys`-Output ergänzt. (#49) `derived_values.ersparnis_20_jahre` / `derived_values.gesamterzeugung_20j` (Pyservice-Schema) matchten nicht den `camelToSnake`-Output `ersparnis20_jahre` / `gesamterzeugung20j` (TS-Side). Pyservice-Schema-Rename auf TS-Konvention (idiomatisch korrekter camelCase mit Ziffer-Token), zwei Felder in 1 Datei + Cascading durch `compose_all` + `documents.py` + 4 Test-Files. Carry-forward Status-Flip.
+- **Decisions:** siehe `DECISIONS.md`-Einträge zwischen 2026-05-26 und 2026-05-27 (Image-Upload-Server-Action-Refactor, deploy env-check, document-generation diagnostic log, DerivedValues schema-naming-mismatch).
+
 ### T-041a ✅ Admin users — create / edit / deactivate
 - **Merged:** 2026-05-26 via PR #45 (Slice 5a vertical).
 - **Branch:** `feat/admin-users-and-handover-slice`
