@@ -68,8 +68,7 @@ implement exactly this set; any deviation should be flagged before merge.
 ### PV-input fields (sourced from `StudyCalcInput`)
 
 - `{{anlage_kwp}}` — `StudyCalcInput.anlage_kwp`, format as `1.234,5 kWp`.
-- `{{modul_anzahl}}` — `Study.modulAnzahl` (int).
-- `{{modul_flaeche_m2}}` — `Study.modulFlaecheM2`, format `1.234,5 m²`.
+- `{{modul_info_phrase}}` — **pre-rendered phrase** like `500 kWp, 1.428 Module, 2.856 m²`. Server Action drops the optional Module / m² segments when `Study.modulAnzahl` / `Study.modulFlaecheM2` are unset. Replaces the raw-keys `{{modul_anzahl}}` and `{{modul_flaeche_m2}}` (removed 2026-05-29 — Defekt D3). See `src/features/studies/actions/generate-document.ts` `buildModulInfoPhrase`.
 - `{{pv_erzeugung_kwh_jahr}}` — `StudyCalcInput.pv_erzeugung_kwh_jahr`, format `12.345 kWh`.
 - `{{pv_eigenverbrauch_kwh_jahr}}` — `StudyCalcInput.pv_eigenverbrauch_kwh_jahr`, format `12.345 kWh`.
 - `{{pv_verkauf_ct_kwh}}` — `StudyCalcInput.pv_verkauf_eur_kwh * 100`, format `20 ct/kWh`.
@@ -114,8 +113,14 @@ implement exactly this set; any deviation should be flagged before merge.
 
 ### Termin / Konsultation fields (Slide 19, sourced from `Study.terminVorschlag1/2`)
 
-- `{{termin_vorschlag_1}}` — `Study.terminVorschlag1`, format `DD.MM.YYYY um HH.MM`.
-- `{{termin_vorschlag_2}}` — `Study.terminVorschlag2`, format `DD.MM.YYYY um HH.MM`.
+- `{{termin_1_phrase}}` — **pre-rendered phrase** like `1) am 15.03.2026 um 14:00 Uhr`, or empty when `Study.terminVorschlag1` is unset. Replaces the raw-key `{{termin_vorschlag_1}}` (removed 2026-05-29 — Defekt D2). See `src/features/studies/actions/generate-document.ts` `buildTerminPhrase`.
+- `{{termin_2_phrase}}` — **pre-rendered phrase** like `2) am 16.03.2026 um 14:00 Uhr`, or empty when `Study.terminVorschlag2` is unset. Replaces `{{termin_vorschlag_2}}` (removed 2026-05-29 — Defekt D2).
+- `{{termin_oder_phrase}}` — conjunction `oder` between the two slots; empty when only one (or neither) slot is set so the standalone `oder` doesn't orphan. See `buildTerminOderPhrase`.
+
+### Flurstück fields (Slide 2 + Slide 4 footer, sourced from `Study.flurstueck`)
+
+- `{{flurstueck_phrase}}` — **pre-rendered phrase** ` in Flurstück 78.10` (note the leading space), or empty when `Study.flurstueck` is unset/blank. Slide 2 `Textfeld 4` consumes this. Replaces the raw-key `{{flurstueck}}` previously embedded in the run text `in Flurstück {{flurstueck}}` (removed 2026-05-29 — Defekt D1).
+- `{{flurstueck_label_phrase}}` — **pre-rendered phrase** `Flurstück: 78.10`, or empty when `Study.flurstueck` is unset/blank. Slide 4 `Textfeld 34` footer block consumes this. Replaces the raw-key string `Flurstück: {{flurstueck}}` (removed 2026-05-29 — Defekt D1). See `buildFlurstueckPhrase` and `buildFlurstueckLabelPhrase`.
 
 ### Berater fields (sourced from the assigned `User`)
 
@@ -149,7 +154,7 @@ implement exactly this set; any deviation should be flagged before merge.
 | Slide # | Shape \| run             | Current literal                                                              | Proposed key                            | Source                                                                                  | Notes                                                                                                                                                                                                          |
 | ------- | ------------------------ | ---------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2       | `Textfeld 4 \| run 0`     | `Einkaufszentrum Linzgau Center, Bergwaldstraße 4, 88630 Pfullendorf `      | `{{customer_object_address}}`           | `Study.objectName + ', ' + Study.objectAddress + ', ' + Study.objectZipCode + ' ' + Study.objectCity` | Long-line text — T-037 must set `auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` on this shape.                                                                                                                   |
-| 2       | `Textfeld 4 \| run 1`     | `in Flurstück XYZ `                                                          | `in Flurstück {{flurstueck}}`           | `Study.flurstueck`                                                                      | The "in Flurstück " prefix is static text; only the parcel number is dynamic. Implementer choice: either keep "in Flurstück " literal and replace only `XYZ`, **or** replace the whole run with the prefixed form. Recommended: replace the whole run with `in Flurstück {{flurstueck}}` for consistent run boundaries. |
+| 2       | `Textfeld 4 \| run 1`     | `in Flurstück XYZ `                                                          | `{{flurstueck_phrase}}`                 | `Study.flurstueck`                                                                      | **2026-05-29 (Defekt D1):** Server Action liefert pre-rendered phrase incl. ` in Flurstück <value>` prefix (leading space gehört zur phrase). Leerer Wert → leere phrase → kein hängender Präfix. Raw-key `{{flurstueck}}` wurde aus diesem Run entfernt. |
 | 2       | `Grafik 5/8/10 \| —`      | _PIC shapes_                                                                 | _(brand graphics — no swap)_            | static                                                                                  | Decoration; not study-specific.                                                                                                                                                                                |
 
 ### Slide 3 — Drei zentrale Vorteile
@@ -182,7 +187,7 @@ Slide 4 is the **money slide** — it densely repeats key figures. Six shapes co
 | 4       | `Textfeld 27 \| run 22`          | `1000 `                          | `{{co2_fussballfelder_gesamt_vertragslaufzeit}} `  | derived: `co2_fussballfelder_pro_jahr × vertragslaufzeit_jahre`                                  | "Ca. X Fußballfelder!" total over contract.                                                                                            |
 | 4       | `Text 16 \| run 0` (Pacht block) | `27.500 `                        | `{{pacht_einnahme_einmalig_eur}} `                 | `DerivedValues.pacht_einnahme_einmalig`                                                         | Second occurrence on Slide 4 (Pachteinnahmen-Block). Identical source to Slide 3 run 7.                                                |
 | 4       | `Textfeld 34 \| run 1`           | `Linzgau Center, Pfullendorf. `  | `{{customer_object_short_name_and_city}}. `        | `Study.objectName + ', ' + Study.objectCity + '.'`                                              | Footer "Objektstandort: …" — short form, **not** the full address. Disambiguation note: this is shorter than `{{customer_object_address}}`. |
-| 4       | `Textfeld 34 \| run 2`           | `Flurstück: 78.10`               | `Flurstück: {{flurstueck}}`                        | `Study.flurstueck`                                                                              | Static prefix `Flurstück: ` + dynamic value.                                                                                          |
+| 4       | `Textfeld 34 \| run 2`           | `Flurstück: 78.10`               | `{{flurstueck_label_phrase}}`                      | `Study.flurstueck`                                                                              | **2026-05-29 (Defekt D1):** Server Action liefert pre-rendered phrase `Flurstück: <value>`. Leerer Wert → leere phrase → kein hängendes `Flurstück: ` Label. Raw-key `{{flurstueck}}` wurde aus diesem Run entfernt. |
 
 > ⚠️ **2026-05-29 — Defekt B1, Slide-4 hat KEINEN Foto-Slot.** Die Eigenverbrauch-Anzeige
 > (`Text 13 = "4 %"` / `Text 14 = "Eigenverbrauch"` / `Text 15` etc.) ist eine statische
@@ -232,8 +237,7 @@ No red text runs. Static.
 | 10      | `Text 1 \| run 1` | `Linzgau Center ` | `{{customer_object_name}} `              | `Study.objectName`                  | Short form of object name only.                                                                                                       |
 | 10      | `Text 1 \| run 3` | `257,12`         | `{{anlage_kwp}}`                          | `StudyCalcInput.anlage_kwp`         | German decimal `,`. Format: 2 fractional digits if non-integer.                                                                       |
 | 10      | `Text 5 \| run 1` | `257,12`         | `{{anlage_kwp}}`                          | same source                         | Duplicate.                                                                                                                            |
-| 10      | `Text 5 \| run 3` | `587`            | `{{modul_anzahl}}`                        | `Study.modulAnzahl`                 | Modulanzahl from PV-Sol (manual in MVP).                                                                                              |
-| 10      | `Text 5 \| run 5` | `1.178,6`        | `{{modul_flaeche_m2}}`                    | `Study.modulFlaecheM2`              | Modulfläche m².                                                                                                                       |
+| 10      | `Text 5 \| run 1` | (entire kWp/Module/m² headline) | `{{modul_info_phrase}}`            | `Study.anlageKwp` + `Study.modulAnzahl` + `Study.modulFlaecheM2` | **2026-05-29 (Defekt D3):** Server Action liefert pre-rendered phrase wie `500 kWp, 1.428 Module, 2.856 m²`. Optionale Segmente (Module / m²) entfallen bei leeren Werten. Raw-keys `{{anlage_kwp}}` (run 1), `{{modul_anzahl}}` (run 3) und `{{modul_flaeche_m2}}` (run 5) wurden zu single phrase-key kollabiert; runs 2–6 sind im Template jetzt leer. |
 
 ### Slide 11 — Energiefluss und Eigenverbrauch
 
@@ -315,8 +319,9 @@ No red text runs. Fully static.
 
 | Slide # | Shape \| run    | Current literal       | Proposed key                | Source                                          | Notes                                                                                                                |
 | ------- | --------------- | --------------------- | --------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| 19      | `Text 3 \| run 3` | `XX.XX.XXXX um XX.XX` | `{{termin_vorschlag_1}}`    | `Study.terminVorschlag1`                        | Format `DD.MM.YYYY um HH.MM`.                                                                                        |
-| 19      | `Text 3 \| run 8` | `XX.XX.XXXX um XX.XX ` | `{{termin_vorschlag_2}} ` | `Study.terminVorschlag2`                        | Format same.                                                                                                         |
+| 19      | `Text 3 \| para 2` | (entire "1) am XX.XX.XXXX um XX.XX Uhr" line) | `{{termin_1_phrase}}`    | `Study.terminVorschlag1`                        | **2026-05-29 (Defekt D2):** Server Action liefert pre-rendered phrase `1) am DD.MM.YYYY um HH:MM Uhr`. Leerer terminVorschlag1 → leere phrase → leere Zeile (kein "1) am Uhr"-Fragment). Paragraph 2 wurde zu 1 Run kollabiert; raw-key `{{termin_vorschlag_1}}` entfernt. |
+| 19      | `Text 3 \| para 3` | `oder`               | `{{termin_oder_phrase}}` | `Study.terminVorschlag1` + `Study.terminVorschlag2` | **2026-05-29 (Defekt D2):** Server Action liefert `oder` nur wenn BEIDE termine gesetzt; sonst leer, damit der Konjunktor nicht orphanend stehen bleibt. |
+| 19      | `Text 3 \| para 4` | (entire "2) am XX.XX.XXXX um XX.XX Uhr" line) | `{{termin_2_phrase}}`    | `Study.terminVorschlag2`                        | **2026-05-29 (Defekt D2):** wie termin_1_phrase. Paragraph 4 wurde zu 1 Run kollabiert; raw-key `{{termin_vorschlag_2}}` entfernt. |
 | 19      | `Text 2 \| run 0` | `Bernd Berater`       | `{{consultant_full_name}}`  | `User.firstName + ' ' + User.lastName`          | Bottom-card Berater name. **Resolved 2026-05-26** (item 4): keep the central GreenScout e.V. contact lines static in the template — `+49 172 3794240`, `projektberatung@greenscout-ev.de`, `Utechter Str. 5, 19217 Utecht`. Only `{{consultant_full_name}}` rotates per study. Rationale: `User.phone` is optional and a fallback to the central line is more robust than a sometimes-empty consultant phone slot. |
 
 ---
