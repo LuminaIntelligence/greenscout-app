@@ -156,8 +156,14 @@ EDITS: tuple[Edit, ...] = (
 )
 
 # (slide-number, original-shape-name) -> new shape name. Per Slice-3a sign-off item 5.
+#
+# Defekt B1 (2026-05-29): the (4, "Image 0", "image_before") entry was REMOVED.
+# Slide 4 has no photo slot — the Eigenverbrauch composition is statically
+# laid out; the renamed shape overlapped the "4 %" headline in the first
+# production-generated PPTX. The shape itself is deleted from the committed
+# template by `scripts/remove-slide4-image-shape.py`; this list no longer
+# recreates it on a re-run. See DECISIONS.md 2026-05-29 (Defekt B1).
 IMAGE_RENAMES: tuple[tuple[int, str, str], ...] = (
-    (4, "Image 0", "image_before"),
     (5, "Grafik 2", "image_before"),
     (5, "Grafik 5", "image_after"),
 )
