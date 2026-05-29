@@ -10,12 +10,27 @@ for the consultant's uploaded photos.
 
 Key design points:
 
-1.  **Run-stitching across the ``{{ … }}`` boundary.** python-pptx splits
-    a paragraph into runs on style boundaries; a single ``{{key}}``
-    sometimes spans 2-3 runs (``{{``, ``key``, ``}}``). T-037's edit
-    pass left the placeholders inside a single run, but we still
-    paragraph-stitch defensively so future template edits don't break
-    this generator.
+1.  **Run-stitching across the ``{{ … }}`` boundary, with paragraph and
+    line-break preservation (Defekte C1 + F1, 2026-05-29).** python-pptx
+    splits a paragraph into runs on style boundaries; a single
+    ``{{key}}`` sometimes spans 2-3 runs (``{{``, ``key``, ``}}``).
+    T-037's edit pass left the placeholders inside a single run, but
+    we still segment-stitch defensively so future template edits don't
+    break this generator. **Critical invariants** the replacement must
+    NOT violate:
+
+    - The number of ``<a:p>`` paragraphs inside any ``<p:txBody>`` must
+      stay constant (substitution is strictly paragraph-local).
+    - The number of ``<a:br/>`` soft-line-break siblings inside any
+      paragraph must stay constant (substitution stitches runs only
+      within a single ``<a:br/>``-bounded segment, never across one).
+
+    Both invariants are covered by anti-regression tests in
+    ``tests/test_pptx_generator.py``. Earlier versions concatenated
+    every run in the paragraph into one string before substitution,
+    which silently destroyed the visual line breaks (Slide 5 showed
+    "kWhEinsparpotential" smushed together; Slide 9 Box 05 hid the
+    Pacht / Strom / CO₂ values entirely).
 
 2.  **Missing keys.** A placeholder with no value in ``context`` is
     replaced with an empty string and logged as a warning. This is
@@ -81,47 +96,108 @@ def _format_value(value: Any) -> str:
     return str(value)
 
 
+#: Local-name (without namespace) of the soft-line-break element in DrawingML.
+#: Equivalent to a Shift+Enter inside a paragraph in PowerPoint.
+_BR_LOCALNAME = "br"
+#: Local-name of a text run element in DrawingML.
+_R_LOCALNAME = "r"
+
+
+def _local_tag(element: Any) -> str:
+    """Return an lxml element's tag without the ``{namespace}`` prefix."""
+    tag = element.tag
+    if isinstance(tag, str) and "}" in tag:
+        return tag.split("}", 1)[1]
+    return str(tag)
+
+
 def _replace_in_paragraph(paragraph: Any, context: dict[str, Any]) -> int:
     """Replace every placeholder in a single paragraph, preserving run formatting.
 
-    Strategy:
-      1. Concatenate the paragraph's run texts into a paragraph string.
-      2. Substitute every placeholder using ``context``.
-      3. If the paragraph string changed, write the result back into
-         the first run and clear the remaining runs (so leftover
-         original characters don't survive).
+    **Soft-line-break preservation (Defekte C1 + F1, 2026-05-29).**
+    A DrawingML paragraph (``<a:p>``) may contain ``<a:br/>`` soft-line-break
+    elements between runs. Earlier versions of this function concatenated
+    every run's text into one string, ran the substitution, and wrote the
+    result back into the first run — destroying the visual line breaks
+    because the surviving ``<a:br/>`` siblings now sat after one giant run.
+
+    The fix: split the paragraph's run sequence into **segments** at every
+    ``<a:br/>`` boundary, and stitch / substitute **inside each segment
+    only**. Cross-segment token-spanning is not supported (would silently
+    eat the line break, which is exactly the bug we are fixing). Segment
+    counts and the number of ``<a:br/>`` children must remain invariant
+    across substitution — covered by anti-regression tests.
+
+    Within a segment, stitching is still needed because python-pptx can
+    split a single ``{{token}}`` across consecutive runs when the
+    underlying ``<a:rPr>`` attributes differ.
 
     Returns the number of placeholder substitutions performed.
     """
-    runs = list(paragraph.runs)
-    if not runs:
+    p_element = paragraph._p
+    if p_element is None:
         return 0
-    original = "".join(r.text for r in runs)
-    if "{{" not in original:
-        return 0
+
+    # Group adjacent <a:r> children into segments, with <a:br/> as separators.
+    segments: list[list[Any]] = [[]]
+    for child in p_element.iterchildren():
+        local = _local_tag(child)
+        if local == _R_LOCALNAME:
+            segments[-1].append(child)
+        elif local == _BR_LOCALNAME:
+            # Start a fresh segment; the <a:br/> element itself stays in
+            # place inside the paragraph XML (we do not touch it).
+            segments.append([])
+        # Anything else (a:fld, a:endParaRPr, …) is left alone.
 
     substitutions = 0
 
     def _replace(match: re.Match[str]) -> str:
         nonlocal substitutions
         key = match.group(1)
+        substitutions += 1
         if key in context:
-            substitutions += 1
             return _format_value(context[key])
         logger.warning("pptx_generator: placeholder '{{%s}}' missing in context", key)
-        substitutions += 1
         return ""
 
-    rewritten = _PLACEHOLDER_RE.sub(_replace, original)
-    if rewritten == original:
-        return 0
-
-    # Put the rewritten text into the first run (so its formatting wins)
-    # and clear every other run.
-    runs[0].text = rewritten
-    for run in runs[1:]:
-        run.text = ""
+    for run_elements in segments:
+        if not run_elements:
+            continue
+        # Wrap each <a:r> back in python-pptx's _Run for ergonomic .text I/O.
+        # We rely on the same Run class the paragraph.runs property uses.
+        runs = [_wrap_run(r, paragraph) for r in run_elements]
+        original = "".join(r.text for r in runs)
+        if "{{" not in original:
+            continue
+        rewritten = _PLACEHOLDER_RE.sub(_replace, original)
+        if rewritten == original:
+            continue
+        # Put the rewritten text into the first run of this segment (so its
+        # formatting wins) and clear every other run in the same segment.
+        # Runs in *other* segments — and the <a:br/> elements separating
+        # them — stay untouched, which is the whole point of this routine.
+        runs[0].text = rewritten
+        for run in runs[1:]:
+            run.text = ""
     return substitutions
+
+
+def _wrap_run(r_element: Any, paragraph: Any) -> Any:
+    """Return a python-pptx ``_Run`` instance wrapping the given ``<a:r>`` element.
+
+    python-pptx does not expose a documented constructor for ``_Run`` so we
+    pull the class from the same import path the public ``paragraph.runs``
+    property uses. This keeps the wrapping consistent with python-pptx's
+    own behaviour (in particular, ``.text`` setter semantics that ensure
+    ``xml:space="preserve"`` and proper child-element ordering).
+    """
+    # Local import keeps the module-level import surface clean and avoids
+    # paying the import cost when the generator runs on a paragraph with
+    # no <a:br/> elements (which is the vast majority of cases).
+    from pptx.text.text import _Run  # type: ignore[import-untyped]
+
+    return _Run(r_element, paragraph)
 
 
 def _replace_in_shape(shape: Any, context: dict[str, Any]) -> int:

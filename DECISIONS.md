@@ -3402,3 +3402,33 @@ Andere Pause-Trigger nicht berührt.
 **Pause-Trigger-Check (§7):** keine. Template-Korrektur, keine Code-Logik-Änderung, kein neuer Dep, kein Schema-Change. §7.4 (UI / UX visible change) feuert NICHT, weil das PPTX-Layout vor diesem Fix kaputt war (Foto über Headline) und durch das Entfernen wieder zum SPEC-konformen Original-Zustand zurückkehrt — also keine „beyond design tokens"-Erweiterung, sondern Bug-Fix der zuvor durch T-037 eingeführten Abweichung vom Original-Template.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-29 — Defekte C1+F1: Run-Stitching erhält Paragraphen + Soft-Line-Breaks
+
+**Context:** Erstes generiertes Produktions-PPTX zeigte zwei verwandte Render-Fehler:
+- **Slide 5 (Shape 12, `Textfeld 11`):** „22 CENT netto / kWh**Einsparpotential** gegenüber dem heutigen Stromlieferanten" — der Zeilenbruch zwischen `kWh` und `Einsparpotential` war verschluckt; beide Wörter klebten als „kWhEinsparpotential" zusammen.
+- **Slide 9 (`Text 21`, Box 05):** Drei Werte fehlten komplett. Sichtbar nur „Pachteinnahmen:", „Stromersparnis auf 20 Jahre:", „CO2 Ersparnis auf 20 Jahre:" — die Zahlen hinter den Doppelpunkten waren weg.
+
+**Root cause:** Beide Bugs hatten dieselbe Ursache im `pptx_generator._replace_in_paragraph`-Algorithmus. Das ursprüngliche T-038a-Verfahren („alle Runs der Paragraphen-Knotens konkatenieren → substituieren → komplettes Resultat in `runs[0].text` schreiben, Rest leeren") hat ein DrawingML-Detail übersehen: **innerhalb eines `<a:p>`-Paragraph-Knotens können `<a:br/>`-Soft-Line-Break-Elemente zwischen den `<a:r>`-Runs stehen** (Shift+Enter in PowerPoint). python-pptx's `paragraph.runs`-Property liefert die Runs zurück, ignoriert aber die `<a:br/>`-Siblings. Das Konkatenieren-und-Wieder-in-Run-0-Schreiben hat die `<a:br/>`-Elemente nicht zerstört, aber den gesamten Text vor sie verschoben — die Soft-Breaks standen jetzt am Ende, hinter leeren Runs, und produzierten optisch keinen Effekt mehr. Slide-5-Symptom: `kWh\nEinsparpotential` wurde zu `kWhEinsparpotential\n` (Zeilenumbruch hinter dem gemerten Text statt zwischen den beiden Wörtern). Slide-9-Symptom: vier Werte-Zeilen wurden zu einer Riesen-Konkatenation; bei festem Shape-Maß und `auto_size=TEXT_TO_FIT_SHAPE` schrumpfte die Schrift oder Text überlief unsichtbar → User sah nur die Label-Teile vor den Doppelpunkten.
+
+**Decision:** Replace-Funktion segmentiert **paragraph-lokal** an `<a:br/>`-Grenzen und stitcht/substituiert ausschließlich **innerhalb eines Segments**. Cross-Segment-Token-Spanning wird nicht unterstützt (würde den Soft-Break wieder verschlucken). Zwei Invarianten sind in Anti-Regression-Tests verankert:
+1. **Paragraphen-Zahl** in einem Text-Frame darf sich durch Substitution **nicht reduzieren** (cross-paragraph token-spanning ist Template-Bug).
+2. **`<a:br/>`-Zahl** innerhalb eines Paragraphen darf sich durch Substitution **nicht reduzieren** (cross-segment token-spanning ist Template-Bug).
+
+Innerhalb eines Segments bleibt das Run-Stitching unverändert, sodass Template-Edits, die ein `{{token}}` über mehrere Runs verteilen (z. B. nach manueller Bearbeitung mit unterschiedlichen `<a:rPr>`-Attributen), weiterhin korrekt funktionieren.
+
+**Affected:**
+- `services/python/app/services/pptx_generator.py` — `_replace_in_paragraph` umstrukturiert: walk `paragraph._p.iterchildren()`, gruppiere `<a:r>` zu Segmenten an `<a:br/>`-Grenzen, substituiere pro Segment. Neuer Helper `_wrap_run(r_element, paragraph)` baut `python-pptx`'s `_Run`-Wrapper aus einem rohen lxml-Element (gleicher Wrapper, den `paragraph.runs` benutzt). Modul-Docstring + Funktions-Docstring beschreiben die Invariante explizit.
+- `services/python/tests/test_pptx_generator.py` — fünf neue Anti-Regression-Tests:
+  - `test_substitution_preserves_paragraph_count_in_text_frame` (Mini-Fixture, 3 paragraphs → 3 paragraphs).
+  - `test_substitution_preserves_soft_line_breaks_within_paragraph` (Mini-Fixture mit `run/br/run/br/run`-Struktur; Segment-Inhalte explizit verifiziert).
+  - `test_substitution_handles_token_split_across_runs_within_segment` (Run-Stitching innerhalb eines Segments funktioniert weiterhin).
+  - `test_real_template_slide_5_textfeld_11_keeps_kwh_einsparpotential_break` (echtes Template, Slide 5 paragraph 0 behält `<a:br/>`; rendered text enthält `kWh` und `Einsparpotential` separat, nicht zusammengeklebt).
+  - `test_real_template_slide_9_text_21_renders_all_three_box_05_values` (echtes Template; segmentiert paragraph 0 an `<a:br/>` und assert Pacht-/Strom-/CO2-Werte landen in den richtigen Zeilen).
+- `docs/pptx-mapping.md` — „Notes on the rendering layer" Punkt 2 ergänzt um Segment-Lokalität-Klausel + Test-Referenzen.
+
+**Pause-Trigger-Check (§7):** keine. Reiner Bug-Fix der Replace-Logik, keine API-Änderung, kein neuer Dep, kein Schema-Change. §7.5 (breaking API change) feuert nicht: alle existierenden 19 pptx_generator-Tests bleiben grün, ebenso die volle 153-Test-Suite. §7.4 (UI/UX visible change) feuert nicht: Output war zuvor kaputt (verschluckte Brüche, fehlende Werte) und kehrt jetzt zum SPEC-konformen Layout zurück.
+
+**Open question for the user:** —

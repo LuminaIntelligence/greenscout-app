@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekt B1 ✅ Slide-4 `image_before`-Shape entfernt (Template-Korrektur, Live-Verifikation)
+- **Merged:** 2026-05-29 via PR #51.
+- **Branch:** `fix/slide-4-image-mapping`
+- **Summary:** Production-Symptom: Erstes generiertes PPTX zeigte das BEFORE-Foto mitten in der „4 %"-Eigenverbrauch-Anzeige auf Slide 4 — Foto verdeckte die Grafik, „Eigenverbrauch"-Label hing sinnlos darunter. Nicht kundenpräsentabel. Root cause: Slice-3b's T-037-Template-Migration hatte auf Slide 4 das `Image 0`-Shape zu `image_before` umbenannt — basierend auf einer Disambiguierungs-Antwort, die ohne Live-Verification gegeben wurde. Im Original-Template gibt es auf Slide 4 **gar keinen Foto-Platzhalter**; die Eigenverbrauch-Anzeige ist eine statische Komposition. Fix: Shape (id=16, name=`image_before`) auf Slide 4 ersatzlos aus dem Template entfernt via einmaligem `scripts/remove-slide4-image-shape.py`. `scripts/apply-pptx-placeholders.py` `IMAGE_RENAMES`-Tuple für Slide 4 entfernt, sodass ein erneuter Migrations-Lauf das Shape nicht wieder erzeugt. `docs/pptx-mapping.md` Slide-4-Image-Slot-Eintrag + Disambiguation-Summary-Item-5 retracted. Zwei Anti-Regression-Tests + verschärfter `test_real_template_renders_with_images`-Assert (`befores == ["slide 5"]`, `afters == ["slide 5"]`). Carry-forward Status-Flip.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-29 — Defekt B1: Slide-4 `image_before`-Shape entfernt".
+
 ### Defekt A1 ✅ Pacht-Formel-Fix ohne Vertragslaufzeit-Faktor (SPEC §4.7, §7.7-Freigabe)
 - **Merged:** 2026-05-29 via PR #50.
 - **Branch:** `fix/pacht-formula-spec-7.7`
