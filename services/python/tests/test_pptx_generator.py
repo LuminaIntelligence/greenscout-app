@@ -578,6 +578,138 @@ def test_real_template_slide_5_textfeld_11_keeps_kwh_einsparpotential_break(
     )
 
 
+# --- anti-regression tests for Slide-17 grid normalization (Defekt C2) ---
+
+
+# Slide 17 ("Der Weg zur Inbetriebnahme") is a 7-column / 2-row grid. The
+# upper row holds "Inhalte" shapes, the lower row holds "Ergebnisse" shapes.
+# Per DECISIONS 2026-05-29 / Defekt C2, the template was normalized to:
+#   - All Inhalte-Shapes share one fixed height (445 px-equivalent EMU) and
+#     use TEXT_TO_FIT_SHAPE so long Studien-Inhalte shrink instead of pushing
+#     siblings off-grid.
+#   - All Ergebnisse-Shapes share one fixed top (569 px-equivalent EMU) and
+#     also use TEXT_TO_FIT_SHAPE.
+# Both invariants are guarded by the two tests below.
+
+_SLIDE17_INHALT_NAMES = {
+    "Textfeld 2",
+    "Textfeld 3",
+    "Textfeld 4",
+    "Textfeld 5",
+    "Textfeld 6",
+    "Textfeld 7",
+    "Textfeld 20",
+}
+
+_SLIDE17_ERGEBNIS_NAMES = {
+    "Textfeld 8",
+    "Textfeld 9",
+    "Textfeld 10",
+    "Textfeld 11",
+    "Textfeld 12",
+    "Textfeld 13",
+    "Textfeld 21",
+}
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_inhalt_shapes_have_text_to_fit_shape_autosize() -> None:
+    """Defekt C2 (2026-05-29): Slide-17 Inhalte-Shapes must use TEXT_TO_FIT_SHAPE.
+
+    Without TEXT_TO_FIT_SHAPE, long Studien-Inhalte would grow the shape and
+    push the Ergebnis-Row below it off-grid (exactly what happened in
+    production: Textfeld 5 H=445 pushed Textfeld 11 top from 569 to 639).
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    inhalt_shapes = [s for s in slide17.shapes if s.name in _SLIDE17_INHALT_NAMES]
+
+    assert len(inhalt_shapes) == len(_SLIDE17_INHALT_NAMES), (
+        f"Expected {len(_SLIDE17_INHALT_NAMES)} Inhalt-shapes on slide 17, "
+        f"found {len(inhalt_shapes)}: "
+        f"{sorted(s.name for s in inhalt_shapes)} vs expected "
+        f"{sorted(_SLIDE17_INHALT_NAMES)}"
+    )
+
+    for shape in inhalt_shapes:
+        assert shape.has_text_frame, f"Slide 17 shape {shape.name!r} lost its text frame"
+        assert shape.text_frame.auto_size == MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE, (
+            f"Slide 17 shape {shape.name!r} auto_size is "
+            f"{shape.text_frame.auto_size!r}, expected TEXT_TO_FIT_SHAPE — "
+            "see DECISIONS Defekt C2, 2026-05-29."
+        )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_inhalt_shapes_share_uniform_height() -> None:
+    """Defekt C2 (2026-05-29): Slide-17 Inhalt-Shapes must share one height.
+
+    A non-uniform height row breaks the grid composition and is the root cause
+    of the off-grid Ergebnis-Zeile observed in production.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    inhalt_shapes = [s for s in slide17.shapes if s.name in _SLIDE17_INHALT_NAMES]
+    heights = {s.name: int(s.height) for s in inhalt_shapes}
+    unique_heights = set(heights.values())
+
+    assert len(unique_heights) == 1, (
+        f"Slide 17 Inhalt-Shapes have {len(unique_heights)} different heights: "
+        f"{heights} — must be uniform (see DECISIONS Defekt C2, 2026-05-29)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_ergebnis_row_y_position_uniform() -> None:
+    """Defekt C2 (2026-05-29): Slide-17 Ergebnis-Shapes share one top.
+
+    Before the fix, Textfeld 11 (col 5) sat at T=639 while the other six
+    columns sat at T≈569 — a 70 px drift caused by the over-tall Inhalt-Shape
+    above it (Textfeld 5, H=445). Tolerance: a single unique value, no drift.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    ergebnis_shapes = [s for s in slide17.shapes if s.name in _SLIDE17_ERGEBNIS_NAMES]
+    tops = {s.name: int(s.top) for s in ergebnis_shapes}
+    unique_tops = set(tops.values())
+
+    assert len(unique_tops) == 1, (
+        f"Slide 17 Ergebnis-Shapes have {len(unique_tops)} different top positions: "
+        f"{tops} — must be uniform (see DECISIONS Defekt C2, 2026-05-29)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_ergebnis_shapes_have_text_to_fit_shape_autosize() -> None:
+    """Defekt C2 (2026-05-29): Slide-17 Ergebnis-Shapes also use TEXT_TO_FIT_SHAPE.
+
+    Same forward-fragility argument as for the Inhalt-row: future longer
+    Ergebnis-Texte must not be allowed to push the second-row baseline.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    ergebnis_shapes = [s for s in slide17.shapes if s.name in _SLIDE17_ERGEBNIS_NAMES]
+
+    assert len(ergebnis_shapes) == len(_SLIDE17_ERGEBNIS_NAMES), (
+        f"Expected {len(_SLIDE17_ERGEBNIS_NAMES)} Ergebnis-shapes on slide 17, "
+        f"found {len(ergebnis_shapes)}: "
+        f"{sorted(s.name for s in ergebnis_shapes)} vs expected "
+        f"{sorted(_SLIDE17_ERGEBNIS_NAMES)}"
+    )
+
+    for shape in ergebnis_shapes:
+        assert shape.has_text_frame, f"Slide 17 shape {shape.name!r} lost its text frame"
+        assert shape.text_frame.auto_size == MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE, (
+            f"Slide 17 shape {shape.name!r} auto_size is "
+            f"{shape.text_frame.auto_size!r}, expected TEXT_TO_FIT_SHAPE — "
+            "see DECISIONS Defekt C2, 2026-05-29."
+        )
+
+
 @pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
 def test_real_template_slide_9_text_21_renders_all_three_box_05_values(
     tmp_path: Path,
