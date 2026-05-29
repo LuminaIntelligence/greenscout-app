@@ -73,11 +73,31 @@ def test_ersparnis_gesamt_scales_with_non_default_duration() -> None:
 
 
 def test_pacht_einnahme_einmalig_baseline() -> None:
-    assert pacht_einnahme_einmalig(make_input()) == Decimal("200000.00")
+    # 100 kWp * 100 EUR/kWp = 10.000 EUR einmalig (SPEC §4.7, user-confirmed 2026-05-27).
+    assert pacht_einnahme_einmalig(make_input()) == Decimal("10000.00")
 
 
 def test_pacht_einnahme_einmalig_collapses_to_zero_when_pacht_zero() -> None:
     assert pacht_einnahme_einmalig(make_input(pacht_eur_pro_kwp=0)) == Decimal("0")
+
+
+def test_pacht_einnahme_einmalig_does_not_scale_with_contract_duration() -> None:
+    # §7.7 regression guard for the 2026-05-27 production defect: an
+    # erroneous ``* vertragslaufzeit_jahre`` factor produced 20x too
+    # high lease values. Two inputs that differ ONLY in contract
+    # duration must yield the same pacht.
+    assert pacht_einnahme_einmalig(make_input(vertragslaufzeit_jahre=20)) == (
+        pacht_einnahme_einmalig(make_input(vertragslaufzeit_jahre=15))
+    )
+
+
+def test_pacht_einnahme_einmalig_user_confirmed_500_kwp_regression() -> None:
+    # Verbatim the example the user confirmed on 2026-05-27:
+    # 500 kWp * 100 EUR/kWp = 50.000 EUR (NOT 1.000.000 EUR).
+    out = pacht_einnahme_einmalig(
+        make_input(anlage_kwp=500, pacht_eur_pro_kwp=100, vertragslaufzeit_jahre=20)
+    )
+    assert out == Decimal("50000.00")
 
 
 def test_gesamterzeugung_baseline() -> None:
@@ -85,7 +105,8 @@ def test_gesamterzeugung_baseline() -> None:
 
 
 def test_gesamtvorteil_sums_savings_plus_lease() -> None:
-    assert gesamtvorteil(make_input()) == Decimal("256000.00") + Decimal("200000.00")
+    # 256.000 EUR ersparnis (12.800 * 20) + 10.000 EUR pacht (one-shot) = 266.000 EUR.
+    assert gesamtvorteil(make_input()) == Decimal("256000.00") + Decimal("10000.00")
 
 
 def test_co2_tonnen_pro_jahr_default_branch() -> None:
@@ -182,9 +203,9 @@ def test_compose_all_returns_derived_values_model() -> None:
     assert out.ersparnis_pro_jahr == 12_800.0
     assert out.ersparnis_pro_monat == 12_800.0 / 12
     assert out.ersparnis20_jahre == 256_000.0
-    assert out.pacht_einnahme_einmalig == 200_000.0
+    assert out.pacht_einnahme_einmalig == 10_000.0
     assert out.gesamterzeugung20j == 1_900_000.0
-    assert out.gesamtvorteil == 456_000.0
+    assert out.gesamtvorteil == 266_000.0
     assert out.co2_tonnen_pro_jahr == (95_000 * 0.474) / 1000
     assert out.co2_hektar_mischwald == ((95_000 * 0.474) / 1000) * 0.0177
     assert out.co2_fussballfelder_pro_jahr == ((95_000 * 0.474) / 1000) * 0.0177 * 1.28

@@ -36,12 +36,21 @@ export function ersparnisGesamtVertragslaufzeit(input: StudyCalcInput): number {
 }
 
 /**
- * € — cumulative lease income over the full contract.
- * SPEC §4.7 names this `pacht_einnahme_einmalig`; the value is
- * `anlageKwp * pachtEurProKwp * vertragslaufzeitJahre`.
+ * € — one-shot lease income (SPEC §4.7).
+ * `anlageKwp * pachtEurProKwp`.
+ *
+ * NOTE: This is the *einmalige* lease payment paid by the investor to
+ * the property owner upon contract signing. It does NOT scale with
+ * `vertragslaufzeitJahre` — the contract duration is the period over
+ * which the property is leased, not a multiplier on the price.
+ *
+ * User-confirmed binding on 2026-05-27 (§7.7 pause-trigger resolution
+ * in DECISIONS.md). Example: 500 kWp × 100 €/kWp = 50.000 € one-shot.
+ * Equivalent via area: (m² / 5) × 100, because 1 kWp ≈ 5 m² usable roof
+ * surface (Slide-5 footnote in the original template).
  */
 export function pachtEinnahmeEinmalig(input: StudyCalcInput): number {
-  return input.anlageKwp * input.pachtEurProKwp * input.vertragslaufzeitJahre;
+  return input.anlageKwp * input.pachtEurProKwp;
 }
 
 /** kWh — total electricity produced over the contract duration. */

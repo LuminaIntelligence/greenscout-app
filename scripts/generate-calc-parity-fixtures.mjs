@@ -355,6 +355,25 @@ const inputs = [
       co2Override: false,
     },
   },
+  // 23 — §7.7 pacht-formula regression: 500 kWp × 100 €/kWp = 50.000 € (NOT 1.000.000 €).
+  // Verbatim the example the user confirmed on 2026-05-27 — if anyone
+  // re-introduces the erroneous `× vertragslaufzeitJahre` factor, this
+  // fixture breaks parity with `expected 50000, got 1000000`.
+  // See DECISIONS 2026-05-27 §7.7 Pacht-Formel User-Confirmed.
+  {
+    name: "pacht-formula-regression-500kwp",
+    input: {
+      anlageKwp: 500,
+      pvErzeugungKwhJahr: 475_000,
+      pvEigenverbrauchKwhJahr: 200_000,
+      pvVerkaufEurKwh: 0.08,
+      verbrauchKwhJahr: 400_000,
+      versorgerPreisEurKwh: 0.35,
+      pachtEurProKwp: 100,
+      vertragslaufzeitJahre: 20,
+      co2Override: false,
+    },
+  },
 ];
 
 const fixtures = inputs.map(({ name, input }) => ({

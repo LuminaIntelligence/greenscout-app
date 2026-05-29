@@ -3335,3 +3335,49 @@ resolved in this slice — see decision #3 below.
 **Pause-Trigger-Check (§7):** Keine. Reines Naming-Konsistenz-Fix auf der Wire-Format-Boundary. Kein neuer Dep, keine DB-Schema-Änderung (Felder leben rein in-memory zwischen Web und Pyservice), keine Auth-/Security-Logic, keine Money-Berechnung — nur Feld-Benennung.
 
 **Open question for the user:** nach Merge + `--force-recreate pyservice`: PPTX-Generierung end-to-end laufen lassen und visuell prüfen dass die zwei Slide-Werte (Slide-4 "X kWh auf 20 Jahre" + Slide-13 "ca. X € in 20 Jahren") plausibel sind — der Code-Path war bislang nie erfolgreich durchlaufen, ein latentes Folge-Bug wäre möglich.
+
+---
+
+## 2026-05-27 — §7.7 User-confirmed: Pacht-Formel ohne Vertragslaufzeit-Faktor
+
+**Context:** Defekt-Report aus erstem Production-PPTX zeigte 20× zu hohe Pacht-Werte
+(1.000.000 € statt 50.000 € für 500 kWp Anlage). Implementierung hatte
+`× vertragslaufzeitJahre` ergänzt; SPEC §4.7 hat diesen Faktor nicht.
+
+**§7.7 Pause-Trigger-Entscheidung:** User bestätigt am 2026-05-27 die SPEC-Formel
+verbindlich:
+
+    pacht_einnahme_einmalig = anlage_kwp × pacht_eur_pro_kwp
+
+Ohne Multiplikation mit Vertragslaufzeit. Beispiel: 500 kWp × 100 €/kWp = 50.000 €
+einmalig. Äquivalent über Fläche: (m² ÷ 5) × 100, weil 1 kWp ≈ 5 m² nutzbare
+Fläche (Slide-5-Fußnote im Original-Template).
+
+**Folge-Effekt auf `gesamtvorteil`:** `gesamtvorteil = ersparnis20_jahre +
+pacht_einnahme_einmalig` bleibt formal unverändert, aber der Wert sinkt
+entsprechend. Beispiel User-Case (500 kWp, 200.000 kWh Eigenverbrauch, 0,35 vs.
+0,08 €/kWh, 20 Jahre): ersparnis20j = 200.000 × 0,27 × 20 = 1.080.000 €, pacht =
+50.000 € → gesamtvorteil ≈ 1.130.000 € (vorher: 1.080.000 + 1.000.000 = 2.080.000 €).
+Für den 500-kWp-Default-Test-Fall mit weniger ersparnis: ersparnis20j + 50.000 €.
+
+**Regression-Probe:** Neue Parity-Fixture `pacht-formula-regression-500kwp` ist
+fest verdrahtet auf den User-bestätigten 500-kWp / 100 €/kWp / 50.000 €-Fall.
+Falls jemand die `× vertragslaufzeitJahre`-Variante wieder einführt, bricht der
+Parity-Test mit `expected 50000, got 1000000`.
+
+**Affected files:**
+- `services/python/app/domain/calculations.py` — `* Decimal(inp.vertragslaufzeit_jahre)` entfernt.
+- `src/lib/calculations/index.ts` — `* input.vertragslaufzeitJahre` entfernt.
+- `src/lib/calculations/index.test.ts` — baseline + snapshot + gesamtvorteil-Erwartungen aktualisiert; +2 Regression-Guard-Tests (duration-independence + 500-kWp user-confirmed case).
+- `services/python/tests/test_calculations.py` — baseline + compose_all-Erwartungen aktualisiert; +2 Regression-Guard-Tests (analog zu TS).
+- `services/python/tests/fixtures/calc-parity-fixtures.json` — alle `pachtEinnahmeEinmalig`-Werte /20 (von × vertragslaufzeit auf one-shot), `gesamtvorteil`-Werte entsprechend angepasst; NEUE Fixture `pacht-formula-regression-500kwp` (500 kWp × 100 €/kWp = 50.000 €).
+- `scripts/generate-calc-parity-fixtures.mjs` — neue Fixture-Input `pacht-formula-regression-500kwp` registriert.
+- `docs/pptx-mapping.md` — Slide 3 / aggregated-key-list Formula-Notiz auf `anlage_kwp × pacht_eur_pro_kwp` (SPEC §4.7, user-confirmed 2026-05-27) aktualisiert.
+
+**Pause-Trigger-Check (§7):** §7.7 (Money/Pricing/Lease) feuert — vom User explizit
+freigegeben in dieser Session. §7.5 (Breaking API change auf `DerivedValues`)
+greift NICHT, weil das Schema (Feldnamen, Wire-Format) identisch bleibt; nur der
+berechnete Wert ändert sich (das ist eine Bug-Fix-Korrektur, kein API-Breakage).
+Andere Pause-Trigger nicht berührt.
+
+**Open question for the user:** — (geschlossen mit User-Freigabe 2026-05-27).
