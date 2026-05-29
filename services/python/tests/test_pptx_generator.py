@@ -314,8 +314,10 @@ def test_real_template_renders_with_images(tmp_path: Path) -> None:
         image_after_path=after,
     )
     pres = Presentation(out)
-    # At least two PICTURE shapes named image_before / image_after must be present
-    # (slide 4 has one image_before, slide 5 has both).
+    # Exactly one PICTURE shape named image_before / image_after must be present —
+    # both live on slide 5 only (since Defekt B1, 2026-05-29: slide 4's
+    # image_before shape was a misplacement that overlapped the Eigenverbrauch
+    # headline and has been removed from the template).
     befores: list[str] = []
     afters: list[str] = []
     for slide_idx, slide in enumerate(pres.slides, start=1):
@@ -324,5 +326,47 @@ def test_real_template_renders_with_images(tmp_path: Path) -> None:
                 befores.append(f"slide {slide_idx}")
             elif shape.name == _IMAGE_AFTER_NAME and shape.shape_type == 13:
                 afters.append(f"slide {slide_idx}")
-    assert len(befores) >= 2  # slide 4 + slide 5
-    assert len(afters) >= 1  # slide 5
+    assert befores == ["slide 5"], f"image_before should land only on slide 5, got {befores}"
+    assert afters == ["slide 5"], f"image_after should land only on slide 5, got {afters}"
+
+
+# --- anti-regression tests for template-shape topology (Defekt B1) ---
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_4_has_no_image_before_shape_after_template_cleanup() -> None:
+    """Defekt B1 (2026-05-29): Slide 4 hat keinen Foto-Slot mehr.
+
+    Anti-regression test: wenn jemand wieder ein image_before-Shape auf
+    Slide 4 einbaut (z.B. durch erneutes Anwenden von apply-pptx-placeholders.py
+    mit einem alten IMAGE_RENAMES-Tuple), bricht dieser Test sofort.
+    Siehe DECISIONS.md-Eintrag „2026-05-29 — Defekt B1".
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide4 = pres.slides[3]  # 0-indexed
+    image_before_shapes = [s for s in slide4.shapes if s.name == _IMAGE_BEFORE_NAME]
+    assert len(image_before_shapes) == 0, (
+        f"Slide 4 has {len(image_before_shapes)} '{_IMAGE_BEFORE_NAME}' shape(s) — "
+        "must be 0 (see DECISIONS.md Defekt B1, 2026-05-29)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_5_retains_image_before_and_image_after_shapes() -> None:
+    """Regression-guard against over-correction of Defekt B1.
+
+    Slide 5's "Vorher - Nachher"-Block needs both image_before and image_after
+    shapes. Defekt B1's fix removed only the rogue Slide-4 shape; Slide 5 must
+    keep both. If this test breaks, someone deleted too much.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide5 = pres.slides[4]  # 0-indexed
+    image_before_shapes = [s for s in slide5.shapes if s.name == _IMAGE_BEFORE_NAME]
+    image_after_shapes = [s for s in slide5.shapes if s.name == _IMAGE_AFTER_NAME]
+    assert len(image_before_shapes) == 1, (
+        f"Slide 5 must have exactly 1 '{_IMAGE_BEFORE_NAME}' shape, "
+        f"found {len(image_before_shapes)}."
+    )
+    assert len(image_after_shapes) == 1, (
+        f"Slide 5 must have exactly 1 '{_IMAGE_AFTER_NAME}' shape, found {len(image_after_shapes)}."
+    )
