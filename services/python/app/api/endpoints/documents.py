@@ -150,18 +150,29 @@ def _build_context(req: DocumentGenerateRequest) -> dict[str, str]:
     co2_tonnen_gesamt = derived.co2_tonnen_pro_jahr * study.vertragslaufzeit_jahre
     co2_fussballfelder_gesamt = derived.co2_fussballfelder_pro_jahr * study.vertragslaufzeit_jahre
 
+    # Compose the "address with flurstueck" — re-use the pre-rendered
+    # flurstueck_phrase so both Slide 2 (separate run) and Slide 3
+    # (inline) stay in sync on the empty-value case.
+    address_with_flurstueck = f"{req.object_name}{req.flurstueck_phrase}"
+
     return {
         # Customer / object identity.
         "consultant_full_name": req.consultant_name,
         "customer_object_address": f"{req.object_name}",
-        "customer_object_address_with_flurstueck": f"{req.object_name}",
+        "customer_object_address_with_flurstueck": address_with_flurstueck,
         "customer_object_name": req.object_name,
         "customer_object_short_name_and_city": object_short_and_city,
-        "flurstueck": "",  # filled from Study.flurstueck via Slice 3c follow-up.
+        # Empty-value-safe phrase keys (Defekte D1+D2+D3, 2026-05-29).
+        # Server Action pre-renders; empty string → surrounding template
+        # prefix/suffix collapses with the value.
+        "flurstueck_phrase": req.flurstueck_phrase,
+        "flurstueck_label_phrase": req.flurstueck_label_phrase,
+        "termin_1_phrase": req.termin_1_phrase,
+        "termin_2_phrase": req.termin_2_phrase,
+        "termin_oder_phrase": req.termin_oder_phrase,
+        "modul_info_phrase": req.modul_info_phrase,
         # PV inputs.
         "anlage_kwp": _format_anlage_kwp(study.anlage_kwp),
-        "modul_anzahl": "",
-        "modul_flaeche_m2": "",
         "pv_erzeugung_kwh_jahr": _format_kwh(study.pv_erzeugung_kwh_jahr),
         "pv_eigenverbrauch_kwh_jahr": _format_kwh(study.pv_eigenverbrauch_kwh_jahr),
         "pv_verkauf_ct_kwh": _format_ct(pv_verkauf_ct),
@@ -203,9 +214,10 @@ def _build_context(req: DocumentGenerateRequest) -> dict[str, str]:
         "co2_fussballfelder_gesamt_vertragslaufzeit": _format_int_thousands(
             co2_fussballfelder_gesamt
         ),
-        # Termin slots (empty until Slice-3c extends the request schema).
-        "termin_vorschlag_1": "",
-        "termin_vorschlag_2": "",
+        # Termin slots (raw-keys removed 2026-05-29 — Defekte D1+D2+D3).
+        # Slide 19 now uses the pre-rendered ``termin_1_phrase`` /
+        # ``termin_2_phrase`` above so empty values don't leave hanging
+        # "1) am  Uhr" template fragments.
     }
 
 

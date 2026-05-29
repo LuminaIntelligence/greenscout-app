@@ -39,6 +39,59 @@ class DocumentGenerateRequest(BaseModel):
     image_after_path: str | None = Field(
         None, description="Absolute path to the processed AFTER image on the shared volume."
     )
+    # Empty-value-safe phrase keys — Defekte D1+D2+D3 (2026-05-29).
+    # Server Action pre-renders each phrase; empty string means the
+    # template's surrounding prefix/suffix collapses into nothing.
+    # See ``src/features/studies/actions/generate-document.ts`` for the
+    # builder helpers and DECISIONS.md ``2026-05-29 — Defekte D1+D2+D3``.
+    # Defaults to empty string for backward-compat with older callers
+    # (e.g. tests that haven't been updated).
+    flurstueck_phrase: str = Field(
+        default="",
+        description=(
+            "Pre-rendered phrase incl. ' in Flurstück <value>' prefix, "
+            "or empty when no flurstueck is set. Slide 2."
+        ),
+    )
+    flurstueck_label_phrase: str = Field(
+        default="",
+        description=(
+            "Pre-rendered phrase like 'Flurstück: <value>', "
+            "or empty when no flurstueck is set. Slide 4 footer block."
+        ),
+    )
+    termin_1_phrase: str = Field(
+        default="",
+        description=(
+            "Pre-rendered Slot-1 termin phrase '1) am DD.MM.YYYY um HH:MM Uhr', "
+            "or empty when terminVorschlag1 is unset. Slide 19."
+        ),
+    )
+    termin_2_phrase: str = Field(
+        default="",
+        description=(
+            "Pre-rendered Slot-2 termin phrase '2) am DD.MM.YYYY um HH:MM Uhr', "
+            "or empty when terminVorschlag2 is unset. Slide 19."
+        ),
+    )
+    termin_oder_phrase: str = Field(
+        default="",
+        description=(
+            "Conjunction 'oder' between the two termin slots on Slide 19. "
+            "Only non-empty when BOTH terminVorschlag1 AND terminVorschlag2 "
+            "are set, so the standalone 'oder' doesn't orphan when one slot "
+            "is empty."
+        ),
+    )
+    modul_info_phrase: str = Field(
+        default="",
+        description=(
+            "Pre-rendered Slide-10 Gesamtleistung headline, e.g. "
+            "'500 kWp, 1.428 Module, 2.856 m²'. Drops optional Module / m² "
+            "segments when those values are unset. Always contains the kWp "
+            "headline so non-empty."
+        ),
+    )
 
 
 class DocumentGenerateResponse(BaseModel):
