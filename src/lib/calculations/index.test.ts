@@ -77,12 +77,30 @@ describe("ersparnisGesamtVertragslaufzeit", () => {
 });
 
 describe("pachtEinnahmeEinmalig", () => {
-  it("is anlageKwp * pachtEurProKwp * vertragslaufzeitJahre", () => {
-    expect(pachtEinnahmeEinmalig(makeInput())).toBeCloseTo(100 * 100 * 20, 6);
+  it("is anlageKwp * pachtEurProKwp (one-shot, SPEC §4.7, no vertragslaufzeit factor)", () => {
+    // 100 kWp × 100 €/kWp = 10.000 € einmalig.
+    expect(pachtEinnahmeEinmalig(makeInput())).toBeCloseTo(100 * 100, 6);
   });
 
   it("collapses to zero when pacht is zero", () => {
     expect(pachtEinnahmeEinmalig(makeInput({ pachtEurProKwp: 0 }))).toBe(0);
+  });
+
+  it("does NOT scale with vertragslaufzeitJahre (regression guard for §7.7)", () => {
+    // The 2026-05-27 production defect: an erroneous `× vertragslaufzeitJahre`
+    // factor produced 20× too high lease values. Two inputs that differ
+    // ONLY in contract duration must yield the same pacht.
+    const twenty = pachtEinnahmeEinmalig(makeInput({ vertragslaufzeitJahre: 20 }));
+    const fifteen = pachtEinnahmeEinmalig(makeInput({ vertragslaufzeitJahre: 15 }));
+    expect(twenty).toBe(fifteen);
+  });
+
+  it("§7.7 user-confirmed regression: 500 kWp × 100 €/kWp = 50.000 € (NOT 1.000.000 €)", () => {
+    // Verbatim the example the user confirmed on 2026-05-27.
+    const v = pachtEinnahmeEinmalig(
+      makeInput({ anlageKwp: 500, pachtEurProKwp: 100, vertragslaufzeitJahre: 20 }),
+    );
+    expect(v).toBe(50_000);
   });
 });
 
@@ -93,8 +111,9 @@ describe("gesamterzeugungVertragslaufzeit", () => {
 });
 
 describe("gesamtvorteil", () => {
-  it("sums ersparnisGesamtVertragslaufzeit + pachtEinnahmeEinmalig", () => {
-    expect(gesamtvorteil(makeInput())).toBeCloseTo(12_800 * 20 + 100 * 100 * 20, 6);
+  it("sums ersparnisGesamtVertragslaufzeit + pachtEinnahmeEinmalig (one-shot)", () => {
+    // 12.800 × 20 = 256.000 ersparnis + 100 × 100 = 10.000 pacht → 266.000.
+    expect(gesamtvorteil(makeInput())).toBeCloseTo(12_800 * 20 + 100 * 100, 6);
   });
 });
 
@@ -220,13 +239,14 @@ describe("composeAll", () => {
 
   it("snapshot of a representative input (regression guard)", () => {
     // Snapshot uses round numbers to defend against floating-point drift.
+    // Pacht is one-shot (SPEC §4.7, user-confirmed 2026-05-27): 100 × 100 = 10.000.
     expect(composeAll(makeInput())).toEqual({
       ersparnisProJahr: 12_800,
       ersparnisProMonat: 12_800 / 12,
       ersparnis20Jahre: 256_000,
-      pachtEinnahmeEinmalig: 200_000,
+      pachtEinnahmeEinmalig: 10_000,
       gesamterzeugung20j: 1_900_000,
-      gesamtvorteil: 456_000,
+      gesamtvorteil: 266_000,
       co2TonnenProJahr: (95_000 * 0.474) / 1000,
       co2HektarMischwald: ((95_000 * 0.474) / 1000) * 0.0177,
       co2FussballfelderProJahr: ((95_000 * 0.474) / 1000) * 0.0177 * 1.28,
