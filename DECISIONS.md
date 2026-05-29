@@ -3462,3 +3462,33 @@ Vier Anti-Regression-Tests sichern beide Invarianten:
 **Pause-Trigger-Check (§7):** keine. Template-Korrektur, keine Code-Logik-Änderung, kein neuer Dep, kein Schema-Change. §7.4 (UI / UX visible change) feuert NICHT, weil das PPTX-Layout vor diesem Fix kaputt war (asymmetrische Ergebnis-Zeile, überlappende Texte) und durch die Normalisierung wieder zum SPEC-konformen Gitter-Layout zurückkehrt.
 
 **Open question for the user:** —
+
+
+---
+
+## 2026-05-29 — Defekte C3 + C4: TEXT_TO_FIT_SHAPE auf Slide 1 + Slide 16
+
+**Context:** Erstes generiertes Produktions-PPTX zeigte zwei verwandte Render-Defekte mit gemeinsamem Root-Cause:
+- **Slide 1 (Defekt C3):** Berater-Name `Admin GreenScout` (16 Zeichen) ließ die Zeile „Eingereicht über Admin GreenScout / direkt vom Unternehm" abgeschnitten — die letzten beiden Buchstaben `en` von „Unternehmen" fehlten. Das Original-Template wurde mit dem Beispiel-Namen `Bernd Berater` (13 Zeichen) gebaut, daher fiel das Problem in der Template-Entwicklung nicht auf.
+- **Slide 16 (Defekt C4):** Variantenvergleich-Bullet „Konstante jährliche Einsparung: ca. 7.800 € und bei 20 Jahren ca.1" brach mid-word ab statt „ca. 156.000 €" anzuzeigen. Vor PR #50 (Pacht-Formel-Fix von 1.000.000 € → 50.000 €) war die Pacht-Zahl deutlich länger und hat die Spaltenbreite gesprengt; nach PR #50 ist die Zahl wahrscheinlich kurz genug, aber der zugrundeliegende Defekt (keinerlei `auto_size` auf den 12 Varianten-Shapes) bleibt latent.
+
+**Root cause:**
+- Slide 1 `Textfeld 3` hatte `auto_size = SHAPE_TO_FIT_TEXT` — bei längerem Text wächst das Shape vertikal nach unten, läuft aus dem sichtbaren Slide-Bereich heraus und der Text wird durch den Slide-Rand abgeschnitten.
+- Slide 16 alle 12 Varianten-Spalten-Shapes (Text 2 / 3 / 4 / 5 / 6 / 7 für Variante A und Text 8 / 9 / 10 / 11 / 12 / 13 für Variante B) hatten `auto_size = None`. Text überläuft die feste Shape-Box still und wird unsichtbar abgeschnitten — perfekt für stille Truncation wie „ca.1" statt „ca. 156.000 €".
+
+**Decision (User-Empfehlung aus dem Defekt-Report):**
+- **Slide 1 `Textfeld 3`:** `auto_size = TEXT_TO_FIT_SHAPE` + `word_wrap = True`. Längere Berater-Namen lassen die Schriftgröße schrumpfen statt das Shape wachsen.
+- **Slide 16 Varianten-Spalten (12 Shapes):** `auto_size = TEXT_TO_FIT_SHAPE` + `word_wrap = True` als Defense-in-Depth. Lange Pacht-/Ersparnis-Werte oder lange Objektnamen schrumpfen jetzt sichtbar, statt still abgeschnitten zu werden. Slide-Chrome-Shapes (Slide-Titel `Text 0`, Kunden-Subtitle `Text 1`, Foliennummer) bleiben unberührt — das sind statische Layout-Elemente, keine dynamischen Daten-Shapes.
+
+Zwei Anti-Regression-Tests sichern die Auto-Size-Eigenschaft (plus `word_wrap = True`-Invariante):
+- `test_slide_1_berater_shape_has_text_to_fit_shape_autosize`
+- `test_slide_16_variante_shapes_have_text_to_fit_shape_autosize`
+
+**Affected:**
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` — 13 Shapes modifiziert via `scripts/normalize-slide1-slide16-fit-to-shape.py` (einmalig ausgeführt, modifiziertes Template committet).
+- `scripts/normalize-slide1-slide16-fit-to-shape.py` — neues einmaliges Hilfsskript analog zu `scripts/normalize-slide17-grid.py`; idempotent (zweiter Lauf ist No-op auf den Auto-Size-Werten).
+- `services/python/tests/test_pptx_generator.py` — zwei neue Anti-Regression-Tests + zwei Modul-lokale Konstanten (`_SLIDE1_BERATER_SHAPE_NAME`, `_SLIDE16_VARIANTE_SHAPE_NAMES`).
+
+**Pause-Trigger-Check (§7):** keine. Template-Korrektur, keine Code-Logik-Änderung, kein neuer Dep, kein Schema-Change. §7.4 (UI / UX visible change) feuert NICHT, weil das PPTX-Output vor diesem Fix bereits sichtbar kaputt war (abgeschnittene Berater-Zeile, abgeschnittene Varianten-Werte) und die Normalisierung zu vollständiger, SPEC-konformer Anzeige zurückkehrt.
+
+**Open question for the user:** —
