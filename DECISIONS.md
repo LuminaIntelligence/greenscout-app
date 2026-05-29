@@ -3381,3 +3381,24 @@ berechnete Wert ändert sich (das ist eine Bug-Fix-Korrektur, kein API-Breakage)
 Andere Pause-Trigger nicht berührt.
 
 **Open question for the user:** — (geschlossen mit User-Freigabe 2026-05-27).
+
+---
+
+## 2026-05-29 — Defekt B1: Slide-4 `image_before`-Shape entfernt
+
+**Context:** Erstes generiertes Produktions-PPTX zeigte das BEFORE-Foto mitten in der „4 %"-Eigenverbrauch-Anzeige auf Slide 4. Foto verdeckte die Grafik, das „Eigenverbrauch"-Label hing sinnlos darunter. Nicht kundenpräsentabel. python-pptx-Inspektion bestätigte: `image_before`-Picture (L=568 T=420 W=227 H=176) liegt direkt über `Text 13 [4%]` (L=597 T=472) und `Text 17 [Eigenverbrauch]` (L=585 T=512).
+
+**Root cause:** Slice-3b's Template-Migration (T-037) hat auf Slide 4 das `Image 0`-Shape zu `image_before` umbenannt — basierend auf Disambiguierungs-Q5 vom 2026-05-26 („Slide 4: Image 0 = `{{image_before}}`"). Die Sign-off-Notiz im damaligen `docs/pptx-mapping.md`-Eintrag enthielt explizit den Caveat „**Post-merge visual check** required". Live-Test des ersten generierten PPTX bestätigt: war ein Fehler. Im Original-Template gibt es auf Slide 4 **gar keinen Foto-Platzhalter**; die Eigenverbrauch-Anzeige ist eine statische Text-/Grafik-Komposition (Shapes 13, 14, 15, 17, 18 + `Grafik 25`-Decoration).
+
+**Decision:** `image_before`-Shape auf Slide 4 ersatzlos aus dem Template entfernen. Slide 5 mit `Grafik 2` (image_before) und `Grafik 5` (image_after) bleibt unverändert — funktioniert dort korrekt im „Vorher - Nachher"-Block.
+
+**Affected:**
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` — Shape (id=16, name=`image_before`) auf Slide 4 gelöscht via `scripts/remove-slide4-image-shape.py` (einmalig ausgeführt, modified-Template committet).
+- `scripts/remove-slide4-image-shape.py` — neues einmaliges Hilfsskript analog zu `apply-pptx-placeholders.py`; idempotent (zweiter Lauf ist No-op mit Warnung).
+- `scripts/apply-pptx-placeholders.py` — `IMAGE_RENAMES`-Tuple `(4, "Image 0", "image_before")` entfernt, sodass ein erneuter Migrations-Lauf das Shape nicht wieder erzeugt. Inline-Kommentar verweist auf diese DECISIONS-Eintrag.
+- `docs/pptx-mapping.md` — Slide-4-Image-Slot-Eintrag aus der Per-Slide-Tabelle entfernt + Inline-Warnung. Aggregated-Key-List-Notiz zu `{{image_before}}` / `{{image_after}}` auf „Slide 5 only" präzisiert. Disambiguation-Summary-Item-5 als strike-through + Retraction-Notiz markiert.
+- `services/python/tests/test_pptx_generator.py` — zwei Anti-Regression-Tests ergänzt (`test_slide_4_has_no_image_before_shape_after_template_cleanup` + `test_slide_5_retains_image_before_and_image_after_shapes`); existierender `test_real_template_renders_with_images`-Assert von `>= 2` (slide 4 + 5) auf `== ["slide 5"]` (nur slide 5) verschärft.
+
+**Pause-Trigger-Check (§7):** keine. Template-Korrektur, keine Code-Logik-Änderung, kein neuer Dep, kein Schema-Change. §7.4 (UI / UX visible change) feuert NICHT, weil das PPTX-Layout vor diesem Fix kaputt war (Foto über Headline) und durch das Entfernen wieder zum SPEC-konformen Original-Zustand zurückkehrt — also keine „beyond design tokens"-Erweiterung, sondern Bug-Fix der zuvor durch T-037 eingeführten Abweichung vom Original-Template.
+
+**Open question for the user:** —

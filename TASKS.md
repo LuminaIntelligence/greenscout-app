@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekt A1 ✅ Pacht-Formel-Fix ohne Vertragslaufzeit-Faktor (SPEC §4.7, §7.7-Freigabe)
+- **Merged:** 2026-05-29 via PR #50.
+- **Branch:** `fix/pacht-formula-spec-7.7`
+- **Summary:** Production-Symptom: Pacht-Wert war 20× zu hoch (1.000.000 € statt 50.000 € für 500 kWp × 100 €/kWp) — schlug auf Slides 3, 4, 5, 9, 13, 16 + Kaskaden-Effekt auf `gesamtvorteil` durch. Root cause: Slice-2 hatte `pacht_einnahme_einmalig = anlage_kwp × pacht_eur_pro_kwp × vertragslaufzeit_jahre` implementiert; SPEC §4.7 fordert aber `anlage_kwp × pacht_eur_pro_kwp` (einmalige Zahlung, NICHT pro Jahr / NICHT skaliert mit Laufzeit). User-Freigabe §7.7 am 2026-05-27 bestätigt SPEC-Formel verbindlich. Fix: `* vertragslaufzeit_jahre` (Python) bzw. `* vertragslaufzeitJahre` (TS) entfernt; Inline-Docstrings auf SPEC §4.7 + User-Bestätigung referenziert. Parity-Fixtures aktualisiert (`pachtEinnahmeEinmalig` /20, `gesamtvorteil` entsprechend) + neue Fixture `pacht-formula-regression-500kwp` (verbatim User-Case). +4 Regression-Guard-Tests (duration-Invarianz + 500-kWp User-Case, TS + Python parallel). Carry-forward in PR #51 (Defekt B1) nachgeholt.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-27 — §7.7 User-confirmed: Pacht-Formel ohne Vertragslaufzeit-Faktor".
+
 ### Production-debug post-Slice-5a — Hotfix-Serie PRs #46–#49 ✅
 - **Merged:** 2026-05-26 / 2026-05-27 via PRs #46 (Image upload via Server Action statt Route Handler), #47 (Persistent deploy fixes: env-check + nginx-cleanup), #48 (Document-Generation 422 — diagnostic log + defensive checks), #49 (DerivedValues schema naming mismatch Web ↔ pyservice).
 - **Branches:** `fix/image-upload-server-action`, `fix/deploy-env-and-nginx`, `fix/document-generation-422-diagnostic`, `fix/pyservice-derived-values-naming-mismatch`.

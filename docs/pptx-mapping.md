@@ -126,8 +126,8 @@ implement exactly this set; any deviation should be flagged before merge.
 
 ### Image placeholders
 
-- `{{image_before}}` — `StudyImage.type = BEFORE` processed file (T-029b).
-- `{{image_after}}` — `StudyImage.type = AFTER` processed file (T-029b).
+- `{{image_before}}` — `StudyImage.type = BEFORE` processed file (T-029b). **Slide 5 only** (since Defekt B1, 2026-05-29).
+- `{{image_after}}` — `StudyImage.type = AFTER` processed file (T-029b). **Slide 5 only.**
 
 ---
 
@@ -183,7 +183,16 @@ Slide 4 is the **money slide** — it densely repeats key figures. Six shapes co
 | 4       | `Text 16 \| run 0` (Pacht block) | `27.500 `                        | `{{pacht_einnahme_einmalig_eur}} `                 | `DerivedValues.pacht_einnahme_einmalig`                                                         | Second occurrence on Slide 4 (Pachteinnahmen-Block). Identical source to Slide 3 run 7.                                                |
 | 4       | `Textfeld 34 \| run 1`           | `Linzgau Center, Pfullendorf. `  | `{{customer_object_short_name_and_city}}. `        | `Study.objectName + ', ' + Study.objectCity + '.'`                                              | Footer "Objektstandort: …" — short form, **not** the full address. Disambiguation note: this is shorter than `{{customer_object_address}}`. |
 | 4       | `Textfeld 34 \| run 2`           | `Flurstück: 78.10`               | `Flurstück: {{flurstueck}}`                        | `Study.flurstueck`                                                                              | Static prefix `Flurstück: ` + dynamic value.                                                                                          |
-| 4       | `Image 0` shape                  | _PIC shape_                      | **renamed to `image_before` (shape.name)**          | `StudyImage.type = BEFORE` (processed file from T-029b)                                          | **Resolved 2026-05-26** (item 5): Slide 4 has only one photo placeholder — `Image 0` — and it receives the BEFORE photo. The other `Grafik 25` is brand decoration and remains static. T-037 sets `shape.name = "image_before"` on `Image 0` so T-038b can find it by name. **Post-merge visual check** required: confirm the right shape received the photo when the first generated PPTX is opened. |
+
+> ⚠️ **2026-05-29 — Defekt B1, Slide-4 hat KEINEN Foto-Slot.** Die Eigenverbrauch-Anzeige
+> (`Text 13 = "4 %"` / `Text 14 = "Eigenverbrauch"` / `Text 15` etc.) ist eine statische
+> Text-/Grafik-Komposition. Der Disambiguierungs-Q5-Default vom 2026-05-26 (Slide 4 `Image 0`
+> → `image_before`) wurde nach Live-Verifikation des ersten generierten PPTX zurückgenommen,
+> weil das BEFORE-Foto mitten in der „4 %"-Anzeige saß. Das Shape wurde aus dem Template
+> entfernt (`scripts/remove-slide4-image-shape.py`), `IMAGE_RENAMES` in
+> `scripts/apply-pptx-placeholders.py` enthält den Eintrag nicht mehr. Siehe DECISIONS.md
+> Eintrag „2026-05-29 — Defekt B1: Slide-4 image_before-Shape entfernt". Slide 5 mit
+> `Grafik 2` / `Grafik 5` bleibt der einzige Ort, an dem BEFORE/AFTER-Fotos eingesetzt werden.
 
 ### Slide 5 — Jetzt / Später Wirtschaftlichkeit
 
@@ -324,7 +333,7 @@ T-039 / T-040.
 | 2 | 14       | Is `140.000 €` "Ohne PV" the full annual consumption × supplier price?                            | Yes — `{{stromkosten_ohne_pv_eur_jahr}}` = `verbrauch_kwh_jahr × versorger_preis_eur_kwh`. Rechenprobe: `400.000 × 0,35 = 140.000 €`. |
 | 3 | 14       | Is `115.400 €` "Mit PV" the residual-from-grid + eigenverbrauch-at-PV-price?                       | Yes (with one caveat) — `{{stromkosten_mit_pv_eur_jahr}}` = `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`. The avoided-cost reference is the Einspeisevergütung (PROVISIONAL 0,20 €/kWh constant — pending real 2026 lookup), NOT `pv_verkauf_eur_kwh` (which is the sales-to-grid price). Rechenprobe: `(400.000 − 164.000) × 0,35 + 164.000 × 0,20 = 115.400 €`. |
 | 4 | 19       | Should `Telefon` / `E-Mail` / `Adresse` lines stay as the central GreenScout contact, or rotate per-consultant? | Stay central. Only `{{consultant_full_name}}` rotates. Central contact: `+49 172 3794240`, `projektberatung@greenscout-ev.de`, `Utechter Str. 5, 19217 Utecht`. |
-| 5 | 4, 5     | Which exact shape names receive `{{image_before}}` and `{{image_after}}`?                          | Slide 4 `Image 0` → renamed to `image_before`. Slide 5 `Grafik 2` → `image_before`, `Grafik 5` → `image_after`, `Grafik 10` stays static (brand mark). **Post-merge visual check** required. |
+| 5 | 4, 5     | Which exact shape names receive `{{image_before}}` and `{{image_after}}`?                          | ~~Slide 4 `Image 0` → renamed to `image_before`.~~ **Retracted 2026-05-29 (Defekt B1)** — Slide 4 has no photo slot; the renamed shape covered the Eigenverbrauch-headline in the first generated PPTX. Shape removed from the committed template; Slide-4-entry dropped from `IMAGE_RENAMES`. Binding: Slide 5 `Grafik 2` → `image_before`, `Grafik 5` → `image_after`, `Grafik 10` stays static (brand mark). |
 | 6 | 9        | Slide 9's `32` ct/kWh literal differs from Slide 12/14/15's `35`. Unify to a single placeholder?  | Yes — single `{{versorger_preis_ct_kwh}}` placeholder across all four slides; consultant-entered value drives them uniformly.            |
 
 ---
