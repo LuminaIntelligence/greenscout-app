@@ -3432,3 +3432,33 @@ Innerhalb eines Segments bleibt das Run-Stitching unverändert, sodass Template-
 **Pause-Trigger-Check (§7):** keine. Reiner Bug-Fix der Replace-Logik, keine API-Änderung, kein neuer Dep, kein Schema-Change. §7.5 (breaking API change) feuert nicht: alle existierenden 19 pptx_generator-Tests bleiben grün, ebenso die volle 153-Test-Suite. §7.4 (UI/UX visible change) feuert nicht: Output war zuvor kaputt (verschluckte Brüche, fehlende Werte) und kehrt jetzt zum SPEC-konformen Layout zurück.
 
 **Open question for the user:** —
+
+
+---
+
+## 2026-05-29 — Defekt C2: Slide-17 Grid normalisiert (TEXT_TO_FIT_SHAPE + Y-Position)
+
+**Context:** Erstes generiertes Produktions-PPTX zeigte auf Slide 17 („Der Weg zur Inbetriebnahme") ein zertrümmertes Layout. Die Folie ist eine 7-Spalten × 2-Zeilen-Gitter-Komposition (Phasen 1–7, je eine Inhalte-Zelle oben und eine Ergebnisse-Zelle unten). python-pptx-Inspektion bestätigte: Inhalte-Shapes haben unterschiedliche Höhen (271/285/344/344/445/184/169 px-Äquivalente), und genau das längste Inhalte-Shape (Textfeld 5 „Bauausführung", H=445) hat den darunter liegenden Ergebnis-Shape (Textfeld 11, Spalte 5) um 70 px nach unten gedrückt: dessen `top` saß bei 639 statt 569 wie die anderen sechs Spalten. Resultat: Ergebnis-Zeile visuell auf zwei verschiedenen Y-Höhen, Texte einzelner Zellen überlappten optisch mit benachbarten Inhalte-Shapes.
+
+**Root cause:** Alle Inhalte-Shapes auf Slide 17 trugen `auto_size = SHAPE_TO_FIT_TEXT` — bei dieser Einstellung wächst das Shape vertikal mit seinem Text. Slide 17 ist aber eine Gitter-Komposition mit fester Spalten-/Zeilen-Struktur; das ursprüngliche Template-Design ignoriert, dass künftige Studien-Texte (im Original sind die Inhalte hartkodiert) länger sein können und das Grid sprengen. Zusätzlich war Textfeld 11 (col 5 Ergebnis) bereits im Original auf T=639 platziert — vermutlich, weil der Original-Designer Textfeld 5's H=445 nachträglich erkannt und manuell „korrigiert" hat, ohne das Grid wirklich zu reparieren. Das ergab das beobachtete asymmetrische Layout.
+
+**Decision (User-Empfehlung (a) aus dem Defekt-Report):**
+- **Inhalte-Shapes (Textfeld 2, 3, 4, 5, 6, 7, 20):** Höhe auf den aktuellen Maximalwert (445 px-Äquivalent EMU) normalisiert. Alle sieben Spalten teilen eine einheitliche Höhe.
+- **Inhalte-Shapes:** `auto_size = TEXT_TO_FIT_SHAPE` + `word_wrap = True`. Lange Studien-Texte schrumpfen jetzt in die fixe Slot-Höhe statt das Shape zu strecken; nachfolgende Shapes bleiben on-grid.
+- **Ergebnis-Shapes (Textfeld 8, 9, 10, 11, 12, 13, 21):** `top` auf 569 px-Äquivalent EMU (Median der aktuellen Werte) normalisiert. In der Praxis bewegt sich nur Textfeld 11 (639 → 569); die anderen sechs sind No-op-Konvergenz.
+- **Ergebnis-Shapes:** ebenfalls `TEXT_TO_FIT_SHAPE` + `word_wrap = True` aus demselben Forward-Fragility-Grund.
+
+Vier Anti-Regression-Tests sichern beide Invarianten:
+- `test_slide_17_inhalt_shapes_have_text_to_fit_shape_autosize`
+- `test_slide_17_inhalt_shapes_share_uniform_height`
+- `test_slide_17_ergebnis_row_y_position_uniform`
+- `test_slide_17_ergebnis_shapes_have_text_to_fit_shape_autosize`
+
+**Affected:**
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` — 14 Shapes modifiziert via `scripts/normalize-slide17-grid.py` (einmalig ausgeführt, modified-Template committet).
+- `scripts/normalize-slide17-grid.py` — neues einmaliges Hilfsskript analog zu `scripts/remove-slide4-image-shape.py`; idempotent (zweiter Lauf ist No-op).
+- `services/python/tests/test_pptx_generator.py` — vier neue Anti-Regression-Tests + zwei Modul-lokale Konstanten (`_SLIDE17_INHALT_NAMES`, `_SLIDE17_ERGEBNIS_NAMES`).
+
+**Pause-Trigger-Check (§7):** keine. Template-Korrektur, keine Code-Logik-Änderung, kein neuer Dep, kein Schema-Change. §7.4 (UI / UX visible change) feuert NICHT, weil das PPTX-Layout vor diesem Fix kaputt war (asymmetrische Ergebnis-Zeile, überlappende Texte) und durch die Normalisierung wieder zum SPEC-konformen Gitter-Layout zurückkehrt.
+
+**Open question for the user:** —
