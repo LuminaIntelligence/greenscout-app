@@ -370,3 +370,266 @@ def test_slide_5_retains_image_before_and_image_after_shapes() -> None:
     assert len(image_after_shapes) == 1, (
         f"Slide 5 must have exactly 1 '{_IMAGE_AFTER_NAME}' shape, found {len(image_after_shapes)}."
     )
+
+
+# --- anti-regression tests for paragraph + line-break preservation ---
+# --- (Defekte C1 + F1, 2026-05-29) -----------------------------------
+
+
+# Namespace constants used by the raw-XML helpers below. python-pptx hides
+# these behind its abstractions but they are stable across versions.
+_A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+
+
+def _count_paragraphs(text_frame: object) -> int:
+    """Return the number of ``<a:p>`` paragraph elements in a text frame."""
+    return len(text_frame.paragraphs)  # type: ignore[attr-defined]
+
+
+def _count_soft_breaks(text_frame: object) -> int:
+    """Return the total number of ``<a:br/>`` soft-line-break elements
+    across every paragraph in a text frame."""
+    total = 0
+    for paragraph in text_frame.paragraphs:  # type: ignore[attr-defined]
+        for child in paragraph._p.iterchildren():
+            if child.tag == f"{{{_A_NS}}}br":
+                total += 1
+    return total
+
+
+def test_substitution_preserves_paragraph_count_in_text_frame(tmp_path: Path) -> None:
+    """Defekt C1+F1 (2026-05-29): substitution MUST NOT reduce the paragraph
+    count of any text frame.
+
+    A 3-paragraph text frame with a placeholder in the middle paragraph
+    must still have 3 paragraphs after substitution. Cross-paragraph
+    token-spanning is unsupported by design; reducing paragraph count is
+    the symptom of the bug we are guarding against.
+    """
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(4), Inches(2))
+    tf = tx.text_frame
+    tf.text = "Line one"
+    p2 = tf.add_paragraph()
+    p2.text = "Hello {{name}}"
+    p3 = tf.add_paragraph()
+    p3.text = "Line three"
+
+    assert _count_paragraphs(tf) == 3, "test setup expects 3 paragraphs"
+
+    _replace_in_shape(tx, {"name": "World"})
+
+    assert _count_paragraphs(tf) == 3, (
+        f"Substitution reduced paragraphs from 3 to {_count_paragraphs(tf)} — "
+        "see Defekte C1+F1, DECISIONS 2026-05-29."
+    )
+    assert tf.paragraphs[0].text == "Line one"
+    assert tf.paragraphs[1].text == "Hello World"
+    assert tf.paragraphs[2].text == "Line three"
+
+
+def test_substitution_preserves_soft_line_breaks_within_paragraph(
+    tmp_path: Path,
+) -> None:
+    """Defekt C1+F1 (2026-05-29): ``<a:br/>`` siblings must survive substitution.
+
+    A single paragraph with the structure ``[run] <a:br/> [run with {{token}}]
+    <a:br/> [run]`` must come out with the same two ``<a:br/>`` elements
+    in place. Previously the implementation concatenated every run in the
+    paragraph into one string, then dumped the substituted text back into
+    runs[0] — leaving the orphaned ``<a:br/>`` siblings after a giant run,
+    which is exactly the rendering bug we observed on Slide 5 (Textfeld 11)
+    and Slide 9 (Text 21).
+    """
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = tx.text_frame
+
+    # Build one paragraph with run / br / run / br / run structure.
+    # python-pptx exposes ``add_run`` and ``add_line_break`` on paragraphs.
+    para = tf.paragraphs[0]
+    para.add_run().text = "Pacht: "
+    para.add_run().text = "{{pacht}}"
+    para.add_line_break()
+    para.add_run().text = "Strom: "
+    para.add_run().text = "{{strom}}"
+    para.add_line_break()
+    para.add_run().text = "Fertig"
+
+    assert _count_paragraphs(tf) == 1, "test setup: single paragraph"
+    assert _count_soft_breaks(tf) == 2, "test setup: two <a:br/> elements"
+
+    _replace_in_shape(tx, {"pacht": "50.000 €", "strom": "156.000 €"})
+
+    # Invariants: paragraph count + soft-break count unchanged.
+    assert _count_paragraphs(tf) == 1, "paragraph count must not change"
+    assert _count_soft_breaks(tf) == 2, (
+        f"Soft-break count dropped from 2 to {_count_soft_breaks(tf)} — "
+        "see Defekte C1+F1, DECISIONS 2026-05-29."
+    )
+
+    # Each segment between <a:br/> elements got its substitution.
+    para = tf.paragraphs[0]
+    segment_texts: list[str] = []
+    current: list[str] = []
+    for child in para._p.iterchildren():
+        local = child.tag.split("}", 1)[-1]
+        if local == "br":
+            segment_texts.append("".join(current))
+            current = []
+        elif local == "r":
+            t = child.find(f"{{{_A_NS}}}t")
+            current.append(t.text or "" if t is not None else "")
+    segment_texts.append("".join(current))
+    assert segment_texts == [
+        "Pacht: 50.000 €",
+        "Strom: 156.000 €",
+        "Fertig",
+    ], f"Per-segment substitution wrong: {segment_texts!r}"
+
+
+def test_substitution_handles_token_split_across_runs_within_segment(
+    tmp_path: Path,
+) -> None:
+    """Within a single segment (no ``<a:br/>``), a token split across runs
+    must still be substituted via run-stitching."""
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = tx.text_frame
+    para = tf.paragraphs[0]
+    # The {{name}} token is split: {{ + na + me + }}
+    para.add_run().text = "Hallo {{"
+    para.add_run().text = "na"
+    para.add_run().text = "me"
+    para.add_run().text = "}}!"
+
+    _replace_in_shape(tx, {"name": "Welt"})
+
+    full_text = "".join(r.text for r in para.runs)
+    assert full_text == "Hallo Welt!", f"Run-stitching within a segment failed: got {full_text!r}"
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_real_template_slide_5_textfeld_11_keeps_kwh_einsparpotential_break(
+    tmp_path: Path,
+) -> None:
+    """Defekt C1 (2026-05-29): Slide 5 Shape 12 'Textfeld 11' must keep the
+    soft line break between ``kWh`` and ``Einsparpotential``.
+
+    Before the fix, the rendered text smushed them together as
+    ``"22 CENT netto / kWhEinsparpotential gegenüber …"``. The fix
+    preserves the ``<a:br/>`` element inside paragraph 0, so the runs
+    on either side of the break stay on separate visual lines.
+    """
+    ctx = {k: f"<{k}>" for k in _full_context()}
+    ctx["pv_verkauf_ct_kwh"] = "22,00"
+    ctx["ersparnis_gesamt_vertragslaufzeit_eur"] = "156.000"
+
+    out = tmp_path / "slide5-c1.pptx"
+    generate_pptx(_REAL_TEMPLATE, out, context=ctx)
+
+    pres = Presentation(str(out))
+    slide5 = pres.slides[4]
+    target = next((s for s in slide5.shapes if s.name == "Textfeld 11"), None)
+    assert target is not None, "Slide 5 must contain 'Textfeld 11'"
+    tf = target.text_frame
+
+    # Paragraph count of the original template must be preserved.
+    assert _count_paragraphs(tf) == 3, (
+        f"Slide 5 Textfeld 11 must keep 3 paragraphs after substitution, "
+        f"got {_count_paragraphs(tf)} (see DECISIONS Defekt C1, 2026-05-29)."
+    )
+
+    # The first paragraph must still contain exactly one <a:br/> separating
+    # the kWh line from "Einsparpotential gegenüber".
+    para0 = tf.paragraphs[0]
+    br_count = sum(1 for c in para0._p.iterchildren() if c.tag == f"{{{_A_NS}}}br")
+    assert br_count == 1, (
+        f"Slide 5 Textfeld 11 paragraph 0 must keep its <a:br/> line break, "
+        f"got {br_count} (Defekt C1)."
+    )
+
+    # The substituted text contains both halves (sanity).
+    full = tf.text
+    assert "22,00 CENT" in full
+    assert "netto / kWh" in full
+    assert "Einsparpotential" in full
+    assert "kWhEinsparpotential" not in full, (
+        "Slide 5 Textfeld 11 rendered without the soft line break — "
+        "this is the exact symptom of Defekt C1 (2026-05-29)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_real_template_slide_9_text_21_renders_all_three_box_05_values(
+    tmp_path: Path,
+) -> None:
+    """Defekt F1 (2026-05-29): Slide 9 Box 05 must show Pacht / Strom / CO2
+    values next to their labels.
+
+    Before the fix, the box rendered only the three labels with empty
+    trailing colons because the paragraph's runs (separated by ``<a:br/>``
+    elements) were collapsed into a single run before substitution.
+    """
+    ctx = {k: f"<{k}>" for k in _full_context()}
+    ctx["pacht_einnahme_einmalig_eur"] = "50.000"
+    ctx["ersparnis_gesamt_vertragslaufzeit_eur"] = "156.000"
+    ctx["co2_tonnen_gesamt_vertragslaufzeit"] = "28,44"
+
+    out = tmp_path / "slide9-f1.pptx"
+    generate_pptx(_REAL_TEMPLATE, out, context=ctx)
+
+    pres = Presentation(str(out))
+    slide9 = pres.slides[8]
+    target = next((s for s in slide9.shapes if s.name == "Text 21"), None)
+    assert target is not None, "Slide 9 must contain 'Text 21'"
+    tf = target.text_frame
+
+    # Slice the paragraph at every <a:br/> so we can assert per-line content.
+    para = tf.paragraphs[0]
+    segments: list[str] = []
+    buffer: list[str] = []
+    for child in para._p.iterchildren():
+        local = child.tag.split("}", 1)[-1]
+        if local == "br":
+            segments.append("".join(buffer))
+            buffer = []
+        elif local == "r":
+            t = child.find(f"{{{_A_NS}}}t")
+            buffer.append((t.text or "") if t is not None else "")
+    segments.append("".join(buffer))
+
+    # The template's first segment is the Kostenvorteil header line; the
+    # next three segments are the Pacht / Strom / CO2 rows. Assert the
+    # values landed in the correct segments.
+    pacht_segment = next((s for s in segments if "Pachteinnahmen" in s), "")
+    strom_segment = next((s for s in segments if "Stromersparnis" in s), "")
+    co2_segment = next((s for s in segments if "CO2 Ersparnis" in s), "")
+
+    assert "50.000" in pacht_segment, (
+        f"Pacht value missing from its line: {pacht_segment!r} (Defekt F1, 2026-05-29)."
+    )
+    assert "156.000" in strom_segment, (
+        f"Strom value missing from its line: {strom_segment!r} (Defekt F1, 2026-05-29)."
+    )
+    assert "28,44" in co2_segment, (
+        f"CO2 value missing from its line: {co2_segment!r} (Defekt F1, 2026-05-29)."
+    )
