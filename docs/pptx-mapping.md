@@ -355,6 +355,21 @@ implementer of T-037 and T-038a to consume:
    preserving the formatting of the **first** run that began the
    placeholder. See SPEC §4.8 + the existing `Textfeld 13` patterns
    where the red value and the trailing space live in adjacent runs.
+
+   **Update 2026-05-29 (Defekte C1 + F1)** — stitching must be done
+   **segment-locally**, not paragraph-globally. A DrawingML paragraph
+   can contain `<a:br/>` soft-line-break siblings between runs (e.g.
+   Slide 5 `Textfeld 11` between `netto / kWh` and `Einsparpotential
+   gegenüber`; Slide 9 `Text 21` between every Pacht / Strom / CO₂
+   row). The generator stitches runs only within a segment bounded by
+   `<a:br/>` elements; cross-segment stitching is forbidden because
+   it would dump every line into the first run and orphan the
+   `<a:br/>` siblings, smushing the visible text together. The
+   invariant is asserted by `test_substitution_preserves_soft_line_breaks_within_paragraph`
+   and the real-template tests
+   `test_real_template_slide_5_textfeld_11_keeps_kwh_einsparpotential_break` /
+   `test_real_template_slide_9_text_21_renders_all_three_box_05_values`
+   in `services/python/tests/test_pptx_generator.py`.
 3. **`TEXT_TO_FIT_SHAPE`**: shapes flagged in the Notes column above
    (long addresses, object names) need the auto-size attribute set in
    T-037's `apply_placeholders.py` script — see T-037 acceptance criteria.
