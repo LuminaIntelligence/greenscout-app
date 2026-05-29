@@ -264,10 +264,16 @@ def test_build_context_includes_every_known_placeholder() -> None:
         "customer_object_address_with_flurstueck",
         "customer_object_name",
         "customer_object_short_name_and_city",
-        "flurstueck",
+        # Empty-value-safe phrase keys (Defekte D1+D2+D3, 2026-05-29).
+        # These replaced the raw-keys flurstueck / modul_anzahl /
+        # modul_flaeche_m2 / termin_vorschlag_1 / termin_vorschlag_2.
+        "flurstueck_phrase",
+        "flurstueck_label_phrase",
+        "termin_1_phrase",
+        "termin_2_phrase",
+        "termin_oder_phrase",
+        "modul_info_phrase",
         "anlage_kwp",
-        "modul_anzahl",
-        "modul_flaeche_m2",
         "pv_erzeugung_kwh_jahr",
         "pv_eigenverbrauch_kwh_jahr",
         "pv_verkauf_ct_kwh",
@@ -294,8 +300,6 @@ def test_build_context_includes_every_known_placeholder() -> None:
         "co2_fussballfelder_pro_jahr",
         "co2_tonnen_gesamt_vertragslaufzeit",
         "co2_fussballfelder_gesamt_vertragslaufzeit",
-        "termin_vorschlag_1",
-        "termin_vorschlag_2",
     }
     assert expected_keys.issubset(set(ctx.keys()))
 
