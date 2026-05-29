@@ -765,3 +765,109 @@ def test_real_template_slide_9_text_21_renders_all_three_box_05_values(
     assert "28,44" in co2_segment, (
         f"CO2 value missing from its line: {co2_segment!r} (Defekt F1, 2026-05-29)."
     )
+
+
+# --- anti-regression tests for Slide-1 + Slide-16 TEXT_TO_FIT_SHAPE (Defekte C3 + C4) ---
+
+# Slide 1 (Defekt C3): The "Eingereicht über {{consultant_full_name}} /
+# direkt vom Unternehmen" line lives in shape ``Textfeld 3``. The template
+# originally shipped with ``auto_size = SHAPE_TO_FIT_TEXT``, which made
+# longer Berater-names (e.g. "Admin GreenScout") grow the shape until the
+# trailing word "Unternehmen" was clipped off the slide. Per DECISIONS
+# 2026-05-29, the shape was normalized to TEXT_TO_FIT_SHAPE + word_wrap.
+#
+# Slide 16 (Defekt C4): The Variantenvergleich grid has two columns of
+# bullets carrying dynamic Pacht / Ersparnis values. None of the column
+# shapes had any auto_size set, so overflow was silent. Per DECISIONS
+# 2026-05-29, every Varianten-shape was normalized to TEXT_TO_FIT_SHAPE +
+# word_wrap so future longer values shrink rather than truncate.
+
+_SLIDE1_BERATER_SHAPE_NAME = "Textfeld 3"
+
+_SLIDE16_VARIANTE_SHAPE_NAMES = {
+    # Variante A column (Titel + 5 bullets)
+    "Text 2",
+    "Text 3",
+    "Text 4",
+    "Text 5",
+    "Text 6",
+    "Text 7",
+    # Variante B column (Titel + 5 bullets)
+    "Text 8",
+    "Text 9",
+    "Text 10",
+    "Text 11",
+    "Text 12",
+    "Text 13",
+}
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_1_berater_shape_has_text_to_fit_shape_autosize() -> None:
+    """Defekt C3 (2026-05-29): Slide-1 Berater-Shape must use TEXT_TO_FIT_SHAPE.
+
+    With SHAPE_TO_FIT_TEXT (the original template setting) a long
+    Berater-Name pushed the trailing "Unternehmen" word off the slide
+    and the customer saw a truncated sentence
+    ("…direkt vom Unternehm"). TEXT_TO_FIT_SHAPE shrinks the font
+    instead, keeping the full sentence visible at any reasonable name
+    length.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide1 = pres.slides[0]
+    berater_shape = next(
+        (s for s in slide1.shapes if s.name == _SLIDE1_BERATER_SHAPE_NAME),
+        None,
+    )
+
+    assert berater_shape is not None, (
+        f"Slide 1 Berater-Shape {_SLIDE1_BERATER_SHAPE_NAME!r} not found"
+    )
+    assert berater_shape.has_text_frame, f"Slide 1 shape {berater_shape.name!r} lost its text frame"
+    assert berater_shape.text_frame.auto_size == MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE, (
+        f"Slide 1 Berater-Shape {berater_shape.name!r} auto_size is "
+        f"{berater_shape.text_frame.auto_size!r}, expected TEXT_TO_FIT_SHAPE — "
+        "see DECISIONS Defekt C3, 2026-05-29."
+    )
+    assert berater_shape.text_frame.word_wrap is True, (
+        f"Slide 1 Berater-Shape {berater_shape.name!r} word_wrap must be True "
+        "alongside TEXT_TO_FIT_SHAPE — see DECISIONS Defekt C3, 2026-05-29."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_16_variante_shapes_have_text_to_fit_shape_autosize() -> None:
+    """Defekt C4 (2026-05-29): Slide-16 Varianten-Spalten must use TEXT_TO_FIT_SHAPE.
+
+    Variantenvergleich bullets carry dynamic Pacht / Ersparnis values.
+    Without auto-fit, longer numeric values silently overflow the shape
+    bounds (the exact symptom of Defekt C4: "ca.1" instead of
+    "ca. 156.000 €"). All 12 Varianten-shapes (2 columns x 6 rows) are
+    normalized to TEXT_TO_FIT_SHAPE + word_wrap as defense in depth.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide16 = pres.slides[15]
+    variante_shapes = [s for s in slide16.shapes if s.name in _SLIDE16_VARIANTE_SHAPE_NAMES]
+
+    assert len(variante_shapes) == len(_SLIDE16_VARIANTE_SHAPE_NAMES), (
+        f"Expected {len(_SLIDE16_VARIANTE_SHAPE_NAMES)} Varianten-shapes on "
+        f"slide 16, found {len(variante_shapes)}: "
+        f"{sorted(s.name for s in variante_shapes)} vs expected "
+        f"{sorted(_SLIDE16_VARIANTE_SHAPE_NAMES)}"
+    )
+
+    for shape in variante_shapes:
+        assert shape.has_text_frame, f"Slide 16 shape {shape.name!r} lost its text frame"
+        assert shape.text_frame.auto_size == MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE, (
+            f"Slide 16 shape {shape.name!r} auto_size is "
+            f"{shape.text_frame.auto_size!r}, expected TEXT_TO_FIT_SHAPE — "
+            "see DECISIONS Defekt C4, 2026-05-29."
+        )
+        assert shape.text_frame.word_wrap is True, (
+            f"Slide 16 shape {shape.name!r} word_wrap must be True alongside "
+            "TEXT_TO_FIT_SHAPE — see DECISIONS Defekt C4, 2026-05-29."
+        )
