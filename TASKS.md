@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekt C2 ✅ Slide-17 Grid normalisiert (TEXT_TO_FIT_SHAPE + Y-Position)
+- **Merged:** 2026-05-29 via PR #53.
+- **Branch:** `fix/slide-17-fit-to-shape`
+- **Summary:** Production-Symptom: Slide 17 („Der Weg zur Inbetriebnahme") rendert ein zertrümmertes 7×2-Grid — Ergebnis-Spalte 5 (`Textfeld 11`) sass bei T=639 statt T≈569 wie die anderen sechs Spalten, und das längste Inhalte-Shape (`Textfeld 5`, H=445) sprengte die einheitliche Zeilenhöhe. Root cause: alle Inhalte-Shapes trugen `auto_size = SHAPE_TO_FIT_TEXT`, also wuchsen mit ihrem Text und drückten die Ergebnis-Reihe off-grid; Textfeld 11 wurde im Original manuell „nach unten korrigiert", ohne das eigentliche Grid zu reparieren. Fix: Alle 7 Inhalte-Shapes auf einheitliche Höhe (445 px-Äquivalent EMU) normalisiert + `TEXT_TO_FIT_SHAPE` + `word_wrap=True`; alle 7 Ergebnis-Shapes auf einheitlichen `top` (569 px-Äquivalent EMU) normalisiert + selbe Auto-Size-Eigenschaft. Einmaliges `scripts/normalize-slide17-grid.py` (idempotent); vier Anti-Regression-Tests (Inhalte-Auto-Size, Inhalte-Höhen-Uniformität, Ergebnis-Top-Uniformität, Ergebnis-Auto-Size). Carry-forward-Status-Flip in PR #54 (C3+C4) nachgeholt.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-29 — Defekt C2: Slide-17 Grid normalisiert (TEXT_TO_FIT_SHAPE + Y-Position)".
+
 ### Defekte C1+F1 ✅ PPTX-Replace erhält Paragraphen + Soft-Line-Breaks
 - **Merged:** 2026-05-29 via PR #52.
 - **Branch:** `fix/pptx-text-replacement-preserves-paragraphs`
