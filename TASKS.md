@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekte C3+C4 ✅ TEXT_TO_FIT_SHAPE auf Slide 1 + Slide 16
+- **Merged:** 2026-05-29 via PR #54.
+- **Branch:** `fix/text-fit-on-overflow-shapes`
+- **Summary:** Production-Symptome: Slide 1 (Titelfolie) `customer_object_address` und `customer_name` Shapes hatten kein `MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` — lange Adressen / Firmennamen liefen aus der Box raus. Slide 16 (`object_name`) trug dasselbe Problem für lange Objekt-Bezeichnungen. SPEC §4.8 fordert explizit `TEXT_TO_FIT_SHAPE` für „text boxes with potentially long content (addresses, object names, customer name)" — bei der T-037-Template-Migration für diese drei Shapes übersehen. Fix: einmaliges Skript `scripts/normalize-slide1-slide16-fit-to-shape.py` (idempotent) setzt `auto_size = TEXT_TO_FIT_SHAPE` + `word_wrap = True` auf die drei Shapes; drei Anti-Regression-Tests (eines pro Shape) erzwingen, dass das Property gesetzt bleibt. Carry-forward-Status-Flip in PR #55 (Defekte D1+D2+D3 — Empty-Value-Rendering) nachgeholt.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-29 — Defekte C3+C4: TEXT_TO_FIT_SHAPE auf Slide 1 + Slide 16".
+
 ### Defekt C2 ✅ Slide-17 Grid normalisiert (TEXT_TO_FIT_SHAPE + Y-Position)
 - **Merged:** 2026-05-29 via PR #53.
 - **Branch:** `fix/slide-17-fit-to-shape`
