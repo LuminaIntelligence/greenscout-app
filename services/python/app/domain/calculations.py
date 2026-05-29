@@ -64,8 +64,19 @@ def ersparnis_gesamt_vertragslaufzeit(inp: StudyCalcInput) -> Decimal:
 
 
 def pacht_einnahme_einmalig(inp: StudyCalcInput) -> Decimal:
-    """EUR — ``anlage_kwp * pacht_eur_pro_kwp * vertragslaufzeit_jahre``."""
-    return _d(inp.anlage_kwp) * _d(inp.pacht_eur_pro_kwp) * Decimal(inp.vertragslaufzeit_jahre)
+    """EUR — ``anlage_kwp * pacht_eur_pro_kwp`` (one-shot lease income, SPEC §4.7).
+
+    NOTE: This is the *einmalige* lease payment paid by the investor to
+    the property owner upon contract signing. It does NOT scale with
+    ``vertragslaufzeit_jahre`` — the contract duration is the period over
+    which the property is leased, not a multiplier on the price.
+
+    User-confirmed binding on 2026-05-27 (§7.7 pause-trigger resolution
+    in DECISIONS.md). Example: 500 kWp * 100 EUR/kWp = 50.000 EUR one-shot.
+    Equivalent via area: (m2 / 5) * 100, because 1 kWp ~= 5 m2 usable roof
+    surface (Slide-5 footnote in the original template).
+    """
+    return _d(inp.anlage_kwp) * _d(inp.pacht_eur_pro_kwp)
 
 
 def gesamterzeugung_vertragslaufzeit(inp: StudyCalcInput) -> Decimal:
