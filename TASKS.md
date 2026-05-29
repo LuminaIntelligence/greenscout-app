@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekte C1+F1 ✅ PPTX-Replace erhält Paragraphen + Soft-Line-Breaks
+- **Merged:** 2026-05-29 via PR #52.
+- **Branch:** `fix/pptx-text-replacement-preserves-paragraphs`
+- **Summary:** Production-Symptome: Slide 5 (`Textfeld 11`) zeigte „22 CENT netto / kWh**Einsparpotential** gegenüber …" — Soft-Line-Break zwischen `kWh` und `Einsparpotential` verschluckt; Slide 9 (`Text 21`, Box 05) zeigte nur drei Labels („Pachteinnahmen:", „Stromersparnis auf 20 Jahre:", „CO2 Ersparnis auf 20 Jahre:") — die drei Werte hinter den Doppelpunkten fehlten komplett. Root cause: `pptx_generator._replace_in_paragraph` konkatenierte ALLE Runs eines `<a:p>`-Paragraphen, substituierte das Konkatenat, schrieb das Ergebnis in `runs[0].text` und leerte alle anderen — dabei wurden die `<a:br/>`-Soft-Line-Break-Siblings nach dem nun riesigen Run-0 verschoben, statt zwischen den ursprünglichen Run-Gruppen zu bleiben. Fix: `_replace_in_paragraph` segmentiert jetzt paragraph-lokal an `<a:br/>`-Grenzen und stitcht/substituiert ausschließlich innerhalb eines Segments. Cross-Segment-Token-Spanning ist explizit nicht unterstützt (würde wieder Soft-Breaks fressen). 5 neue Anti-Regression-Tests (Paragraph-Count, Soft-Break-Count, Within-Segment-Token-Stitching, plus zwei echte Template-Tests für Slide 5 und Slide 9). Carry-forward Status-Flip in PR #53.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-29 — Defekte C1+F1: Run-Stitching erhält Paragraphen + Soft-Line-Breaks".
+
 ### Defekt B1 ✅ Slide-4 `image_before`-Shape entfernt (Template-Korrektur, Live-Verifikation)
 - **Merged:** 2026-05-29 via PR #51.
 - **Branch:** `fix/slide-4-image-mapping`
