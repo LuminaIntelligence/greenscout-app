@@ -730,8 +730,9 @@ def test_real_template_slide_9_text_21_renders_all_three_box_05_values(
     elements) were collapsed into a single run before substitution.
     """
     ctx = {k: f"<{k}>" for k in _full_context()}
-    ctx["pacht_einnahme_einmalig_eur"] = "50.000"
-    ctx["ersparnis_gesamt_vertragslaufzeit_eur"] = "156.000"
+    # Defekt E1 (2026-05-30): EUR-Werte mit IMMER zwei Nachkommastellen.
+    ctx["pacht_einnahme_einmalig_eur"] = "50.000,00"
+    ctx["ersparnis_gesamt_vertragslaufzeit_eur"] = "156.000,00"
     ctx["co2_tonnen_gesamt_vertragslaufzeit"] = "28,44"
 
     out = tmp_path / "slide9-f1.pptx"
@@ -764,10 +765,10 @@ def test_real_template_slide_9_text_21_renders_all_three_box_05_values(
     strom_segment = next((s for s in segments if "Stromersparnis" in s), "")
     co2_segment = next((s for s in segments if "CO2 Ersparnis" in s), "")
 
-    assert "50.000" in pacht_segment, (
+    assert "50.000,00" in pacht_segment, (
         f"Pacht value missing from its line: {pacht_segment!r} (Defekt F1, 2026-05-29)."
     )
-    assert "156.000" in strom_segment, (
+    assert "156.000,00" in strom_segment, (
         f"Strom value missing from its line: {strom_segment!r} (Defekt F1, 2026-05-29)."
     )
     assert "28,44" in co2_segment, (

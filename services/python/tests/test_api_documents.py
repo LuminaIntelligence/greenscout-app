@@ -305,11 +305,16 @@ def test_build_context_includes_every_known_placeholder() -> None:
 
 
 def test_german_currency_formatting() -> None:
-    """27500 -> '27.500'."""
+    """Defekt E1 (2026-05-30): EUR-Werte tragen IMMER zwei Nachkommastellen.
+
+    Vor PR #56: ``27500 -> '27.500'`` (Production-Symptom auf Slide 13:
+    Pacht ``50.000 €`` ohne Komma — siehe DECISIONS Defekt E1).
+    Nach PR #56: ``27500 -> '27.500,00'``.
+    """
     from app.api.endpoints.documents import _format_currency_eur
 
-    assert _format_currency_eur(27500.0) == "27.500"
-    assert _format_currency_eur(1234567.0) == "1.234.567"
+    assert _format_currency_eur(27500.0) == "27.500,00"
+    assert _format_currency_eur(1234567.0) == "1.234.567,00"
 
 
 def test_german_decimal_formatting() -> None:
@@ -317,6 +322,20 @@ def test_german_decimal_formatting() -> None:
 
     assert _format_decimal(1234.56, 2) == "1.234,56"
     assert _format_decimal(1.0, 0) == "1"
+
+
+def test_german_ct_per_kwh_formatting_e1() -> None:
+    """Defekt E1 (2026-05-30): ct-Werte tragen IMMER zwei Nachkommastellen.
+
+    Vor PR #56: ``_format_ct(22) -> '22'`` (Production-Symptom auf Slide 5:
+    ``22 CENT`` statt ``22,00 CENT``).
+    Nach PR #56: ``_format_ct(22) -> '22,00'``.
+    """
+    from app.api.endpoints.documents import _format_ct
+
+    assert _format_ct(22) == "22,00"
+    assert _format_ct(28) == "28,00"
+    assert _format_ct(35.0) == "35,00"
 
 
 def test_anlage_kwp_formatting_integer_when_whole() -> None:
