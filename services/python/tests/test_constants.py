@@ -36,6 +36,11 @@ def test_default_sensitivity_ct_kwh_matches_wizard_defaults() -> None:
     assert constants.DEFAULT_SENSITIVITY_CT_KWH == (35, 40, 45)
 
 
-def test_einspeise_verguetung_default_is_positive_number() -> None:
-    assert isinstance(constants.EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH, float)
-    assert 0 < constants.EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH < 1
+def test_einspeise_verguetung_default_is_removed_anti_regression() -> None:
+    # Defekt A2 (2026-05-30): the provisional 0.20 EUR/kWh constant that
+    # previously shadowed the user-entered ``pv_verkauf_eur_kwh`` in
+    # ``stromkosten_mit_pv_eur_jahr`` was removed. If a future
+    # contributor re-introduces the named export, this guard breaks
+    # immediately and the calc-mit-pv formula must be re-audited before
+    # re-adding. See DECISIONS 2026-05-30 "Defekt A2".
+    assert not hasattr(constants, "EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH")

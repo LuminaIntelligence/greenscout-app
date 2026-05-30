@@ -35,15 +35,12 @@ DEFAULT_VERTRAGSLAUFZEIT_JAHRE: Final[int] = 20
 #: calculation modules expect EUR/kWh (35 ct == 0.35 EUR/kWh).
 DEFAULT_SENSITIVITY_CT_KWH: Final[tuple[int, int, int]] = (35, 40, 45)
 
-#: Provisional Einspeiseverguetung used as the avoided-cost reference
-#: for the self-consumption portion of `stromkosten_mit_pv_eur_jahr`
-#: (Slide 14). The Berater enters `pv_verkauf_eur_kwh` as the *sales*
-#: price to the grid, which is not the right reference for "what
-#: customers save on their own roof" -- the regulatory feed-in
-#: compensation is. Until we wire that to a real lookup, this is a
-#: fixed 20 ct/kWh approximation.
-#:
-#: PROVISIONAL -- confirm actual Einspeiseverguetung 2026; revisit
-#: before the next major release. See DECISIONS.md "Slice 3a sign-off
-#: + Slice 3b design" for the open follow-up.
-EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH: Final[float] = 0.2
+# NOTE: A previous ``EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20`` constant
+# used to serve as the avoided-cost reference for the self-consumption
+# portion of ``stromkosten_mit_pv_eur_jahr``. Defekt A2 (2026-05-30,
+# user-confirmed §7.7 follow-up): production generated PPTX showed
+# ``Mit PV: 26.000 EUR`` (= 130k * 0,20) where the user expected
+# ``28.600 EUR`` (= 130k * 0,22) for ``pv_verkauf_eur_kwh = 0,22 EUR/kWh``.
+# The user-entered ``pv_verkauf_eur_kwh`` is now the single source of truth
+# for that formula; the provisional constant is gone. See DECISIONS
+# 2026-05-30 "Defekt A2".

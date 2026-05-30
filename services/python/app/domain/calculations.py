@@ -28,7 +28,6 @@ from decimal import Decimal
 from app.domain.constants import (
     CO2_HA_MISCHWALD_PER_T_PER_YEAR,
     CO2_KG_PER_KWH_PV,
-    EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH,
     FOOTBALL_FIELDS_PER_HA,
 )
 from app.schemas.calc import DerivedValues, StudyCalcInput
@@ -127,14 +126,24 @@ def stromkosten_ohne_pv_eur_jahr(inp: StudyCalcInput) -> Decimal:
 def stromkosten_mit_pv_eur_jahr(inp: StudyCalcInput) -> Decimal:
     """EUR / Jahr -- annual electricity cost WITH the PV installation.
 
-    Slide 14 "Mit PV" per Slice-3a sign-off item 3:
+    Slide 14 "Mit PV":
     ``(verbrauch - pv_eigenverbrauch) * versorger_preis
-       + pv_eigenverbrauch * EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH``.
+       + pv_eigenverbrauch * pv_verkauf_eur_kwh``.
+
+    Defekt A2 (2026-05-30, user-confirmed §7.7 follow-up to the
+    2026-05-27 Pacht-Formel-Freigabe): the previous implementation used
+    the ``EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 EUR/kWh`` constant
+    as a provisional avoided-cost reference. Production generated PPTX
+    showed ``Mit PV: 26.000 EUR`` (= 130k * 0,20) instead of the
+    user-expected ``28.600 EUR`` (= 130k * 0,22) when the Berater had
+    entered ``pv_verkauf_eur_kwh = 0,22 EUR/kWh``. The user-entered
+    value is now the single source of truth; the provisional constant
+    is removed. See DECISIONS 2026-05-30 "Defekt A2".
     """
     residual_from_grid = (_d(inp.verbrauch_kwh_jahr) - _d(inp.pv_eigenverbrauch_kwh_jahr)) * _d(
         inp.versorger_preis_eur_kwh
     )
-    self_consumed = _d(inp.pv_eigenverbrauch_kwh_jahr) * _d(EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH)
+    self_consumed = _d(inp.pv_eigenverbrauch_kwh_jahr) * _d(inp.pv_verkauf_eur_kwh)
     return residual_from_grid + self_consumed
 
 
