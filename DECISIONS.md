@@ -3492,3 +3492,84 @@ Zwei Anti-Regression-Tests sichern die Auto-Size-Eigenschaft (plus `word_wrap = 
 **Pause-Trigger-Check (§7):** keine. Template-Korrektur, keine Code-Logik-Änderung, kein neuer Dep, kein Schema-Change. §7.4 (UI / UX visible change) feuert NICHT, weil das PPTX-Output vor diesem Fix bereits sichtbar kaputt war (abgeschnittene Berater-Zeile, abgeschnittene Varianten-Werte) und die Normalisierung zu vollständiger, SPEC-konformer Anzeige zurückkehrt.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-29 — Defekte D1+D2+D3: Empty-Value-Rendering via Phrase-Pattern
+
+**Context:** Drei verwandte Render-Fehler bei leeren Optional-Feldern im ersten generierten Produktions-PPTX:
+- **D1 (Flurstück hängender Präfix):** Wenn `Study.flurstueck` leer ist, rendert das Template die Strings „in Flurstück " (Slide 2) und „Flurstück: " (Slide 4) ohne Wert dahinter — der statische Präfix bleibt sichtbar.
+- **D2 (Termin „1) am Uhr"):** Wenn `Study.terminVorschlag1` / `terminVorschlag2` leer sind, rendert Slide 19 „1) am Uhr" und „2) am Uhr" — der Wert zwischen statischem „am " und „ Uhr" fehlt.
+- **D3 (modul „, Module, m²"):** Wenn `Study.modulAnzahl` / `Study.modulFlaecheM2` leer sind, rendert Slide 10 „Gesamtleistung: 500 kWp, Module, m²" — die Einheiten ohne Werte.
+
+**Root cause:** Das Template hat **raw-field-Placeholders mit umgebenden Präfix/Suffix-Texten** als einzelne Runs (`"in Flurstück {{flurstueck}}"`, `"{{anlage_kwp}} kWp, {{modul_anzahl}} Module, {{modul_flaeche_m2}} m²"`, `"1) am {{termin_vorschlag_1}} Uhr"`). Bei leeren Werten substituiert die Render-Logik den Placeholder mit `""`, aber die statischen Präfix/Suffix-Texte bleiben sichtbar. Das ist die generische Falle aller deklarativen Template-Engines ohne {{#if}}-Konstrukt.
+
+**Decision (Phrase-Pattern, vom User-Defekt-Report als Alternative angeboten):**
+
+Server Action (`src/features/studies/actions/generate-document.ts`) liefert pre-rendered **phrase-keys** statt der raw-fields. Conditional-Rendering wird damit zur **Server-Action-Verantwortung** — voll testbar via Vitest. Template bleibt 100 % deklarativ (keine spezielle Syntax, keine post-render line-removal-Logik im `pptx_generator`).
+
+Sechs neue phrase-Helper:
+- `buildFlurstueckPhrase(value)` → ` in Flurstück 78.10` oder `""`. Slide 2 `Textfeld 4`.
+- `buildFlurstueckLabelPhrase(value)` → `Flurstück: 78.10` oder `""`. Slide 4 `Textfeld 34`.
+- `buildTerminPhrase(1, date)` → `1) am 15.03.2026 um 14:00 Uhr` oder `""`. Slide 19 Para 2.
+- `buildTerminPhrase(2, date)` → `2) am ...` oder `""`. Slide 19 Para 4.
+- `buildTerminOderPhrase(date1, date2)` → `oder` nur wenn BEIDE termine gesetzt sonst `""`. Slide 19 Para 3.
+- `buildModulInfoPhrase(kWp, anzahl, flaeche)` → `500 kWp, 1.428 Module, 2.856 m²` (oder beliebige Teilmenge — kWp ist immer da, Module + m² werden gedroppt wenn unset). Slide 10 `Text 5`.
+
+Wire-Format-Erweiterung: `DocumentGenerateInput` (TS) + `DocumentGenerateRequest` (Python pydantic) bekommen 6 neue optionale `*_phrase`-Felder mit `default=""` (Backward-Compat für Tests + alte Callers).
+
+Template-Edit via einmaligem `scripts/normalize-empty-value-phrases.py` (idempotent — zweiter Lauf ist No-op): die raw-field-Runs werden durch single-run phrase-keys ersetzt, Mehr-Run-Konstrukte (Slide 10, Slide 19) werden zu single phrase-Run kollabiert.
+
+**Bewusst NICHT umgesetzt:** Pflichtfeld-Validation im Wizard (Flurstück / Termine / Modul-Anzahl/-Fläche zur Pflicht machen). Phrase-Pattern fixt die Defekte universell (auch für alte Studien ohne diese Felder); eine UX-Verbesserung „diese Felder zur Pflicht machen" ist ein separater Folge-PR falls erwünscht. Begründung: Slice-4 zod-Verschärfung würde rückwirkend alle Bestands-Studien blockieren und einen Daten-Migrations-Step erfordern.
+
+**Bewusst NICHT umgesetzt:** {{#if}}-Konditional im Template via Jinja-ähnliche Pre-Processing-Schicht. Begründung: würde eine neue Dep (Jinja2 oder Custom-Parser) erfordern (§7.1 Pause-Trigger) und macht das pptx_generator-Verhalten weniger nachvollziehbar. Phrase-Pattern erreicht dasselbe Resultat mit pure-Python/TS-Helpers.
+
+Sechs Anti-Regression-Tests + Vitest-Coverage:
+- **Vitest:** ein Test pro Helper für (null, undefined, "", whitespace, valid) cases — `buildFlurstueckPhrase`, `buildFlurstueckLabelPhrase`, `buildTerminPhrase`, `buildTerminOderPhrase`, `buildModulInfoPhrase`. Plus 5 Integration-Tests in `generate-document.test.ts` (D1 set/empty, D2 set/empty, D3 set/null).
+- **Pytest:** `test_template_uses_phrase_keys_not_raw_fields_for_empty_safe_slots` walked durch alle slides + asserted (a) alle phrase-keys vorhanden, (b) raw-keys nicht zurück, (c) defekte Run-Patterns wie `"in Flurstück {{flurstueck}}"` nicht zurück.
+
+**Affected:**
+- `src/features/studies/actions/generate-document.ts` — sechs neue exported phrase-Helper + wiring in `generateDocumentAction`.
+- `src/features/studies/actions/generate-document.test.ts` — 5 Integration-Tests + 21 Helper-Tests.
+- `src/lib/python-service-client.ts` — `DocumentGenerateInput` interface erweitert um 6 phrase-Felder + wire-body translation.
+- `src/lib/python-service-client.test.ts` — `validDocsInput` fixture erweitert um phrase-Defaults.
+- `services/python/app/schemas/documents.py` — `DocumentGenerateRequest` mit 6 phrase-Feldern (`default=""`).
+- `services/python/app/api/endpoints/documents.py` — `_build_context` durchreicht phrase-keys + composeted `customer_object_address_with_flurstueck` aus `object_name + flurstueck_phrase`; raw-keys (`flurstueck`, `modul_anzahl`, `modul_flaeche_m2`, `termin_vorschlag_1`, `termin_vorschlag_2`) entfernt.
+- `services/python/tests/test_api_documents.py` — `expected_keys`-Set aktualisiert.
+- `services/python/tests/test_pptx_generator.py` — `_full_context` aktualisiert + neuer anti-regression Test.
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` — 11 Run-Mutationen via `scripts/normalize-empty-value-phrases.py`.
+- `scripts/normalize-empty-value-phrases.py` — neues einmaliges Hilfsskript (idempotent).
+- `docs/pptx-mapping.md` — phrase-keys dokumentiert; raw-keys auf Slides 2/4/10/19 ersetzt + 2026-05-29-Inline-Notiz.
+
+**Pause-Trigger-Check (§7):** keine. Keine neuen Deps. Kein Schema-Change in Prisma. Server-Action-Logik bleibt im bestehenden Trust-Boundary-Pattern. §7.4 (UI/UX visible change) feuert NICHT — das PPTX-Output VOR dem Fix war sichtbar kaputt; die Fix-Strategie kehrt zu SPEC-konformer Anzeige zurück (leeres Feld → keine Anzeige statt hängender Präfix).
+
+**Open question for the user:** —
+
+---
+
+## 2026-05-30 — Defekte D1+D2+D3 Hotfix: Phrase-Helper in eigene Datei extrahiert (Next.js 15 Server-Action-Constraint)
+**Context:** PR #55 (Defekte D1+D2+D3 — Empty-Value-Rendering via Phrase-Pattern) ging mit grünem `tsc`/`vitest`-Run lokal raus, aber CI failt im Docker-Build mit 15 Turbopack-Errors:
+```
+./src/features/studies/actions/generate-document.ts:103:17  buildFlurstueckPhrase
+./src/features/studies/actions/generate-document.ts:122:17  buildTerminPhrase
+./src/features/studies/actions/generate-document.ts:134:17  buildTerminOderPhrase
+./src/features/studies/actions/generate-document.ts:147:17  buildModulInfoPhrase
+> Ecmascript file had an error
+```
+**Root cause:** Next.js 15 erzwingt eine harte Constraint: jede `export`-Function einer Datei mit `"use server"`-Directive MUSS `async` sein, weil alle Exports als Server Actions registriert werden. Die in PR #55 inline definierten sechs sync Phrase-Helper (`buildFlurstueckPhrase`, `buildFlurstueckLabelPhrase`, `buildTerminPhrase`, `buildTerminOderPhrase`, `buildModulInfoPhrase`) verletzen das. Lokales `tsc --noEmit` + `vitest` fangen das NICHT — nur `next build` (resp. `Dockerfile.web` builder-Stage mit `ENV AUTH_SECRET=build-time-ephemeral` + `RUN npm run build`) validiert die Constraint.
+
+**Decision:** Phrase-Helper in **eigene Datei** `src/features/studies/actions/generate-document-phrases.ts` extrahieren (ohne `"use server"`-Directive). `generate-document.ts` importiert die Helper. Trust-Boundary unverändert — die Helper sind reine Funktionen ohne Repo- oder Session-Access.
+
+**Bewusst NICHT umgesetzt:** Helper in `async` umstellen, um sie im Server-Action-File zu lassen. Begründung: würde die testbare Helper-API (`expect(buildFlurstueckPhrase("78.10")).toBe(" in Flurstück 78.10")`) unnötig kompliziert machen + `await` an jede Call-Site zwingen — semantisch falsch.
+
+**Bewusst NICHT umgesetzt:** Lokal `npm run build` als pre-commit-Gate enforcen. Begründung: `next build` braucht ~30 s und einen gültigen `AUTH_SECRET` — beides degradiert die DX im normalen Edit-Test-Cycle. Statt dessen: Lessons-Learned (siehe `learn`): "Wenn Helper-Funktionen in einer `'use server'`-Datei existieren, diese GRUNDSÄTZLICH in eine separate Datei extrahieren."
+
+**Affected:**
+- `src/features/studies/actions/generate-document-phrases.ts` — neue Datei mit sechs Phrase-Helper (Defekte D1+D2+D3) + privaten `formatGermanDateTime` / `formatNumberDe` Helpern.
+- `src/features/studies/actions/generate-document.ts` — Helper-Definitionen entfernt, Import auf `./generate-document-phrases` hinzugefügt.
+- `src/features/studies/actions/generate-document.test.ts` — Helper-Import auf `./generate-document-phrases` umgebogen. Tests selbst unverändert.
+- `vitest.config.ts` — 100%-Coverage-Threshold für `generate-document-phrases.ts` hinzugefügt (Tests sind bereits exhaustiv).
+
+**Pause-Trigger-Check (§7):** keine. Reine Code-Reorganisation — kein Schema-, kein API-Surface-Change. Server-Action-Behavior 1:1 identisch.
+
+**Open question for the user:** —

@@ -54,6 +54,13 @@ import { listStudyImages } from "@/lib/repositories/study-image.repository";
 import { findUserById } from "@/lib/repositories/user.repository";
 
 import { generateDocumentAction } from "./generate-document";
+import {
+  buildFlurstueckLabelPhrase,
+  buildFlurstueckPhrase,
+  buildModulInfoPhrase,
+  buildTerminOderPhrase,
+  buildTerminPhrase,
+} from "./generate-document-phrases";
 
 const mockedAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn<() => Promise<unknown>>>;
 const mockedCallDocumentsGenerate = vi.mocked(callDocumentsGenerate);
@@ -380,5 +387,207 @@ describe("generateDocumentAction", () => {
     const call = mockedCallDocumentsGenerate.mock.calls[0][0];
     expect(call.imageBeforePath).toBeNull();
     expect(call.imageAfterPath).toBeNull();
+  });
+
+  // ----------------------------------------------------------------
+  // Defekte D1+D2+D3 — phrase-key generation wiring
+  // ----------------------------------------------------------------
+
+  it("D1: passes flurstueck phrases through to the python service when flurstueck is set", async () => {
+    vi.mocked(findStudyById).mockResolvedValueOnce({
+      ...READY_STUDY,
+      flurstueck: "78.10",
+    } as never);
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.flurstueckPhrase).toBe(" in Flurstück 78.10");
+    expect(call.flurstueckLabelPhrase).toBe("Flurstück: 78.10");
+  });
+
+  it("D1: passes empty flurstueck phrases when flurstueck is blank", async () => {
+    vi.mocked(findStudyById).mockResolvedValueOnce({
+      ...READY_STUDY,
+      flurstueck: "",
+    } as never);
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.flurstueckPhrase).toBe("");
+    expect(call.flurstueckLabelPhrase).toBe("");
+  });
+
+  it("D2: passes termin phrases when both termine are set", async () => {
+    vi.mocked(findStudyById).mockResolvedValueOnce({
+      ...READY_STUDY,
+      terminVorschlag1: new Date("2026-03-15T14:00:00Z"),
+      terminVorschlag2: new Date("2026-03-16T15:30:00Z"),
+    } as never);
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.termin1Phrase).toBe("1) am 15.03.2026 um 14:00 Uhr");
+    expect(call.termin2Phrase).toBe("2) am 16.03.2026 um 15:30 Uhr");
+    expect(call.terminOderPhrase).toBe("oder");
+  });
+
+  it("D2: passes empty termin phrases when both termine are null", async () => {
+    vi.mocked(findStudyById).mockResolvedValueOnce({
+      ...READY_STUDY,
+      terminVorschlag1: null,
+      terminVorschlag2: null,
+    } as never);
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.termin1Phrase).toBe("");
+    expect(call.termin2Phrase).toBe("");
+    expect(call.terminOderPhrase).toBe("");
+  });
+
+  it("D3: passes modul_info_phrase with all segments when modul values set", async () => {
+    vi.mocked(findStudyById).mockResolvedValueOnce({
+      ...READY_STUDY,
+      anlageKwp: 500,
+      modulAnzahl: 1428,
+      modulFlaecheM2: 2856,
+    } as never);
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.modulInfoPhrase).toBe("500 kWp, 1.428 Module, 2.856 m²");
+  });
+
+  it("D3: drops Module + m² segments from modul_info_phrase when those values are null", async () => {
+    vi.mocked(findStudyById).mockResolvedValueOnce({
+      ...READY_STUDY,
+      anlageKwp: 500,
+      modulAnzahl: null,
+      modulFlaecheM2: null,
+    } as never);
+    const result = await generateDocumentAction({ studyId: "study-1" });
+    expect(result.ok).toBe(true);
+    const call = mockedCallDocumentsGenerate.mock.calls[0][0];
+    expect(call.modulInfoPhrase).toBe("500 kWp");
+  });
+});
+
+// -------------------------------------------------------------------
+// phrase-key generation helpers (Defekte D1+D2+D3)
+// -------------------------------------------------------------------
+
+describe("buildFlurstueckPhrase (Defekt D1)", () => {
+  it("returns empty string when flurstueck is null", () => {
+    expect(buildFlurstueckPhrase(null)).toBe("");
+  });
+
+  it("returns empty string when flurstueck is undefined", () => {
+    expect(buildFlurstueckPhrase(undefined)).toBe("");
+  });
+
+  it("returns empty string when flurstueck is empty string", () => {
+    expect(buildFlurstueckPhrase("")).toBe("");
+  });
+
+  it("returns empty string when flurstueck is whitespace only", () => {
+    expect(buildFlurstueckPhrase("   ")).toBe("");
+  });
+
+  it("returns ' in Flurstück <value>' prefix with leading space when set", () => {
+    expect(buildFlurstueckPhrase("78.10")).toBe(" in Flurstück 78.10");
+  });
+
+  it("trims surrounding whitespace from the flurstueck value", () => {
+    expect(buildFlurstueckPhrase("  Fl0234  ")).toBe(" in Flurstück Fl0234");
+  });
+});
+
+describe("buildFlurstueckLabelPhrase (Defekt D1)", () => {
+  it("returns empty string when flurstueck is null", () => {
+    expect(buildFlurstueckLabelPhrase(null)).toBe("");
+  });
+
+  it("returns empty string when flurstueck is empty", () => {
+    expect(buildFlurstueckLabelPhrase("")).toBe("");
+  });
+
+  it("returns 'Flurstück: <value>' when set", () => {
+    expect(buildFlurstueckLabelPhrase("78.10")).toBe("Flurstück: 78.10");
+  });
+});
+
+describe("buildTerminPhrase (Defekt D2)", () => {
+  it("returns empty string when termin is null", () => {
+    expect(buildTerminPhrase(1, null)).toBe("");
+  });
+
+  it("returns empty string when termin is undefined", () => {
+    expect(buildTerminPhrase(1, undefined)).toBe("");
+  });
+
+  it("formats Slot 1 German date+time when set", () => {
+    const date = new Date("2026-03-15T14:00:00Z");
+    expect(buildTerminPhrase(1, date)).toBe("1) am 15.03.2026 um 14:00 Uhr");
+  });
+
+  it("formats Slot 2 German date+time when set", () => {
+    const date = new Date("2026-12-09T09:05:00Z");
+    expect(buildTerminPhrase(2, date)).toBe("2) am 09.12.2026 um 09:05 Uhr");
+  });
+});
+
+describe("buildTerminOderPhrase (Defekt D2)", () => {
+  it("returns 'oder' only when BOTH termine are set", () => {
+    const d1 = new Date("2026-03-15T14:00:00Z");
+    const d2 = new Date("2026-03-16T15:00:00Z");
+    expect(buildTerminOderPhrase(d1, d2)).toBe("oder");
+  });
+
+  it("returns empty when only termin1 is set", () => {
+    const d1 = new Date("2026-03-15T14:00:00Z");
+    expect(buildTerminOderPhrase(d1, null)).toBe("");
+  });
+
+  it("returns empty when only termin2 is set", () => {
+    const d2 = new Date("2026-03-16T15:00:00Z");
+    expect(buildTerminOderPhrase(null, d2)).toBe("");
+  });
+
+  it("returns empty when both are null", () => {
+    expect(buildTerminOderPhrase(null, null)).toBe("");
+  });
+
+  it("returns empty when both are undefined", () => {
+    expect(buildTerminOderPhrase(undefined, undefined)).toBe("");
+  });
+});
+
+describe("buildModulInfoPhrase (Defekt D3)", () => {
+  it("shows only kWp when modul_anzahl + modul_flaeche null", () => {
+    expect(buildModulInfoPhrase(500, null, null)).toBe("500 kWp");
+  });
+
+  it("shows only kWp when modul_anzahl + modul_flaeche undefined", () => {
+    expect(buildModulInfoPhrase(500, undefined, undefined)).toBe("500 kWp");
+  });
+
+  it("shows kWp + Module when only modul_anzahl set", () => {
+    expect(buildModulInfoPhrase(500, 1428, null)).toBe("500 kWp, 1.428 Module");
+  });
+
+  it("shows kWp + m² when only modul_flaeche set", () => {
+    expect(buildModulInfoPhrase(500, null, 2856)).toBe("500 kWp, 2.856 m²");
+  });
+
+  it("shows all three when all set", () => {
+    expect(buildModulInfoPhrase(500, 1428, 2856)).toBe("500 kWp, 1.428 Module, 2.856 m²");
+  });
+
+  it("applies German thousands separator to large numbers", () => {
+    expect(buildModulInfoPhrase(12500, 35714, 71428)).toBe("12.500 kWp, 35.714 Module, 71.428 m²");
+  });
+
+  it("rounds anlage_kwp to integer for the headline", () => {
+    expect(buildModulInfoPhrase(257.12, null, null)).toBe("257 kWp");
   });
 });

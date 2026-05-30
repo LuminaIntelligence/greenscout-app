@@ -55,6 +55,13 @@ const validDocsInput: DocumentGenerateInput = {
   consultantName: "Erika Beraterin",
   imageBeforePath: null,
   imageAfterPath: null,
+  // Defekte D1+D2+D3 phrase keys — defaults to empty (no fixture data).
+  flurstueckPhrase: "",
+  flurstueckLabelPhrase: "",
+  termin1Phrase: "",
+  termin2Phrase: "",
+  terminOderPhrase: "",
+  modulInfoPhrase: "100 kWp",
 };
 
 function jsonResponse(status: number, body: unknown): Response {

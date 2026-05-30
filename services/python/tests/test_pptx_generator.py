@@ -249,10 +249,20 @@ def _full_context() -> dict[str, str]:
         "customer_object_address_with_flurstueck",
         "customer_object_name",
         "customer_object_short_name_and_city",
-        "flurstueck",
+        # Empty-value-safe phrase keys (Defekte D1+D2+D3, 2026-05-29).
+        # These replaced the raw-keys flurstueck / modul_anzahl /
+        # modul_flaeche_m2 / termin_vorschlag_1 / termin_vorschlag_2
+        # in the template; the raw-keys are gone from the template and
+        # MUST NOT come back (enforced by the
+        # ``test_template_uses_phrase_keys_not_raw_fields_for_empty_safe_slots``
+        # anti-regression test below).
+        "flurstueck_phrase",
+        "flurstueck_label_phrase",
+        "termin_1_phrase",
+        "termin_2_phrase",
+        "termin_oder_phrase",
+        "modul_info_phrase",
         "anlage_kwp",
-        "modul_anzahl",
-        "modul_flaeche_m2",
         "pv_erzeugung_kwh_jahr",
         "pv_eigenverbrauch_kwh_jahr",
         "pv_verkauf_ct_kwh",
@@ -279,8 +289,6 @@ def _full_context() -> dict[str, str]:
         "co2_fussballfelder_pro_jahr",
         "co2_tonnen_gesamt_vertragslaufzeit",
         "co2_fussballfelder_gesamt_vertragslaufzeit",
-        "termin_vorschlag_1",
-        "termin_vorschlag_2",
     ]
     return {k: f"<{k}>" for k in keys}
 
@@ -871,3 +879,84 @@ def test_slide_16_variante_shapes_have_text_to_fit_shape_autosize() -> None:
             f"Slide 16 shape {shape.name!r} word_wrap must be True alongside "
             "TEXT_TO_FIT_SHAPE — see DECISIONS Defekt C4, 2026-05-29."
         )
+
+
+# --- anti-regression tests for empty-value-safe phrase keys (Defekte D1+D2+D3) ---
+
+
+def _all_template_text_for_path(template_path: Path) -> str:
+    """Concatenate every text run from every slide for substring assertions."""
+    pres = Presentation(str(template_path))
+    parts: list[str] = []
+    for slide in pres.slides:
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for para in shape.text_frame.paragraphs:
+                for run in para.runs:
+                    parts.append(run.text)
+    return "\n".join(parts)
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_template_uses_phrase_keys_not_raw_fields_for_empty_safe_slots() -> None:
+    """Defekte D1+D2+D3 (2026-05-29): Template MUSS phrase-keys nutzen.
+
+    Wenn jemand das Template manuell editiert und wieder raw-fields
+    einbaut, würde das Empty-Value-Rendering wieder kaputt gehen — D1
+    (Flurstück hängender Präfix), D2 (Termin „1) am Uhr"), D3
+    (modul „, Module, m²"). Dieser Test ist die letzte Verteidigungslinie
+    bevor ein solcher Defekt erneut in Produktion landet.
+    """
+    all_text = _all_template_text_for_path(_REAL_TEMPLATE)
+
+    # MUST be present — the new phrase-keys the Server Action provides.
+    assert "{{flurstueck_phrase}}" in all_text, (
+        "Slide 2 'Textfeld 4' must reference {{flurstueck_phrase}} — "
+        "see DECISIONS Defekt D1, 2026-05-29."
+    )
+    assert "{{flurstueck_label_phrase}}" in all_text, (
+        "Slide 4 'Textfeld 34' must reference {{flurstueck_label_phrase}} — "
+        "see DECISIONS Defekt D1, 2026-05-29."
+    )
+    assert "{{termin_1_phrase}}" in all_text, (
+        "Slide 19 'Text 3' para 2 must reference {{termin_1_phrase}} — "
+        "see DECISIONS Defekt D2, 2026-05-29."
+    )
+    assert "{{termin_2_phrase}}" in all_text, (
+        "Slide 19 'Text 3' para 4 must reference {{termin_2_phrase}} — "
+        "see DECISIONS Defekt D2, 2026-05-29."
+    )
+    assert "{{termin_oder_phrase}}" in all_text, (
+        "Slide 19 'Text 3' para 3 must reference {{termin_oder_phrase}} — "
+        "see DECISIONS Defekt D2, 2026-05-29."
+    )
+    assert "{{modul_info_phrase}}" in all_text, (
+        "Slide 10 'Text 5' must reference {{modul_info_phrase}} — "
+        "see DECISIONS Defekt D3, 2026-05-29."
+    )
+
+    # MUST NOT come back — the raw-field placeholders that triggered
+    # the original defects. {{flurstueck}} is checked positionally
+    # against the original defective contexts (it could legitimately
+    # appear in a future *safe* context — the surrounding-text guard
+    # below catches the specific defective combinations).
+    assert "{{modul_anzahl}}" not in all_text, (
+        "{{modul_anzahl}} raw-key reintroduced in template — see Defekt D3."
+    )
+    assert "{{modul_flaeche_m2}}" not in all_text, (
+        "{{modul_flaeche_m2}} raw-key reintroduced in template — see Defekt D3."
+    )
+    assert "{{termin_vorschlag_1}}" not in all_text, (
+        "{{termin_vorschlag_1}} raw-key reintroduced in template — see Defekt D2."
+    )
+    assert "{{termin_vorschlag_2}}" not in all_text, (
+        "{{termin_vorschlag_2}} raw-key reintroduced in template — see Defekt D2."
+    )
+    # The two defective contexts that prefixed {{flurstueck}} with static text:
+    assert "in Flurstück {{flurstueck}}" not in all_text, (
+        "Slide 2's 'in Flurstück {{flurstueck}}' raw-pattern is back — see Defekt D1."
+    )
+    assert "Flurstück: {{flurstueck}}" not in all_text, (
+        "Slide 4's 'Flurstück: {{flurstueck}}' raw-pattern is back — see Defekt D1."
+    )

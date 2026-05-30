@@ -42,6 +42,14 @@ import { findStudyById, markStudyGenerated } from "@/lib/repositories/study.repo
 import { listStudyImages } from "@/lib/repositories/study-image.repository";
 import { findUserById } from "@/lib/repositories/user.repository";
 
+import {
+  buildFlurstueckLabelPhrase,
+  buildFlurstueckPhrase,
+  buildModulInfoPhrase,
+  buildTerminOderPhrase,
+  buildTerminPhrase,
+} from "./generate-document-phrases";
+
 export type GenerateDocumentResult =
   | {
       ok: true;
@@ -133,6 +141,15 @@ export async function generateDocumentAction(rawInput: unknown): Promise<Generat
   const imageBeforePath = studyImages.find((i) => i.type === "BEFORE")?.filename ?? null;
   const imageAfterPath = studyImages.find((i) => i.type === "AFTER")?.filename ?? null;
 
+  // Pre-render empty-value-safe phrases here so the conditional logic
+  // stays in TypeScript (testable via Vitest) and the Python service /
+  // PPTX template stay 100% declarative. Defekte D1+D2+D3 (2026-05-29).
+  const modulAnzahl = study.modulAnzahl ?? null;
+  const modulFlaecheM2 =
+    study.modulFlaecheM2 === null || study.modulFlaecheM2 === undefined
+      ? null
+      : Number(study.modulFlaecheM2);
+
   const pyResult = await callDocumentsGenerate({
     study: calcInput,
     derivedValues: derived,
@@ -141,6 +158,15 @@ export async function generateDocumentAction(rawInput: unknown): Promise<Generat
     consultantName: consultantName || consultant.email,
     imageBeforePath,
     imageAfterPath,
+    flurstueckPhrase: buildFlurstueckPhrase(study.flurstueck),
+    flurstueckLabelPhrase: buildFlurstueckLabelPhrase(study.flurstueck),
+    termin1Phrase: buildTerminPhrase(1, study.terminVorschlag1 ?? null),
+    termin2Phrase: buildTerminPhrase(2, study.terminVorschlag2 ?? null),
+    terminOderPhrase: buildTerminOderPhrase(
+      study.terminVorschlag1 ?? null,
+      study.terminVorschlag2 ?? null,
+    ),
+    modulInfoPhrase: buildModulInfoPhrase(Number(study.anlageKwp), modulAnzahl, modulFlaecheM2),
   });
 
   if (!pyResult.ok) {

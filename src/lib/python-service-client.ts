@@ -197,6 +197,19 @@ export interface DocumentGenerateInput {
   consultantName: string;
   imageBeforePath: string | null;
   imageAfterPath: string | null;
+  /**
+   * Empty-value-safe phrase keys (Defekte D1+D2+D3, 2026-05-29).
+   * Server Action pre-renders each phrase; empty string means the
+   * surrounding template prefix/suffix vanishes with the value.
+   * See `src/features/studies/actions/generate-document.ts` for the
+   * builder helpers.
+   */
+  flurstueckPhrase: string;
+  flurstueckLabelPhrase: string;
+  termin1Phrase: string;
+  termin2Phrase: string;
+  terminOderPhrase: string;
+  modulInfoPhrase: string;
 }
 
 /** Output of `callDocumentsGenerate` when Slice 3b lands. */
@@ -258,6 +271,13 @@ export async function callDocumentsGenerate(
     consultant_name: input.consultantName,
     image_before_path: input.imageBeforePath,
     image_after_path: input.imageAfterPath,
+    // Empty-value-safe phrase keys — Defekte D1+D2+D3 (2026-05-29).
+    flurstueck_phrase: input.flurstueckPhrase,
+    flurstueck_label_phrase: input.flurstueckLabelPhrase,
+    termin_1_phrase: input.termin1Phrase,
+    termin_2_phrase: input.termin2Phrase,
+    termin_oder_phrase: input.terminOderPhrase,
+    modul_info_phrase: input.modulInfoPhrase,
   };
 
   // Diagnostic log — sichtbar in container logs für Production-Debugging.
