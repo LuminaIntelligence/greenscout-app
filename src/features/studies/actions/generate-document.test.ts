@@ -53,14 +53,14 @@ import { findStudyById, markStudyGenerated } from "@/lib/repositories/study.repo
 import { listStudyImages } from "@/lib/repositories/study-image.repository";
 import { findUserById } from "@/lib/repositories/user.repository";
 
+import { generateDocumentAction } from "./generate-document";
 import {
   buildFlurstueckLabelPhrase,
   buildFlurstueckPhrase,
   buildModulInfoPhrase,
   buildTerminOderPhrase,
   buildTerminPhrase,
-  generateDocumentAction,
-} from "./generate-document";
+} from "./generate-document-phrases";
 
 const mockedAuth = vi.mocked(auth) as unknown as ReturnType<typeof vi.fn<() => Promise<unknown>>>;
 const mockedCallDocumentsGenerate = vi.mocked(callDocumentsGenerate);

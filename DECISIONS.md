@@ -3544,3 +3544,32 @@ Sechs Anti-Regression-Tests + Vitest-Coverage:
 **Pause-Trigger-Check (§7):** keine. Keine neuen Deps. Kein Schema-Change in Prisma. Server-Action-Logik bleibt im bestehenden Trust-Boundary-Pattern. §7.4 (UI/UX visible change) feuert NICHT — das PPTX-Output VOR dem Fix war sichtbar kaputt; die Fix-Strategie kehrt zu SPEC-konformer Anzeige zurück (leeres Feld → keine Anzeige statt hängender Präfix).
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-30 — Defekte D1+D2+D3 Hotfix: Phrase-Helper in eigene Datei extrahiert (Next.js 15 Server-Action-Constraint)
+**Context:** PR #55 (Defekte D1+D2+D3 — Empty-Value-Rendering via Phrase-Pattern) ging mit grünem `tsc`/`vitest`-Run lokal raus, aber CI failt im Docker-Build mit 15 Turbopack-Errors:
+```
+./src/features/studies/actions/generate-document.ts:103:17  buildFlurstueckPhrase
+./src/features/studies/actions/generate-document.ts:122:17  buildTerminPhrase
+./src/features/studies/actions/generate-document.ts:134:17  buildTerminOderPhrase
+./src/features/studies/actions/generate-document.ts:147:17  buildModulInfoPhrase
+> Ecmascript file had an error
+```
+**Root cause:** Next.js 15 erzwingt eine harte Constraint: jede `export`-Function einer Datei mit `"use server"`-Directive MUSS `async` sein, weil alle Exports als Server Actions registriert werden. Die in PR #55 inline definierten sechs sync Phrase-Helper (`buildFlurstueckPhrase`, `buildFlurstueckLabelPhrase`, `buildTerminPhrase`, `buildTerminOderPhrase`, `buildModulInfoPhrase`) verletzen das. Lokales `tsc --noEmit` + `vitest` fangen das NICHT — nur `next build` (resp. `Dockerfile.web` builder-Stage mit `ENV AUTH_SECRET=build-time-ephemeral` + `RUN npm run build`) validiert die Constraint.
+
+**Decision:** Phrase-Helper in **eigene Datei** `src/features/studies/actions/generate-document-phrases.ts` extrahieren (ohne `"use server"`-Directive). `generate-document.ts` importiert die Helper. Trust-Boundary unverändert — die Helper sind reine Funktionen ohne Repo- oder Session-Access.
+
+**Bewusst NICHT umgesetzt:** Helper in `async` umstellen, um sie im Server-Action-File zu lassen. Begründung: würde die testbare Helper-API (`expect(buildFlurstueckPhrase("78.10")).toBe(" in Flurstück 78.10")`) unnötig kompliziert machen + `await` an jede Call-Site zwingen — semantisch falsch.
+
+**Bewusst NICHT umgesetzt:** Lokal `npm run build` als pre-commit-Gate enforcen. Begründung: `next build` braucht ~30 s und einen gültigen `AUTH_SECRET` — beides degradiert die DX im normalen Edit-Test-Cycle. Statt dessen: Lessons-Learned (siehe `learn`): "Wenn Helper-Funktionen in einer `'use server'`-Datei existieren, diese GRUNDSÄTZLICH in eine separate Datei extrahieren."
+
+**Affected:**
+- `src/features/studies/actions/generate-document-phrases.ts` — neue Datei mit sechs Phrase-Helper (Defekte D1+D2+D3) + privaten `formatGermanDateTime` / `formatNumberDe` Helpern.
+- `src/features/studies/actions/generate-document.ts` — Helper-Definitionen entfernt, Import auf `./generate-document-phrases` hinzugefügt.
+- `src/features/studies/actions/generate-document.test.ts` — Helper-Import auf `./generate-document-phrases` umgebogen. Tests selbst unverändert.
+- `vitest.config.ts` — 100%-Coverage-Threshold für `generate-document-phrases.ts` hinzugefügt (Tests sind bereits exhaustiv).
+
+**Pause-Trigger-Check (§7):** keine. Reine Code-Reorganisation — kein Schema-, kein API-Surface-Change. Server-Action-Behavior 1:1 identisch.
+
+**Open question for the user:** —
