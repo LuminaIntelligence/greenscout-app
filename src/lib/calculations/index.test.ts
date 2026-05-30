@@ -200,21 +200,40 @@ describe("stromkostenOhnePvEurJahr", () => {
 });
 
 describe("stromkostenMitPvEurJahr", () => {
-  it("residual + eigenverbrauch * EINSPEISE_VERGUETUNG_DEFAULT", () => {
-    // Default constant is 0.20 €/kWh.
-    const expected = (60_000 - 40_000) * 0.4 + 40_000 * 0.2;
+  it("residual + eigenverbrauch * pvVerkaufEurKwh (user-input)", () => {
+    // Defekt A2 (2026-05-30): formula uses user-input pvVerkaufEurKwh
+    // (here baseline 0.08 €/kWh), NOT the previous 0.20 €/kWh constant.
+    const expected = (60_000 - 40_000) * 0.4 + 40_000 * 0.08;
     expect(stromkostenMitPvEurJahr(makeInput())).toBeCloseTo(expected, 6);
   });
 
-  it("rechenprobe (400.000-164.000)*0.35 + 164.000*0.20 = 115.400", () => {
+  it("rechenprobe (400.000-164.000)*0.35 + 164.000*0.08 = 95.720", () => {
     const v = stromkostenMitPvEurJahr(
       makeInput({
         verbrauchKwhJahr: 400_000,
         pvEigenverbrauchKwhJahr: 164_000,
         versorgerPreisEurKwh: 0.35,
+        // pvVerkaufEurKwh stays at the baseline 0.08 from makeInput().
       }),
     );
-    expect(v).toBeCloseTo(115_400, 6);
+    expect(v).toBeCloseTo(95_720, 6);
+  });
+
+  it("Defekt A2 anti-regression — uses user-input pv_verkauf, not a hardcoded constant", () => {
+    // Production-symptom 2026-05-30: generated PPTX showed
+    // `Mit PV: 26.000 €` (= 130k × 0,20) for a study with
+    // verbrauch = eigenverbrauch = 130.000 and pvVerkaufEurKwh = 0,22.
+    // Expected: (130k − 130k) × 0,28 + 130k × 0,22 = 0 + 28.600 = 28.600 €.
+    // The old bug (constant 0,20): 130k × 0,20 = 26.000 €.
+    const v = stromkostenMitPvEurJahr(
+      makeInput({
+        verbrauchKwhJahr: 130_000,
+        pvEigenverbrauchKwhJahr: 130_000,
+        versorgerPreisEurKwh: 0.28,
+        pvVerkaufEurKwh: 0.22,
+      }),
+    );
+    expect(v).toBeCloseTo(28_600, 6);
   });
 });
 
@@ -240,6 +259,8 @@ describe("composeAll", () => {
   it("snapshot of a representative input (regression guard)", () => {
     // Snapshot uses round numbers to defend against floating-point drift.
     // Pacht is one-shot (SPEC §4.7, user-confirmed 2026-05-27): 100 × 100 = 10.000.
+    // Defekt A2 (2026-05-30): stromkostenMitPv uses user-input pvVerkaufEurKwh
+    // (baseline 0.08 €/kWh), NOT the previously-hardcoded 0.20 constant.
     expect(composeAll(makeInput())).toEqual({
       ersparnisProJahr: 12_800,
       ersparnisProMonat: 12_800 / 12,
@@ -252,7 +273,7 @@ describe("composeAll", () => {
       co2FussballfelderProJahr: ((95_000 * 0.474) / 1000) * 0.0177 * 1.28,
       pvEigenverbrauchKwhGesamtVertragslaufzeit: 800_000,
       stromkostenOhnePvEurJahr: 60_000 * 0.4,
-      stromkostenMitPvEurJahr: (60_000 - 40_000) * 0.4 + 40_000 * 0.2,
+      stromkostenMitPvEurJahr: (60_000 - 40_000) * 0.4 + 40_000 * 0.08,
     });
   });
 

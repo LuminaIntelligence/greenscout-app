@@ -182,12 +182,16 @@ def test_stromkosten_ohne_pv_rechenprobe() -> None:
 
 
 def test_stromkosten_mit_pv_baseline() -> None:
-    # (60_000 - 40_000) * 0.4 + 40_000 * 0.2 = 8_000 + 8_000 = 16_000.
-    assert stromkosten_mit_pv_eur_jahr(make_input()) == Decimal("16000.00")
+    # Defekt A2 (2026-05-30): formula uses user-input pv_verkauf_eur_kwh
+    # (baseline 0.08 EUR/kWh), NOT the previous 0.20 EUR/kWh constant.
+    # (60_000 - 40_000) * 0.4 + 40_000 * 0.08 = 8_000 + 3_200 = 11_200.
+    assert stromkosten_mit_pv_eur_jahr(make_input()) == Decimal("11200.00")
 
 
 def test_stromkosten_mit_pv_rechenprobe() -> None:
-    # (400_000 - 164_000) * 0.35 + 164_000 * 0.20 = 82_600 + 32_800 = 115_400.
+    # Defekt A2 (2026-05-30): formula uses user-input pv_verkauf_eur_kwh
+    # (baseline 0.08 EUR/kWh from make_input).
+    # (400_000 - 164_000) * 0.35 + 164_000 * 0.08 = 82_600 + 13_120 = 95_720.
     out = stromkosten_mit_pv_eur_jahr(
         make_input(
             verbrauch_kwh_jahr=400_000,
@@ -195,7 +199,35 @@ def test_stromkosten_mit_pv_rechenprobe() -> None:
             versorger_preis_eur_kwh=0.35,
         )
     )
-    assert out == Decimal("115400.00")
+    assert out == Decimal("95720.00")
+
+
+def test_stromkosten_mit_pv_uses_user_input_pv_verkauf_not_constant() -> None:
+    """Anti-regression Defekt A2 (2026-05-30).
+
+    User-Input ``pv_verkauf_eur_kwh`` muss die einzige Quelle für die
+    Einspeiseverguetung in der stromkosten_mit_pv-Berechnung sein.
+    Die EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH-Konstante darf nicht
+    hardcoded den User-Input ueberschreiben.
+
+    Test-Fixture: verbrauch = eigenverbrauch = 130.000 (alles selbst genutzt),
+    versorger = 0,28, pv_verkauf = 0,22.
+    Erwartet: 0 + 130.000 * 0,22 = 28.600 EUR.
+    Mit dem alten Bug (Konstante 0,20): 130.000 * 0,20 = 26.000 EUR.
+    """
+    out = stromkosten_mit_pv_eur_jahr(
+        make_input(
+            verbrauch_kwh_jahr=130_000,
+            pv_eigenverbrauch_kwh_jahr=130_000,
+            versorger_preis_eur_kwh=0.28,
+            pv_verkauf_eur_kwh=0.22,
+        )
+    )
+    assert out == Decimal("28600.00"), (
+        f"Erwartet 28.600 EUR (130k * 0,22), bekommen {out}. "
+        "Bug A2 -- Code nutzt evtl. EINSPEISE_VERGUETUNG_DEFAULT-Konstante "
+        "statt user-input pv_verkauf_eur_kwh."
+    )
 
 
 def test_compose_all_returns_derived_values_model() -> None:
@@ -211,7 +243,8 @@ def test_compose_all_returns_derived_values_model() -> None:
     assert out.co2_fussballfelder_pro_jahr == ((95_000 * 0.474) / 1000) * 0.0177 * 1.28
     assert out.pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit == 40_000 * 20
     assert out.stromkosten_ohne_pv_eur_jahr == 24_000.0
-    assert out.stromkosten_mit_pv_eur_jahr == 16_000.0
+    # Defekt A2: baseline 60k/40k/0.4/0.08 -> 8_000 + 3_200 = 11_200.
+    assert out.stromkosten_mit_pv_eur_jahr == 11_200.0
 
 
 def test_compose_all_propagates_all_three_co2_overrides() -> None:

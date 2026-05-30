@@ -3637,3 +3637,36 @@ Die deutsche Format-Konvention betrifft nur den Document-Output (PPTX). Der TS-M
 **Pause-Trigger-Check (§7):** keine. Pure Formatter-Logik. Keine neuen Deps. Kein Schema-Change. §7.7 (money) feuert NICHT — die Berechnung selbst ist unverändert, nur die Darstellung wird SPEC-konform.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-30 — Defekt A2: stromkosten_mit_pv nutzt user-input pv_verkauf statt Konstante (user-confirmed)
+
+**Context:** Generierte PPTX zeigte auf Slide 14 `Mit PV: ca. 26.000 € pro Jahr` bei einer Test-Studie mit verbrauch = eigenverbrauch = 130.000 + pv_verkauf = 0,22 + versorger = 0,28. Erwartet: `(130k − 130k) × 0,28 + 130k × 0,22 = 0 + 28.600 = 28.600 €`. Tatsächlich: `26.000 € = 130k × 0,20` — d. h. die Berechnung ignorierte den vom Berater eingegebenen `pvVerkaufEurKwh = 0,22` und nutzte stattdessen die hardcodierte Konstante `0,20`.
+
+**Root cause:** Slice-3a Sign-off Item 3 (`docs/pptx-mapping.md` Q3) hatte die Formel ursprünglich auf eine PROVISIONAL `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 €/kWh`-Konstante gepinnt — mit der Begründung „pv_verkauf_eur_kwh ist der Verkaufspreis ans Netz, nicht die Avoided-Cost-Reference für Selbstverbrauch". Beide Calc-Module (`src/lib/calculations/index.ts::stromkostenMitPvEurJahr` und `services/python/app/domain/calculations.py::stromkosten_mit_pv_eur_jahr`) folgten dieser Sign-off-Decision wörtlich. Das war konsistent mit der dokumentierten Mapping-Disambiguierung, aber das Ergebnis war für den User in Production *falsch*: er hat einen `pv_verkauf_eur_kwh`-Wert eingegeben und erwartet diesen Wert in der Berechnung wiederzufinden — nicht eine versteckte Konstante.
+
+**Decision (user-confirmed §7.7 Follow-up zur 2026-05-27 Pacht-Formel-Freigabe):** Der user-entered `pvVerkaufEurKwh` / `pv_verkauf_eur_kwh` ist die EINZIGE Quelle für die Avoided-Cost-Reference im self-consumption-Term der `stromkosten_mit_pv`-Formel. Da das Feld im `StudyCalcInput`-Schema required ist (pydantic `Field(..., ge=0, …)` + TS-Interface `pvVerkaufEurKwh: number`), gibt es keinen Fallback-Bedarf — die provisorische `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`-Konstante wurde aus beiden Modulen komplett entfernt.
+
+Neue Formel (TS + Py + `docs/pptx-mapping.md`):
+```
+stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_preis
+                            + pv_eigenverbrauch × pv_verkauf_eur_kwh
+```
+
+**Affected:**
+- `src/lib/calculations/index.ts` — `stromkostenMitPvEurJahr`-Body auf `input.pvVerkaufEurKwh` umgestellt; Import von `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH` entfernt; Inline-Docstring auf Defekt A2 verwiesen.
+- `src/lib/calculations/constants.ts` — `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`-Export entfernt; Inline-Tombstone-Kommentar als Audit-Spur eingefügt.
+- `src/lib/calculations/constants.test.ts` — Sanity-Test auf den Constant-Wert ersetzt durch Anti-Regression-Guard, der bricht falls jemand das named-Export wieder einführt.
+- `src/lib/calculations/index.test.ts` — `stromkostenMitPvEurJahr`-Tests auf neue Formel umgestellt (baseline 0,4 + 0,08 statt 0,4 + 0,20); neuer Anti-Regression-Test mit verbatim Defekt-Fixture (130k / 130k / 0,28 / 0,22 → 28.600 €); compose-snapshot upgegradet.
+- `src/lib/calculations/types.ts` — `DerivedValues.stromkostenMitPvEurJahr`-JSDoc auf neue Formel.
+- `services/python/app/domain/calculations.py` — Python-Mirror desselben Fixes (`inp.pv_verkauf_eur_kwh` statt `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`); Inline-Docstring auf Defekt A2.
+- `services/python/app/domain/constants.py` — `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`-Export entfernt; Inline-Tombstone-Kommentar.
+- `services/python/tests/test_constants.py` — Sanity-Test ersetzt durch Anti-Regression `hasattr`-Guard.
+- `services/python/tests/test_calculations.py` — Baseline + Rechenprobe an neue Formel angepasst; neuer Anti-Regression-Test `test_stromkosten_mit_pv_uses_user_input_pv_verkauf_not_constant` mit verbatim Defekt-Fixture (130k / 130k / 0,28 / 0,22 → 28.600 €).
+- `services/python/tests/fixtures/calc-parity-fixtures.json` — alle 23 Fixtures auf neuen `stromkostenMitPvEurJahr`-Wert regeneriert via `npx tsx scripts/generate-calc-parity-fixtures.mjs`. Notable: baseline `16000 → 11200`, pacht-formula-regression-500kwp `110000 → 86000`, verkauf-greater-than-versorger `14000 → 26000` (weil verkauf 0,5 > versorger 0,3 dort die Selbstverbrauchskosten *erhöht*), extreme-large-2000kwp `268000 → 144750`.
+- `docs/pptx-mapping.md` — Q3-Resolution durchgestrichen + 2026-05-30-Revisions-Note; `{{stromkosten_mit_pv_eur_jahr}}`-Eintrag auf neue Formel umgeschrieben.
+
+**Pause-Trigger-Check (§7.7 Money-Calc):** §7.7 feuert grundsätzlich für money-Calc-Änderungen — gleicher Scope wie DECISIONS 2026-05-27 (Pacht-Formel-Freigabe). User hat explizit als §7.7-Follow-up bestätigt: „Der user-input ist die einzige Quelle für die Einspeisevergütung — die Konstante darf nicht hardcoded den user-input überschreiben." Die Mapping-Disambiguierung Q3 vom 2026-05-26 wird durch diese spätere User-Entscheidung überschrieben.
+
+**Open question for the user:** —

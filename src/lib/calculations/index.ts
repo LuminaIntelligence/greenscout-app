@@ -13,7 +13,6 @@
 import {
   CO2_HA_MISCHWALD_PER_T_PER_YEAR,
   CO2_KG_PER_KWH_PV,
-  EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH,
   FOOTBALL_FIELDS_PER_HA,
 } from "./constants";
 import type { DerivedValues, StudyCalcInput } from "./types";
@@ -111,14 +110,22 @@ export function stromkostenOhnePvEurJahr(input: StudyCalcInput): number {
  * Slide 14 "Mit PV"; per Slice-3a sign-off item 3.
  *
  * Formula: residual-from-grid at supplier price + self-consumed
- * share valued at the PROVISIONAL Einspeisevergütung constant
- * (NOT the consultant-entered `pvVerkaufEurKwh`, which is the
- * sales-to-grid price, not the avoided-cost reference).
+ * share valued at the user-entered `pvVerkaufEurKwh`.
+ *
+ * Defekt A2 (2026-05-30, user-confirmed §7.7 follow-up to the
+ * 2026-05-27 Pacht-Formel-Freigabe): the previous implementation
+ * used the `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 €/kWh`
+ * constant as a provisional avoided-cost reference. Production
+ * generated PPTX showed `Mit PV: 26.000 €` (= 130k × 0,20) instead
+ * of the user-expected `28.600 €` (= 130k × 0,22) when the Berater
+ * had entered `pvVerkaufEurKwh = 0,22 €/kWh`. The user-entered
+ * value is now the single source of truth; the provisional constant
+ * is removed. See DECISIONS 2026-05-30 "Defekt A2".
  */
 export function stromkostenMitPvEurJahr(input: StudyCalcInput): number {
   const residualFromGrid =
     (input.verbrauchKwhJahr - input.pvEigenverbrauchKwhJahr) * input.versorgerPreisEurKwh;
-  const selfConsumed = input.pvEigenverbrauchKwhJahr * EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH;
+  const selfConsumed = input.pvEigenverbrauchKwhJahr * input.pvVerkaufEurKwh;
   return residualFromGrid + selfConsumed;
 }
 

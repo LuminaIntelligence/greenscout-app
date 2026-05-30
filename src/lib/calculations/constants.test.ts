@@ -12,13 +12,13 @@
 
 import { describe, expect, it } from "vitest";
 
+import * as constants from "./constants";
 import {
   CO2_HA_MISCHWALD_PER_T_PER_YEAR,
   CO2_KG_PER_KWH_PV,
   DEFAULT_PACHT_EUR_PER_KWP,
   DEFAULT_SENSITIVITY_CT_KWH,
   DEFAULT_VERTRAGSLAUFZEIT_JAHRE,
-  EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH,
   FOOTBALL_FIELDS_PER_HA,
 } from "./constants";
 
@@ -53,10 +53,16 @@ describe("calculation constants", () => {
     expect(DEFAULT_SENSITIVITY_CT_KWH).toEqual([35, 40, 45]);
   });
 
-  it("exports a positive provisional EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH", () => {
-    expect(typeof EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBe("number");
-    expect(EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBeGreaterThan(0);
-    expect(EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBeLessThan(1);
+  it("Defekt A2 anti-regression — EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH is removed", () => {
+    // 2026-05-30: the provisional 0.20 €/kWh constant that previously
+    // shadowed the user-entered `pvVerkaufEurKwh` in
+    // `stromkostenMitPvEurJahr` was removed. If a future contributor
+    // re-introduces the named export, this guard breaks immediately
+    // and the calc-mit-pv formula must be re-audited before re-adding.
+    // See DECISIONS 2026-05-30 "Defekt A2".
+    expect((constants as Record<string, unknown>).EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH).toBe(
+      undefined,
+    );
   });
 
   it("constants are frozen-like immutables (readonly array)", () => {

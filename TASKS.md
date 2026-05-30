@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekt E1 ✅ German two-decimal money/ct convention (typed formatters)
+- **Merged:** 2026-05-30 via PR #56.
+- **Branch:** `fix/german-number-formatting`
+- **Summary:** Production-Symptom: generierte PPTX/PDF zeigten ct- und EUR-Werte ohne deutsche Zwei-Dezimalstellen-Konvention (z. B. `28000` statt `28.000,00 €` und `22` statt `22,00 ct`). Root cause: `services/python/app/services/documents.py` baute Strings inline statt typed Formatter zu nutzen — Konvention nicht zentral durchgesetzt. Fix: Neues `services/python/app/services/formatters.py` mit typed `format_eur`/`format_ct`/`format_integer_de`-Funktionen (Decimal + German locale `1.234,56` + NBSP vor `€`/`ct`). Alle `documents.py`-Aufrufer auf typed Formatter umgestellt; `test_formatters.py` mit parametrized + anti-regression Tests. `docs/pptx-mapping.md` Format-Konvention für ct/EUR-Werte dokumentiert. Carry-forward zum nächsten PR (Defekt A2 — calc-mit-pv formula).
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-30 — Defekt E1: German two-decimal money/ct convention".
+
 ### Defekte D1+D2+D3 ✅ Empty-Value-Rendering via Phrase-Pattern (Slides 2/4/10/19)
 - **Merged:** 2026-05-29 via PR #55.
 - **Branch:** `fix/empty-value-rendering`
