@@ -95,13 +95,12 @@ export interface DerivedValues {
    * € / Jahr — annual electricity cost WITH the PV installation.
    * Slide 14 placeholder `{{stromkosten_mit_pv_eur_jahr}}`.
    * Formula: `(verbrauch − pv_eigenverbrauch) × versorger_preis
-   *           + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`.
-   * The Einspeisevergütung is the avoided-cost reference for the
-   * self-consumed share — NOT the consultant-entered
-   * `pvVerkaufEurKwh` (which is the sales-to-grid price).
-   * Per Slice-3a sign-off item 3 — see `docs/pptx-mapping.md` and
-   * the PROVISIONAL marker on `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`
-   * in `constants.ts`.
+   *           + pv_eigenverbrauch × pv_verkauf_eur_kwh`.
+   * Per Defekt A2 (2026-05-30, user-confirmed §7.7 follow-up): the
+   * user-entered `pvVerkaufEurKwh` is the single source of truth for
+   * the avoided-cost reference. A previous PROVISIONAL constant
+   * `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20` was removed.
+   * See DECISIONS 2026-05-30 "Defekt A2".
    */
   stromkostenMitPvEurJahr: number;
 }
