@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekte D1+D2+D3 ✅ Empty-Value-Rendering via Phrase-Pattern (Slides 2/4/10/19)
+- **Merged:** 2026-05-29 via PR #55.
+- **Branch:** `fix/empty-value-rendering`
+- **Summary:** Production-Symptome: Slide 2/4 zeigten hängende Labels (`in Flurstück`, `Flurstück:`) wenn `Study.flurstueck` leer war; Slide 19 zeigte `1) am  Uhr` / `2) am  Uhr` ohne `terminVorschlag1`/`2`; Slide 10 zeigte „500 kWp, Module,  m²" bei fehlenden Modul-Werten. Root cause: Template benutzte raw-keys `{{flurstueck}}`, `{{termin_vorschlag_1}}`, `{{modul_anzahl}}` etc. — bei leerem Value blieb der umgebende Template-Präfix sichtbar. Fix: **Phrase-Pattern** — Server Action (`generate-document.ts`) pre-rendert vollständige Phrasen wie ` in Flurstück 78.10` / `Flurstück: 78.10` / `1) am 15.03.2026 um 14:00 Uhr` / `500 kWp, 1.428 Module, 2.856 m²`; leere Werte → leere phrase → kein hängender Präfix. Template via `scripts/normalize-empty-value-phrases.py` (idempotent) auf neue phrase-keys umgestellt: `{{flurstueck_phrase}}`, `{{flurstueck_label_phrase}}`, `{{termin_1_phrase}}`, `{{termin_2_phrase}}`, `{{termin_oder_phrase}}`, `{{modul_info_phrase}}`. 6 phrase-builders + Vitest-Tests + Pytest anti-regression dass Template keine raw-keys mehr enthält. Carry-forward zum nächsten PR (Defekt E1 — German number formatting) verschoben.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-29 — Defekte D1+D2+D3: Empty-Value-Rendering via Phrase-Pattern".
+
 ### Defekte C3+C4 ✅ TEXT_TO_FIT_SHAPE auf Slide 1 + Slide 16
 - **Merged:** 2026-05-29 via PR #54.
 - **Branch:** `fix/text-fit-on-overflow-shapes`
