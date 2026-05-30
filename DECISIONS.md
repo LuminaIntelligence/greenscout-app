@@ -3573,3 +3573,67 @@ Sechs Anti-Regression-Tests + Vitest-Coverage:
 **Pause-Trigger-Check (§7):** keine. Reine Code-Reorganisation — kein Schema-, kein API-Surface-Change. Server-Action-Behavior 1:1 identisch.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-30 — Defekt E1: ct- und EUR-Werte mit deutscher Format-Konvention (zwei Nachkommastellen)
+
+**Context:** Erstes generiertes Produktions-PPTX zeigt auf Slides 5, 9, 12 ct-Werte ohne Nachkommastellen — `22 CENT`, `28 netto ct/kWh` statt `22,00 CENT`, `28,00 netto ct/kWh`. Original-Template hatte für dieselben Slots z. B. `20,00 CENT` — SPEC §8.3 fordert deutsche Locale (`.` Tausendertrenner, `,` Dezimaltrenner) und für Money-/ct-Werte zwei Nachkommastellen. Defekt-Report-Punkt E1 vom 2026-05-30. Slide 13 (Pacht `50.000 €`, gesamtvorteil `206.000 €`) hat dasselbe Problem für ganzzahlige EUR-Beträge.
+
+**Root cause:** `services/python/app/api/endpoints/documents.py` hatte zwei Helper-Funktionen, die explizit ganzzahlig formatierten:
+- `_format_ct(value) → str(round(value))` — produzierte `"22"` statt `"22,00"`.
+- `_format_currency_eur(value) → _format_int_thousands(value)` — produzierte `"27.500"` statt `"27.500,00"`.
+
+Beide Helper waren inline in `documents.py` definiert, ohne zentrale formatter-Schicht. Es gab kein dediziertes formatter-Modul, obwohl SPEC §8.3 + `docs/pptx-mapping.md` Notes-Sektion das bereits als „belongs to the new `app.services.formatters` module" markiert hatten (Notiz aus T-038a-Design).
+
+**Decision (User-Defekt-Report-Vorgabe):**
+
+Neues Modul `services/python/app/services/formatters.py` mit drei typed-Funktionen:
+
+- `format_eur(value: Decimal | float | int) → str` — IMMER zwei Nachkommastellen (`1.000` → `"1.000,00"`).
+- `format_cent_per_kwh(value: Decimal | float | int) → str` — IMMER zwei Nachkommastellen (`22` → `"22,00"`).
+- `format_integer_de(value: Decimal | float | int) → str` — keine Nachkommastellen, mit Tausendertrenner (`1234` → `"1.234"`).
+
+Shared core `format_de_number(value, decimals)`:
+1. Normalisiert alle Inputs (`Decimal`/`float`/`int`) auf `Decimal` via `Decimal(str(float))`-Idiom — vermeidet die Banker's-Rounding-Überraschung des Python-f-String-Formatters.
+2. Quantisiert mit `ROUND_HALF_UP` (kaufmännisches Runden — was deutsche User erwarten).
+3. Konvertiert zurück zu `float` (jetzt safe, weil quantisiert) für die f-String-Formatierung mit `,` thousands.
+4. Swappt `,`↔`.` mit `\x00`-Sentinel zur de-Locale (`1,234.56` → `1.234,56`).
+
+`Decimal`-Pfad fängt Float-Drift wie `7800.000000000004` ab — quantisiert zu `7.800,00` statt das IEEE-754-Tail in das kundengerichtete PPTX zu leaken.
+
+Aufrufer in `documents.py::_build_context` umgestellt:
+- `_format_ct` delegates zu `format_cent_per_kwh` — Output `22,00` / `35,00` / `40,00`.
+- `_format_currency_eur` delegates zu `format_eur` — Output `27.500,00` / `492.000,00` / `517.500,00`.
+- `_format_kwh` und `_format_int_thousands` delegates zu `format_integer_de` — Output unverändert (`236.000`, `4.720.000`), aber jetzt durch denselben Decimal-Quantisierungs-Core.
+
+**Bewusst NICHT umgesetzt — separate Special-Case-Helper:**
+
+`_format_anlage_kwp` und `_format_percent_int` bleiben als lokale Helper in `documents.py`:
+- `_format_anlage_kwp(257.0) → "257"` (integer wenn ganzzahlig), `_format_anlage_kwp(257.12) → "257,12"` — SPEC §8.3 + mapping doc fordert das integer-when-whole-Verhalten für Anlage-kWp, gegen die Money-Convention.
+- `_format_percent_int(41.0) → "41"` — Eigenverbrauchsquote in Mapping als `41 %` (integer).
+
+Begründung: typed-Formatter sind eine Garantie über die Money-Klasse — Anlage-kWp und Prozent sind kein Money und folgen einer anderen SPEC-Vorgabe. Sie wegzuabstrahieren würde der typed-API Inkohärenz hinzufügen.
+
+**Bewusst NICHT umgesetzt — TS-Mirror-Formatter:**
+
+Die deutsche Format-Konvention betrifft nur den Document-Output (PPTX). Der TS-Mirror in `src/lib/calculations/*` liefert nur Roh-Decimals an die Live-Preview — die UI-Renderer formattieren separat (`Intl.NumberFormat` o. ä.). Kein Bedarf, das Pattern zu duplizieren.
+
+**Tests (anti-regression):**
+
+- `services/python/tests/test_formatters.py` (neu): 42 parametrized cases — Happy-Path-Coverage für die drei typed-Funktionen plus vier explizite anti-regression Tests, die die Symptom-Werte aus dem Defekt-Report hardcoden (`22 CENT`, `28 netto ct/kWh`, `50.000 €`). Brechen sofort, wenn jemand die Default-Decimal-Anzahl ändert oder den de↔en-Locale-Swap vergisst.
+- `services/python/tests/test_api_documents.py::test_german_currency_formatting` — Vertrag auf neue Konvention upgegradet (`27.500,00` statt `27.500`).
+- `services/python/tests/test_api_documents.py::test_german_ct_per_kwh_formatting_e1` (neu): pinned das `22,00` / `28,00` / `35,00`-Verhalten des `_format_ct`-Wrappers in der documents-Layer.
+- `services/python/tests/test_pptx_generator.py::test_real_template_slide_9_text_21_renders_all_three_box_05_values` — Fixture-Werte auf neue Format-Konvention upgegradet, damit die Substring-Assertion ehrlich gegen den realen Pipeline-Output bleibt.
+
+**Affected:**
+- `services/python/app/services/formatters.py` — NEU.
+- `services/python/app/api/endpoints/documents.py` — `_format_ct` / `_format_currency_eur` / `_format_kwh` / `_format_int_thousands` delegieren an typed core; `_format_ct` zum `__all__` hinzugefügt (pyright-strict).
+- `services/python/tests/test_formatters.py` — NEU (42 Tests).
+- `services/python/tests/test_api_documents.py` — bestehende Currency-Test upgegradet + neuer ct-Test.
+- `services/python/tests/test_pptx_generator.py` — Slide-9-Fixture-Werte upgegradet.
+- `docs/pptx-mapping.md` — Format-Konvention für `*_eur` / `*_ct_kwh` / `*_kwh` Keys explizit dokumentiert + Notes-Sektion auf Status „landed in PR #56" upgegradet.
+
+**Pause-Trigger-Check (§7):** keine. Pure Formatter-Logik. Keine neuen Deps. Kein Schema-Change. §7.7 (money) feuert NICHT — die Berechnung selbst ist unverändert, nur die Darstellung wird SPEC-konform.
+
+**Open question for the user:** —

@@ -67,41 +67,49 @@ implement exactly this set; any deviation should be flagged before merge.
 
 ### PV-input fields (sourced from `StudyCalcInput`)
 
-- `{{anlage_kwp}}` — `StudyCalcInput.anlage_kwp`, format as `1.234,5 kWp`.
+- `{{anlage_kwp}}` — `StudyCalcInput.anlage_kwp`, format as `1.234,5 kWp` (integer if whole, else two-decimal German style — `_format_anlage_kwp`).
 - `{{modul_info_phrase}}` — **pre-rendered phrase** like `500 kWp, 1.428 Module, 2.856 m²`. Server Action drops the optional Module / m² segments when `Study.modulAnzahl` / `Study.modulFlaecheM2` are unset. Replaces the raw-keys `{{modul_anzahl}}` and `{{modul_flaeche_m2}}` (removed 2026-05-29 — Defekt D3). See `src/features/studies/actions/generate-document.ts` `buildModulInfoPhrase`.
-- `{{pv_erzeugung_kwh_jahr}}` — `StudyCalcInput.pv_erzeugung_kwh_jahr`, format `12.345 kWh`.
-- `{{pv_eigenverbrauch_kwh_jahr}}` — `StudyCalcInput.pv_eigenverbrauch_kwh_jahr`, format `12.345 kWh`.
-- `{{pv_verkauf_ct_kwh}}` — `StudyCalcInput.pv_verkauf_eur_kwh * 100`, format `20 ct/kWh`.
-- `{{eigenverbrauchsquote_prozent}}` — `Study.eigenverbrauchsquoteProzent`, format `41 %`.
-- `{{netzeinspeisung_kwh_jahr}}` — `Study.netzeinspeisungKwhJahr`, format `12.345 kWh`.
-- `{{versorger_preis_ct_kwh}}` — `StudyCalcInput.versorger_preis_eur_kwh * 100`, format `35 ct/kWh`.
+- `{{pv_erzeugung_kwh_jahr}}` — `StudyCalcInput.pv_erzeugung_kwh_jahr`, format `12.345` (integer kWh — `format_integer_de`).
+- `{{pv_eigenverbrauch_kwh_jahr}}` — `StudyCalcInput.pv_eigenverbrauch_kwh_jahr`, format `12.345` (integer kWh — `format_integer_de`).
+- `{{pv_verkauf_ct_kwh}}` — `StudyCalcInput.pv_verkauf_eur_kwh * 100`, format `20,00` (ct/kWh with **IMMER zwei Nachkommastellen** — `format_cent_per_kwh`, Defekt E1, 2026-05-30).
+- `{{eigenverbrauchsquote_prozent}}` — `Study.eigenverbrauchsquoteProzent`, format `41` (integer percent — `_format_percent_int`).
+- `{{netzeinspeisung_kwh_jahr}}` — `Study.netzeinspeisungKwhJahr`, format `12.345` (integer kWh — `format_integer_de`).
+- `{{versorger_preis_ct_kwh}}` — `StudyCalcInput.versorger_preis_eur_kwh * 100`, format `35,00` (ct/kWh with **IMMER zwei Nachkommastellen** — `format_cent_per_kwh`, Defekt E1, 2026-05-30).
 
 ### Derived monetary values (sourced from `DerivedValues`)
 
+> **Format-Konvention für EUR-Werte (Defekt E1, 2026-05-30):** Alle
+> `*_eur`-Keys werden via `format_eur` mit **IMMER zwei
+> Nachkommastellen** und deutscher Locale (`.` Tausender / `,` Dezimal)
+> serialisiert — also `27.500,00`, NICHT `27.500`. Original-Template
+> hatte z. B. `20,00 CENT`; ohne diese Konvention zeigten Slides 5/9/12
+> ct-Werte ohne Komma (Production-Symptom). Das `€`-Glyph kommt aus
+> dem statischen Template-Run und nicht aus der Formatter-Ausgabe.
+
 - `{{pacht_einnahme_einmalig_eur}}` — `DerivedValues.pacht_einnahme_einmalig`
-  (SPEC §4.7, user-confirmed 2026-05-27; formula `anlage_kwp × pacht_eur_pro_kwp` — one-shot, NO vertragslaufzeit factor), format `27.500 €`.
-- `{{ersparnis_pro_jahr_eur}}` — `DerivedValues.ersparnis_pro_jahr`, format `24.600 €`.
-- `{{ersparnis_pro_monat_eur}}` — `DerivedValues.ersparnis_pro_monat`, format `2.050 €`.
-- `{{ersparnis_gesamt_vertragslaufzeit_eur}}` — `DerivedValues.ersparnis20_jahre`, format `492.000 €`.
-- `{{gesamterzeugung_vertragslaufzeit_kwh}}` — `DerivedValues.gesamterzeugung20j`, format `4.720.000 kWh`.
-- `{{gesamtvorteil_eur}}` — `DerivedValues.gesamtvorteil`, format `517.500 €`.
+  (SPEC §4.7, user-confirmed 2026-05-27; formula `anlage_kwp × pacht_eur_pro_kwp` — one-shot, NO vertragslaufzeit factor), format `27.500,00` (`format_eur`).
+- `{{ersparnis_pro_jahr_eur}}` — `DerivedValues.ersparnis_pro_jahr`, format `24.600,00` (`format_eur`).
+- `{{ersparnis_pro_monat_eur}}` — `DerivedValues.ersparnis_pro_monat`, format `2.050,00` (`format_eur`).
+- `{{ersparnis_gesamt_vertragslaufzeit_eur}}` — `DerivedValues.ersparnis20_jahre`, format `492.000,00` (`format_eur`).
+- `{{gesamterzeugung_vertragslaufzeit_kwh}}` — `DerivedValues.gesamterzeugung20j`, format `4.720.000` (integer kWh — `format_integer_de`).
+- `{{gesamtvorteil_eur}}` — `DerivedValues.gesamtvorteil`, format `517.500,00` (`format_eur`).
 - `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` — `DerivedValues.pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit`
-  (Slice-3a sign-off item 1; formula `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`), format `3.280.000 kWh`.
+  (Slice-3a sign-off item 1; formula `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`), format `3.280.000` (integer kWh — `format_integer_de`).
 - `{{stromkosten_ohne_pv_eur_jahr}}` — `DerivedValues.stromkosten_ohne_pv_eur_jahr`
-  (Slice-3a sign-off item 2; formula `verbrauch_kwh_jahr × versorger_preis_eur_kwh`), format `140.000 €`.
+  (Slice-3a sign-off item 2; formula `verbrauch_kwh_jahr × versorger_preis_eur_kwh`), format `140.000,00` (`format_eur`).
 - `{{stromkosten_mit_pv_eur_jahr}}` — `DerivedValues.stromkosten_mit_pv_eur_jahr`
   (Slice-3a sign-off item 3; formula `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_einspeise_vergueting`,
   with `pv_einspeise_vergueting = EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 €/kWh` provisional constant
-  pending real PV-Sol / Einspeisevergütung data — see DECISIONS), format `115.400 €`.
+  pending real PV-Sol / Einspeisevergütung data — see DECISIONS), format `115.400,00` (`format_eur`).
 
 ### Sensitivity scenarios (sourced from `Study.szenarioPreis*` + recomputed via `StudyCalcInput` substitution)
 
-- `{{szenario_1_preis_ct_kwh}}` — `Study.szenarioPreis1` (default 35), format `35 ct/kWh`.
-- `{{szenario_1_ersparnis_eur}}` — `composeAll(input with versorgerPreis = szenarioPreis1).ersparnisProJahr`, format `24.600 €`.
-- `{{szenario_2_preis_ct_kwh}}` — `Study.szenarioPreis2` (default 40), format `40 ct/kWh`.
-- `{{szenario_2_ersparnis_eur}}` — same pattern with `szenarioPreis2`, format `36.200 €`.
-- `{{szenario_3_preis_ct_kwh}}` — `Study.szenarioPreis3` (default 45), format `45 ct/kWh`.
-- `{{szenario_3_ersparnis_eur}}` — same pattern with `szenarioPreis3`, format `47.800 €`.
+- `{{szenario_1_preis_ct_kwh}}` — `Study.szenarioPreis1` (default 35), format `35,00` (`format_cent_per_kwh`).
+- `{{szenario_1_ersparnis_eur}}` — `composeAll(input with versorgerPreis = szenarioPreis1).ersparnisProJahr`, format `24.600,00` (`format_eur`).
+- `{{szenario_2_preis_ct_kwh}}` — `Study.szenarioPreis2` (default 40), format `40,00` (`format_cent_per_kwh`).
+- `{{szenario_2_ersparnis_eur}}` — same pattern with `szenarioPreis2`, format `36.200,00` (`format_eur`).
+- `{{szenario_3_preis_ct_kwh}}` — `Study.szenarioPreis3` (default 45), format `45,00` (`format_cent_per_kwh`).
+- `{{szenario_3_ersparnis_eur}}` — same pattern with `szenarioPreis3`, format `47.800,00` (`format_eur`).
 
 ### CO₂ / Umwelt fields (sourced from `DerivedValues` honouring `Study.co2Override`)
 
@@ -349,11 +357,19 @@ These notes are not actionable here — they are pointers for the
 implementer of T-037 and T-038a to consume:
 
 1. **German number formatting** (SPEC §8.3) is the responsibility of the
-   document-generation layer (T-038a), not the placeholder template. The
-   placeholders carry **pre-formatted** strings. Implementing the
-   formatter once (numbers, currency NBSP, dates `DD.MM.YYYY`,
-   percentages, units) belongs to the new `app.services.formatters`
-   module to be added in T-038a.
+   document-generation layer, not the placeholder template. The
+   placeholders carry **pre-formatted** strings.
+
+   **Status 2026-05-30 — Defekt E1:** Das typed-formatter-Modul
+   `services/python/app/services/formatters.py` exposes
+   `format_eur` / `format_cent_per_kwh` / `format_integer_de`
+   und garantiert deutsche Locale (`.` Tausender / `,` Dezimal) mit
+   **IMMER zwei Nachkommastellen** für Money- und ct-Werte. Vor PR #56
+   rendete die Pipeline ct-/EUR-Werte auf Slides 5/9/12/13 ohne
+   Komma (Production-Symptom: `22 CENT`, `28 netto ct/kWh`,
+   `50.000 €`). Aufrufer in
+   `services/python/app/api/endpoints/documents.py::_build_context`
+   leiten alle `*_eur` / `*_ct_kwh` Keys durch diese Funktionen.
 2. **Run-stitching across the `{{` and `}}`**: python-pptx splits runs
    on style boundaries. T-038a's text replacement must scan paragraph-
    level joined text and re-write the placeholder across runs while
