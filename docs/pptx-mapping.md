@@ -98,9 +98,13 @@ implement exactly this set; any deviation should be flagged before merge.
 - `{{stromkosten_ohne_pv_eur_jahr}}` — `DerivedValues.stromkosten_ohne_pv_eur_jahr`
   (Slice-3a sign-off item 2; formula `verbrauch_kwh_jahr × versorger_preis_eur_kwh`), format `140.000,00` (`format_eur`).
 - `{{stromkosten_mit_pv_eur_jahr}}` — `DerivedValues.stromkosten_mit_pv_eur_jahr`
-  (Slice-3a sign-off item 3; formula `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_einspeise_vergueting`,
-  with `pv_einspeise_vergueting = EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 €/kWh` provisional constant
-  pending real PV-Sol / Einspeisevergütung data — see DECISIONS), format `115.400,00` (`format_eur`).
+  (formula `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_verkauf_eur_kwh`),
+  format `28.600,00` (`format_eur`). **Updated 2026-05-30 (Defekt A2):** the previously documented
+  Slice-3a sign-off item 3 used the provisional `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0.20 €/kWh`
+  constant; production generated PPTX showed `Mit PV: 26.000 €` (= 130k × 0,20) where the user
+  expected `28.600 €` (= 130k × 0,22) for `pv_verkauf_eur_kwh = 0,22 €/kWh`. Per the user-confirmed
+  §7.7 follow-up on 2026-05-30, the user-entered `pv_verkauf_eur_kwh` is the single source of truth;
+  the provisional constant is removed. See DECISIONS 2026-05-30 "Defekt A2".
 
 ### Sensitivity scenarios (sourced from `Study.szenarioPreis*` + recomputed via `StudyCalcInput` substitution)
 
@@ -344,7 +348,7 @@ T-039 / T-040.
 | - | -------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 | 5        | What is `Textfeld 15 \| run 3 = 468.982` supposed to be?                                          | `{{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}}` = `pv_eigenverbrauch_kwh_jahr × vertragslaufzeit_jahre`. Template literal `468.982` was internally inconsistent and is replaced. Phase 3 introduces real PV-Sol-driven values. |
 | 2 | 14       | Is `140.000 €` "Ohne PV" the full annual consumption × supplier price?                            | Yes — `{{stromkosten_ohne_pv_eur_jahr}}` = `verbrauch_kwh_jahr × versorger_preis_eur_kwh`. Rechenprobe: `400.000 × 0,35 = 140.000 €`. |
-| 3 | 14       | Is `115.400 €` "Mit PV" the residual-from-grid + eigenverbrauch-at-PV-price?                       | Yes (with one caveat) — `{{stromkosten_mit_pv_eur_jahr}}` = `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`. The avoided-cost reference is the Einspeisevergütung (PROVISIONAL 0,20 €/kWh constant — pending real 2026 lookup), NOT `pv_verkauf_eur_kwh` (which is the sales-to-grid price). Rechenprobe: `(400.000 − 164.000) × 0,35 + 164.000 × 0,20 = 115.400 €`. |
+| 3 | 14       | Is `115.400 €` "Mit PV" the residual-from-grid + eigenverbrauch-at-PV-price?                       | ~~Yes (with one caveat) — `{{stromkosten_mit_pv_eur_jahr}}` = `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH`. The avoided-cost reference is the Einspeisevergütung (PROVISIONAL 0,20 €/kWh constant — pending real 2026 lookup), NOT `pv_verkauf_eur_kwh` (which is the sales-to-grid price). Rechenprobe: `(400.000 − 164.000) × 0,35 + 164.000 × 0,20 = 115.400 €`.~~ **Revised 2026-05-30 (Defekt A2):** the provisional constant produced wrong customer-facing values in production (`Mit PV: 26.000 €` for a study where the user expected `28.600 €`). Per the user-confirmed §7.7 follow-up, the formula is `{{stromkosten_mit_pv_eur_jahr}}` = `(verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_verkauf_eur_kwh`. The user-entered `pv_verkauf_eur_kwh` is the single source of truth; the `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH` constant is removed. Neue Rechenprobe (130k / 130k / 0,28 / 0,22): `(130.000 − 130.000) × 0,28 + 130.000 × 0,22 = 28.600 €`. |
 | 4 | 19       | Should `Telefon` / `E-Mail` / `Adresse` lines stay as the central GreenScout contact, or rotate per-consultant? | Stay central. Only `{{consultant_full_name}}` rotates. Central contact: `+49 172 3794240`, `projektberatung@greenscout-ev.de`, `Utechter Str. 5, 19217 Utecht`. |
 | 5 | 4, 5     | Which exact shape names receive `{{image_before}}` and `{{image_after}}`?                          | ~~Slide 4 `Image 0` → renamed to `image_before`.~~ **Retracted 2026-05-29 (Defekt B1)** — Slide 4 has no photo slot; the renamed shape covered the Eigenverbrauch-headline in the first generated PPTX. Shape removed from the committed template; Slide-4-entry dropped from `IMAGE_RENAMES`. Binding: Slide 5 `Grafik 2` → `image_before`, `Grafik 5` → `image_after`, `Grafik 10` stays static (brand mark). |
 | 6 | 9        | Slide 9's `32` ct/kWh literal differs from Slide 12/14/15's `35`. Unify to a single placeholder?  | Yes — single `{{versorger_preis_ct_kwh}}` placeholder across all four slides; consultant-entered value drives them uniformly.            |
