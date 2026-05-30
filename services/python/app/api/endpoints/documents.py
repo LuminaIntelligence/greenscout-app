@@ -32,6 +32,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.dependencies import verify_api_key
 from app.schemas.calc import DerivedValues, StudyCalcInput
 from app.schemas.documents import DocumentGenerateRequest, DocumentGenerateResponse
+from app.services.formatters import (
+    format_cent_per_kwh,
+    format_eur,
+    format_integer_de,
+)
 from app.services.pdf_renderer import LibreOfficeError, render_pdf
 from app.services.pptx_generator import generate_pptx
 
@@ -69,15 +74,37 @@ _TEMPLATE_PATH = _default_template_path()
 
 
 # --------------------------------------------------------------------- formatting helpers
+#
+# German-locale typed-formatter functions live in ``app.services.formatters``
+# (Defekt E1, 2026-05-30 — Money-/ct-Werte müssen IMMER zwei
+# Nachkommastellen tragen). The thin wrappers below preserve the
+# function-name surface that the existing test suite imports from this
+# module while delegating to the new typed core.
+#
+# ``_format_decimal`` and ``_format_anlage_kwp`` stay as local helpers
+# because they handle two SPECIAL formatting cases that the typed core
+# intentionally does NOT model:
+#   - ``_format_decimal`` exists only so the legacy ``test_german_decimal_formatting``
+#     test keeps a stable API; new callers should prefer ``format_de_number``.
+#   - ``_format_anlage_kwp`` follows the SPEC §8.3 ``257`` (integer) vs.
+#     ``257,12`` (two-decimal) Anlage-kWp convention — it stays integer-only
+#     when the input is whole, unlike ``format_eur`` which always shows ``,00``.
 
 
 def _format_int_thousands(value: float) -> str:
-    """German-locale integer with `.` thousands separator (e.g. ``1.234.567``)."""
-    return f"{round(value):,}".replace(",", ".")
+    """German-locale integer with `.` thousands separator (e.g. ``1.234.567``).
+
+    Delegates to :func:`app.services.formatters.format_integer_de`.
+    """
+    return format_integer_de(value)
 
 
 def _format_decimal(value: float, fractional_digits: int = 2) -> str:
-    """German-locale decimal with `,` decimal mark (e.g. ``257,12``)."""
+    """German-locale decimal with `,` decimal mark (e.g. ``257,12``).
+
+    Local helper — kept for the legacy ``test_german_decimal_formatting``
+    test surface. New callers should use ``format_de_number`` directly.
+    """
     if value == int(value) and fractional_digits == 0:
         return _format_int_thousands(value)
     formatted = f"{value:,.{fractional_digits}f}"
@@ -86,22 +113,35 @@ def _format_decimal(value: float, fractional_digits: int = 2) -> str:
 
 
 def _format_currency_eur(value: float) -> str:
-    """German-locale EUR amount, integer-only (e.g. ``27.500``)."""
-    return _format_int_thousands(value)
+    """German-locale EUR-Betrag mit IMMER zwei Nachkommastellen (e.g. ``27.500,00``).
+
+    Defekt E1 (2026-05-30): Production zeigte ganzzahlige EUR-Werte ohne
+    Nachkommastellen. Delegiert jetzt an :func:`format_eur`.
+    """
+    return format_eur(value)
 
 
 def _format_kwh(value: float) -> str:
     """German-locale kWh integer (e.g. ``236.000``)."""
-    return _format_int_thousands(value)
+    return format_integer_de(value)
 
 
 def _format_ct(value: float) -> str:
-    """ct/kWh value, integer-rounded (e.g. ``35``)."""
-    return str(round(value))
+    """ct/kWh value mit IMMER zwei Nachkommastellen (e.g. ``35,00``).
+
+    Defekt E1 (2026-05-30): Production zeigte ``22 CENT`` / ``28 netto ct/kWh``.
+    Delegiert jetzt an :func:`format_cent_per_kwh`.
+    """
+    return format_cent_per_kwh(value)
 
 
 def _format_anlage_kwp(value: float) -> str:
-    """Anlagen-kWp — integer if whole, else two-decimal German style."""
+    """Anlagen-kWp — integer if whole, else two-decimal German style.
+
+    Bleibt absichtlich vom :func:`format_eur`-Pattern entkoppelt:
+    SPEC §8.3 + mapping doc fordern ``257`` (nicht ``257,00``), aber
+    ``257,12`` (mit Komma) für nicht-ganzzahlige Werte.
+    """
     if value == int(value):
         return str(int(value))
     return _format_decimal(value, fractional_digits=2)
@@ -309,6 +349,7 @@ __all__: list[str] = [
     "StudyCalcInput",
     "_build_context",
     "_format_anlage_kwp",
+    "_format_ct",
     "_format_currency_eur",
     "_format_decimal",
     "_format_int_thousands",
