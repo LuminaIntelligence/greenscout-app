@@ -1220,3 +1220,337 @@ def test_real_template_no_marker_red_after_substitution(tmp_path: Path) -> None:
         f"substitution — either a placeholder was missed or color-reset "
         f"regressed.\nFirst 10:\n  - " + "\n  - ".join(offenders[:10])
     )
+
+
+# --- anti-regression tests for Runde-2 defects (R2-2 .. R2-10, 2026-05-31) ----
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_template_has_no_empty_red_marker_rectangles() -> None:
+    """Defekt R2-2: leere rote Marker-Rechtecke sind aus dem Template entfernt.
+
+    Der Template-Autor hatte als Authoring-Hint leere rote Outline-Rechtecke
+    auf den Slides 2, 5, 10, 15, 19 platziert. Diese sind durch
+    ``scripts/remove-marker-frames.py`` entfernt worden. Wenn dieser Test
+    bricht, ist entweder das Skript regrediert oder jemand hat ein neues
+    leeres rotes Outline-Rechteck eingefügt — beides ist customer-hostile.
+    """
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    offenders: list[str] = []
+    for slide_idx, slide in enumerate(pres.slides, start=1):
+        for shape in slide.shapes:
+            if shape.shape_type != MSO_SHAPE_TYPE.AUTO_SHAPE:
+                continue
+            # Skip shapes with non-marker fill (solid/gradient content).
+            try:
+                fill_type = shape.fill.type
+                if fill_type is not None and int(fill_type) != 5:
+                    continue
+            except (AttributeError, KeyError, TypeError):
+                pass
+            # Skip shapes with text content.
+            if getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
+                continue
+            # Check line color — only marker-red outlines are offenders.
+            try:
+                if shape.line.color.type is None:
+                    continue
+                rgb = shape.line.color.rgb
+                if rgb is None or not _is_marker_red(rgb):
+                    continue
+            except (AttributeError, KeyError, TypeError):
+                continue
+            offenders.append(f"slide {slide_idx} / shape {shape.name!r} (id={shape.shape_id})")
+
+    assert not offenders, (
+        f"{len(offenders)} empty red marker rectangle(s) survived R2-2 cleanup. "
+        f"Re-run scripts/remove-marker-frames.py.\nOffenders:\n  - " + "\n  - ".join(offenders)
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_5_image_before_and_after_render_at_same_bounding_box(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-3: BEFORE und AFTER landen auf Slide 5 in identischer Größe.
+
+    Vor R2-3 hatte image_before W=248 H=428 (Portrait!) und image_after
+    W=429 H=258 — visuell mismatched. Nach R2-3 werden beide Slots durch
+    den ``_IMAGE_FORCED_GEOMETRY_EMU``-Override auf die identische
+    Marker-Rechteck-Geometrie gesnapped (W=4297028 H=2554545 EMU,
+    BEFORE auf T=1797069, AFTER auf T=5295559, beide L=968392).
+    """
+    from app.services.pptx_generator import (
+        _IMAGE_AFTER_NAME,
+        _IMAGE_BEFORE_NAME,
+        _IMAGE_FORCED_GEOMETRY_EMU,
+        _SLIDE5_IMAGE_HEIGHT_EMU,
+        _SLIDE5_IMAGE_WIDTH_EMU,
+    )
+
+    # Sanity: the geometry-override constants are wired in.
+    assert _IMAGE_BEFORE_NAME in _IMAGE_FORCED_GEOMETRY_EMU
+    assert _IMAGE_AFTER_NAME in _IMAGE_FORCED_GEOMETRY_EMU
+    before_geom = _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_BEFORE_NAME]
+    after_geom = _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_AFTER_NAME]
+    # Same column (L), same width, same height.
+    assert before_geom[0] == after_geom[0], "BEFORE/AFTER must share L (column alignment)"
+    assert before_geom[2] == after_geom[2] == _SLIDE5_IMAGE_WIDTH_EMU, (
+        "BEFORE/AFTER must share the canonical width"
+    )
+    assert before_geom[3] == after_geom[3] == _SLIDE5_IMAGE_HEIGHT_EMU, (
+        "BEFORE/AFTER must share the canonical height"
+    )
+
+    # Render against the real template and assert the picture shapes
+    # actually land at the forced geometry.
+    before = _make_png(tmp_path / "b.png", colour=(20, 60, 20))
+    after = _make_png(tmp_path / "a.png", colour=(180, 180, 60))
+    out = tmp_path / "real-r2-3.pptx"
+    generate_pptx(
+        _REAL_TEMPLATE,
+        out,
+        context=_full_context(),
+        image_before_path=before,
+        image_after_path=after,
+    )
+    pres = Presentation(str(out))
+    slide5 = pres.slides[4]
+    image_before = next((s for s in slide5.shapes if s.name == _IMAGE_BEFORE_NAME), None)
+    image_after = next((s for s in slide5.shapes if s.name == _IMAGE_AFTER_NAME), None)
+    assert image_before is not None, "image_before missing from slide 5"
+    assert image_after is not None, "image_after missing from slide 5"
+    # The picture shape itself uses contain-fit, so its width/height
+    # may letterbox below the slot when the image's aspect ratio
+    # differs. The TOTAL slot however (image position + offsets) must
+    # be inside the canonical bounding box. Strict equality: since our
+    # _make_png fixtures produce a square 200x200, contain-fit on a
+    # 4297028x2554545 slot produces a 2554545x2554545 inner box
+    # centered horizontally. We assert top/height equal the slot's
+    # canonical values for an exact-match guarantee.
+    assert int(image_before.top) == _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_BEFORE_NAME][1], (
+        f"image_before top {int(image_before.top)} != "
+        f"canonical {_IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_BEFORE_NAME][1]}"
+    )
+    assert int(image_after.top) == _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_AFTER_NAME][1], (
+        f"image_after top {int(image_after.top)} != "
+        f"canonical {_IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_AFTER_NAME][1]}"
+    )
+    # Both images must end up at the same height (the whole point of
+    # R2-3 — no more BEFORE-portrait / AFTER-landscape mismatch).
+    assert int(image_before.height) == int(image_after.height), (
+        f"BEFORE height {int(image_before.height)} != AFTER height "
+        f"{int(image_after.height)} — R2-3 regression."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_4_headline_numbers_use_text_to_fit_shape() -> None:
+    """Defekt R2-4: Slide-4-Headline-Zahlen haben TEXT_TO_FIT_SHAPE.
+
+    Die fünf großen Zahlen-Shapes auf Slide 4 (anlage_kwp,
+    pv_erzeugung_kwh_jahr, eigenverbrauchsquote_prozent,
+    ersparnis_gesamt_vertragslaufzeit_eur, pacht_einnahme_einmalig_eur)
+    müssen TEXT_TO_FIT_SHAPE haben, damit lange Werte (z. B.
+    "3.000.000") nicht aus der Box laufen.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide4 = pres.slides[3]
+    expected_ids = {6, 9, 15, 19, 29}
+    actual: dict[int, str | None] = {}
+    for shape in slide4.shapes:
+        sid = int(shape.shape_id)
+        if sid not in expected_ids:
+            continue
+        if not shape.has_text_frame:
+            actual[sid] = None
+            continue
+        actual[sid] = str(shape.text_frame.auto_size)
+    missing = expected_ids - actual.keys()
+    assert not missing, f"Slide-4 expected shape ids missing: {sorted(missing)}"
+    wrong = {
+        sid: kind for sid, kind in actual.items() if kind != str(MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE)
+    }
+    assert not wrong, (
+        f"Slide-4 headline shapes without TEXT_TO_FIT_SHAPE: {wrong}. "
+        "Re-run scripts/normalize-slide-r2-template-edits.py."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_15_has_no_chart_shape_but_has_szenario_text_placeholders() -> None:
+    """Defekt R2-5 (documented-not-a-bug): Slide 15 hat KEINEN Chart-Shape.
+
+    Der Runde-2-Report schlug vor, einen Chart auf Slide 15 via
+    ``chart.replace_data`` dynamisch zu befüllen. Inspection ergab:
+    Slide 15 enthält KEINEN python-pptx-Chart (auch keinen
+    graphicFrame mit chart-URI). Die Sensitivitätswerte werden
+    bereits via Text-Placeholders ``szenario_*_preis_ct_kwh`` und
+    ``szenario_*_ersparnis_eur`` dynamisch eingefügt.
+
+    Dieser Test dokumentiert das aktuelle Template-Layout. Falls ein
+    künftiges Template-Update einen echten Chart einführt, wird dieser
+    Test rot — und der Reviewer weiß, dass dann ``_update_sensitivity_chart``
+    nachgereicht werden muss (siehe DECISIONS.md 2026-05-31 R2-5).
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide15 = pres.slides[14]
+    chart_shapes = [s for s in slide15.shapes if hasattr(s, "has_chart") and s.has_chart]
+    assert len(chart_shapes) == 0, (
+        f"Slide 15 now has {len(chart_shapes)} chart shape(s) — "
+        "implement dynamic chart update per DECISIONS R2-5 follow-up."
+    )
+    # Belt-and-braces: confirm the szenario placeholders are present.
+    all_text = "\n".join(
+        shape.text_frame.text for shape in slide15.shapes if getattr(shape, "has_text_frame", False)
+    )
+    for key in (
+        "szenario_1_preis_ct_kwh",
+        "szenario_1_ersparnis_eur",
+        "szenario_2_preis_ct_kwh",
+        "szenario_2_ersparnis_eur",
+        "szenario_3_preis_ct_kwh",
+        "szenario_3_ersparnis_eur",
+    ):
+        assert "{{" + key + "}}" in all_text, (
+            f"Slide 15 must keep {{{{{key}}}}} placeholder — "
+            "text-driven sensitivity rendering depends on it."
+        )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_19_empty_termin_does_not_render_dangling_label(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-7: leere Termin-Vorschläge produzieren KEIN „1) am Uhr".
+
+    Slice-3b's Phrase-Pattern (PR #55, Defekte D1+D2+D3) löste die
+    leeren-Termin-Anhänger im Template (``{{termin_1_phrase}}``).
+    Dieser Test erzwingt das vom Render-Output her: wenn die Context-
+    Werte für termin_1_phrase / termin_2_phrase / termin_oder_phrase
+    leer sind, darf NIRGENDWO auf Slide 19 ein verwaister „1) am Uhr"
+    oder „2) am Uhr" stehen bleiben.
+    """
+    ctx = _full_context()
+    # Simuliere leere Termine: alle drei Phrase-Keys auf leeren String.
+    ctx["termin_1_phrase"] = ""
+    ctx["termin_2_phrase"] = ""
+    ctx["termin_oder_phrase"] = ""
+
+    out = tmp_path / "real-empty-termin.pptx"
+    generate_pptx(_REAL_TEMPLATE, out, context=ctx)
+    pres = Presentation(str(out))
+    slide19 = pres.slides[18]
+    all_text = "\n".join(
+        shape.text_frame.text for shape in slide19.shapes if getattr(shape, "has_text_frame", False)
+    )
+    # Beide dangling-label-Patterns dürfen NICHT vorkommen.
+    offenders = []
+    for needle in ("1) am", "2) am", " Uhr"):
+        # Match wird tolerant gemacht: bei leerem Phrase steht entweder
+        # gar nichts oder ein einsamer Punkt — auf keinen Fall der
+        # template-author's Stub-Text.
+        if needle in all_text:
+            # "Uhr" alleine kann legitimer Body-Text sein; wir sind nur
+            # bei der Kombination mit den Termin-Patterns interessiert.
+            if needle == " Uhr" and not ("1) am  Uhr" in all_text or "2) am  Uhr" in all_text):
+                continue
+            offenders.append(needle)
+    assert not offenders, (
+        f"Slide 19 zeigt verwaiste Termin-Labels {offenders!r} bei leerem "
+        "Phrase-Context (Defekt R2-7 — Phrase-Pattern war supposed to "
+        "make these go away)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_1_berater_shape_uses_text_to_fit_shape() -> None:
+    """Defekt R2-8: Slide-1 Berater-Shape hat weiterhin TEXT_TO_FIT_SHAPE.
+
+    R1-Nachzügler: PR #54 (Defekt C3) hat das Property gesetzt; dieser
+    Test erzwingt es, falls eine spätere Template-Edit-PR es zurücksetzt.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide1 = pres.slides[0]
+    berater = next(
+        (s for s in slide1.shapes if s.name == "Textfeld 3"),
+        None,
+    )
+    assert berater is not None, "Slide 1 'Textfeld 3' (Berater) missing"
+    assert berater.has_text_frame
+    assert berater.text_frame.auto_size == MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE, (
+        f"Slide-1 Berater-Shape auto_size={berater.text_frame.auto_size!r} — "
+        "expected TEXT_TO_FIT_SHAPE (Defekt R2-8)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_inhalte_row_uniform_height_and_top() -> None:
+    """Defekt R2-10: Slide-17 Inhalte-Spalten haben einheitliche Höhe + Top.
+
+    Die 7 Inhalte-Spalten-Shapes (Textfeld 2-7 + Textfeld 20) müssen
+    auf identischer Höhe UND auf identischer Top-Position sitzen,
+    damit die Spalten-Reihe optisch wie eine Linie wirkt. R1's PR #53
+    normalisierte einmalig; R2-10 erzwingt das als Invariante.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    names = {
+        "Textfeld 2",
+        "Textfeld 3",
+        "Textfeld 4",
+        "Textfeld 5",
+        "Textfeld 6",
+        "Textfeld 7",
+        "Textfeld 20",
+    }
+    inhalte = [s for s in slide17.shapes if s.name in names]
+    assert len(inhalte) == 7, (
+        f"Slide 17 expected 7 Inhalte shapes, found {len(inhalte)}: "
+        f"{sorted(s.name for s in inhalte)}"
+    )
+    heights = {int(s.height) for s in inhalte}
+    tops = {int(s.top) for s in inhalte}
+    assert len(heights) == 1, (
+        f"Slide-17 Inhalte heights NOT uniform: {sorted(heights)} — "
+        "re-run scripts/normalize-slide-r2-template-edits.py."
+    )
+    assert len(tops) == 1, (
+        f"Slide-17 Inhalte tops NOT uniform: {sorted(tops)} — "
+        "re-run scripts/normalize-slide-r2-template-edits.py."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_ergebnisse_row_uniform_top() -> None:
+    """Defekt R2-10: Slide-17 Ergebnisse-Spalten teilen die identische Top-Linie.
+
+    "Spalte 5 sitzt tiefer" war das User-Symptom. Heights bleiben
+    pro-Spalte variabel (jede Box hat anderen Wording-Bedarf); aber
+    die Top-Position MUSS einheitlich sein, damit die Reihe optisch
+    auf einer Linie sitzt.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    names = {
+        "Textfeld 8",
+        "Textfeld 9",
+        "Textfeld 10",
+        "Textfeld 11",
+        "Textfeld 12",
+        "Textfeld 13",
+        "Textfeld 21",
+    }
+    ergebnisse = [s for s in slide17.shapes if s.name in names]
+    assert len(ergebnisse) == 7, f"Slide 17 expected 7 Ergebnisse shapes, found {len(ergebnisse)}"
+    tops = {int(s.top) for s in ergebnisse}
+    assert len(tops) == 1, (
+        f"Slide-17 Ergebnisse tops NOT uniform: {sorted(tops)} — "
+        "re-run scripts/normalize-slide-r2-template-edits.py."
+    )

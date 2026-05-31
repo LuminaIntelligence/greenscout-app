@@ -133,3 +133,55 @@ def test_parity_for_fixture(fixture: dict[str, Any]) -> None:
             f"{fixture['name']} — {field} drifted: "
             f"actual={actual[field]} expected={expected[field]}"
         )
+
+
+# --- Defekt R2-9 (2026-05-31) invariants ------------------------------
+#
+# The Slide-14 "Ohne PV / Mit PV / Ersparnis" trio must always satisfy:
+#
+#     ohne_pv - mit_pv == ersparnis_pro_jahr
+#
+# This identity is provable algebraically from the SPEC §4.7 formulas:
+#
+#     ohne_pv = verbrauch * versorger_preis
+#     mit_pv  = (verbrauch - eigenverbrauch) * versorger_preis
+#               + eigenverbrauch * pv_verkauf
+#             = verbrauch * versorger_preis
+#               - eigenverbrauch * (versorger_preis - pv_verkauf)
+#     ⇒ ohne_pv - mit_pv = eigenverbrauch * (versorger_preis - pv_verkauf)
+#                        = ersparnis_pro_jahr  (per SPEC §4.7)
+#
+# Defekt A2 (2026-05-30) shipped a fix where ``mit_pv`` previously
+# used a hardcoded ``EINSPEISE_VERGUETUNG_DEFAULT`` constant instead
+# of ``pv_verkauf_eur_kwh``. That bug silently violated this identity
+# (the user saw ``ohne - mit = 28.000`` but Ersparnis showed
+# ``28.600``). Hard-wiring the invariant as a parity test prevents
+# the regression from ever sneaking back in.
+
+
+@pytest.mark.parametrize(
+    "fixture",
+    _FIXTURE_FILE["fixtures"],
+    ids=[fx["name"] for fx in _FIXTURE_FILE["fixtures"]],
+)
+def test_slide14_ohne_minus_mit_equals_ersparnis(fixture: dict[str, Any]) -> None:
+    """Defekt R2-9 invariant: ohne_pv - mit_pv == ersparnis_pro_jahr.
+
+    Algebraic identity (see comment above). Holds for every parity
+    fixture; any future change to the Slide-14 formulas MUST preserve
+    this — if it does not, A2-style customer-visible inconsistencies
+    return.
+    """
+    inp = StudyCalcInput(**_translate_input(fixture["input"]))
+    actual = compose_all(inp).model_dump()
+
+    diff = actual["stromkosten_ohne_pv_eur_jahr"] - actual["stromkosten_mit_pv_eur_jahr"]
+    ersparnis = actual["ersparnis_pro_jahr"]
+    tol = _FIXTURE_FILE["toleranceMonetary"]
+    assert _within(diff, ersparnis, tol), (
+        f"{fixture['name']} — Slide-14 identity violated: "
+        f"ohne_pv ({actual['stromkosten_ohne_pv_eur_jahr']}) - "
+        f"mit_pv ({actual['stromkosten_mit_pv_eur_jahr']}) = {diff}, "
+        f"but ersparnis_pro_jahr = {ersparnis}. "
+        "See DECISIONS.md 2026-05-31 R2-9."
+    )

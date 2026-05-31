@@ -26,6 +26,14 @@ exclude = [".venv", "**/__pycache__"]
 # Both fields are required; absence of either causes "Import ... could not be resolved".
 venvPath = "."
 venv = ".venv"
+# Defekt CI-0 (2026-05-31): single-file pyright invocations (e.g. via
+# lint-staged on staged *.py files) lose the project-root context that
+# normally lets `from app.x import y` resolve. Adding the project root
+# as an extraPath fixes both single-file AND full-project runs without
+# needing an editable install. `.` resolves relative to this
+# pyproject.toml, i.e. services/python — exactly the cwd from which
+# `from app...` should resolve.
+extraPaths = ["."]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
 reportMissingImports = "error"
@@ -43,6 +51,11 @@ reportUnknownVariableType = "none"
 reportUnknownArgumentType = "none"
 reportUnknownParameterType = "none"
 reportMissingTypeArgument = "none"
+# Tests legitimately access module-private helpers (`_build_context`,
+# `_format_currency_eur` etc.) — the leading underscore is a "do not
+# import from outside the module" hint for production code, NOT a
+# barrier to whitebox unit tests of the same package.
+reportPrivateUsage = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
