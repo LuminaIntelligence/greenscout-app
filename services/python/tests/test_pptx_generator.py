@@ -39,6 +39,7 @@ from app.services.pptx_generator import (
     _PLACEHOLDER_RE,
     _contain_fit,
     _format_value,
+    _is_marker_red,
     generate_pptx,
 )
 
@@ -960,4 +961,596 @@ def test_template_uses_phrase_keys_not_raw_fields_for_empty_safe_slots() -> None
     )
     assert "Flurstück: {{flurstueck}}" not in all_text, (
         "Slide 4's 'Flurstück: {{flurstueck}}' raw-pattern is back — see Defekt D1."
+    )
+
+
+# --- anti-regression tests for marker-red color reset (Defekt R2-1) -----
+# --- (2026-05-31) ------------------------------------------------------
+
+# Background: the original PPTX template ships with every dynamic value
+# colored red (#FF0000) as a manual fill-in marker for the consultant who
+# would otherwise edit the deck by hand. Once we substitute a real value
+# via _replace_in_paragraph, the red color must be reset — SPEC §8.1's
+# design palette does not include red, only forest-green, plant-green,
+# muted-lime, foreground, background, link. Leaving the marker color on
+# substituted runs turned every customer-facing slide red-spotted (Slides
+# 1, 2, 4, 5, 9, 15, 16, 19 in the production-defect report).
+#
+# The helper _is_marker_red() / _resolve_replacement_color() /
+# _reset_marker_color_if_present() implement the fix; the tests below
+# pin the detection thresholds + the substitution behavior so a future
+# refactor cannot silently reintroduce the bug.
+
+
+def test_marker_red_detected_correctly() -> None:
+    """Defekt R2-1: ``_is_marker_red`` detects #FF0000-neighborhood only.
+
+    The detection window catches the template author's marker red plus
+    crimson-ish variants used in some hand-edited templates while
+    explicitly REJECTING every SPEC §8.1 color so legitimate brand
+    accents are never reset by accident. ``None`` (no rgb set, e.g.
+    theme-color runs) is also rejected — we don't second-guess
+    theme-colors.
+    """
+    from pptx.dml.color import RGBColor
+
+    # Marker-red and red-neighborhood variants → True.
+    assert _is_marker_red(RGBColor(0xFF, 0x00, 0x00)) is True  # exact #FF0000
+    assert _is_marker_red(RGBColor(0xDC, 0x14, 0x3C)) is True  # crimson
+    assert _is_marker_red(RGBColor(0xC8, 0x00, 0x00)) is True  # dark red
+    assert _is_marker_red(RGBColor(0xFF, 0x32, 0x32)) is True  # bright red
+
+    # SPEC §8.1 palette → False (must stay untouched).
+    assert _is_marker_red(RGBColor(0xCC, 0x33, 0x66)) is False  # link (R=204 B=102)
+    assert _is_marker_red(RGBColor(0x2D, 0x47, 0x3E)) is False  # forest-green
+    assert _is_marker_red(RGBColor(0x6A, 0x8F, 0x4E)) is False  # plant-green
+    assert _is_marker_red(RGBColor(0xB2, 0xD0, 0x82)) is False  # muted-lime
+    assert _is_marker_red(RGBColor(0x00, 0x00, 0x00)) is False  # foreground
+    assert _is_marker_red(RGBColor(0xFF, 0xFF, 0xFF)) is False  # background
+
+    # No-rgb (theme-color or unset) → False (defensive, no opinion).
+    assert _is_marker_red(None) is False
+
+
+def test_substitution_resets_marker_red_to_neighbor_color(tmp_path: Path) -> None:
+    """Defekt R2-1: substituted runs lose marker-red and adopt a neighbor color.
+
+    Build a text frame with (a) a static dark-colored neighbor run that
+    has nothing to substitute, and (b) a marker-red run containing
+    ``{{key}}``. After substitution, the marker-red run's color must
+    have been swapped for the neighbor's color — proving the
+    "prefer-neighbor" branch of ``_resolve_replacement_color`` runs.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = tx.text_frame
+
+    # Paragraph 0: a static dark-grey neighbor run with no placeholders.
+    neighbor_color = RGBColor(0x33, 0x33, 0x33)
+    tf.paragraphs[0].add_run().text = "Static label"
+    tf.paragraphs[0].runs[0].font.color.rgb = neighbor_color
+
+    # Paragraph 1: a marker-red run with a placeholder to substitute.
+    para1 = tf.add_paragraph()
+    para1.add_run().text = "Wert: {{value}}"
+    para1.runs[0].font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+
+    _replace_in_shape(tx, {"value": "ersetzt"})
+
+    # Static neighbor untouched.
+    assert tf.paragraphs[0].runs[0].font.color.rgb == neighbor_color
+    # Substituted run took on the neighbor's color, not the marker red.
+    substituted_rgb = tf.paragraphs[1].runs[0].font.color.rgb
+    assert substituted_rgb == neighbor_color, (
+        f"Substituted run kept marker-red instead of adopting neighbor color: "
+        f"got {substituted_rgb!r}, expected {neighbor_color!r} (Defekt R2-1, 2026-05-31)."
+    )
+    # And the text really was substituted.
+    assert tf.paragraphs[1].runs[0].text == "Wert: ersetzt"
+
+
+def test_substitution_keeps_non_marker_colors(tmp_path: Path) -> None:
+    """Defekt R2-1: existing SPEC accent colors survive substitution.
+
+    A run that is NOT marker-red — e.g. a SPEC `link` (#CC3366) or
+    forest-green run that happens to contain a placeholder — must keep
+    its color after substitution. The reset is opt-in on marker-red
+    only.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = tx.text_frame
+
+    link_color = RGBColor(0xCC, 0x33, 0x66)  # SPEC §8.1 link
+    forest_green = RGBColor(0x2D, 0x47, 0x3E)  # SPEC §8.1 forest-green
+
+    tf.paragraphs[0].add_run().text = "Link {{href}}"
+    tf.paragraphs[0].runs[0].font.color.rgb = link_color
+    para1 = tf.add_paragraph()
+    para1.add_run().text = "Headline {{title}}"
+    para1.runs[0].font.color.rgb = forest_green
+
+    _replace_in_shape(tx, {"href": "example.com", "title": "Auswertung"})
+
+    # Both colors must remain — substitution does not touch them.
+    assert tf.paragraphs[0].runs[0].font.color.rgb == link_color, (
+        "SPEC §8.1 link color was reset — must only reset marker-red (Defekt R2-1)."
+    )
+    assert tf.paragraphs[1].runs[0].font.color.rgb == forest_green, (
+        "SPEC §8.1 forest-green color was reset — must only reset marker-red (Defekt R2-1)."
+    )
+
+
+def test_substitution_falls_back_to_foreground_when_no_neighbor(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-1: lone marker-red run falls back to SPEC foreground.
+
+    When the text frame contains no usable neighbor color (e.g. the
+    only static-colored siblings are themselves marker-red, or there
+    are no siblings at all), the resolver falls back to SPEC §8.1
+    foreground (#000000) for body-sized fonts.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches, Pt
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1))
+    tf = tx.text_frame
+    tf.paragraphs[0].add_run().text = "{{lonely}}"
+    run = tf.paragraphs[0].runs[0]
+    run.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+    run.font.size = Pt(12)  # body size → foreground fallback
+
+    _replace_in_shape(tx, {"lonely": "alone"})
+
+    assert run.font.color.rgb == RGBColor(0x00, 0x00, 0x00), (
+        f"Lone marker-red run did not fall back to SPEC foreground: "
+        f"got {run.font.color.rgb!r} (Defekt R2-1, 2026-05-31)."
+    )
+
+
+def test_substitution_falls_back_to_forest_green_for_large_headline(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-1: lone marker-red headline run falls back to forest-green.
+
+    When font.size ≥ 24pt and no usable neighbor is present, the run
+    is treated as a headline and gets SPEC §8.1 forest-green (#2D473E)
+    rather than black foreground — matching the template's visual
+    hierarchy for big titles.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches, Pt
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(2))
+    tf = tx.text_frame
+    tf.paragraphs[0].add_run().text = "{{headline}}"
+    run = tf.paragraphs[0].runs[0]
+    run.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+    run.font.size = Pt(28)  # headline size → forest-green fallback
+
+    _replace_in_shape(tx, {"headline": "Machbarkeitsstudie"})
+
+    assert run.font.color.rgb == RGBColor(0x2D, 0x47, 0x3E), (
+        f"Lone marker-red headline did not fall back to SPEC forest-green: "
+        f"got {run.font.color.rgb!r} (Defekt R2-1, 2026-05-31)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_real_template_no_marker_red_after_substitution(tmp_path: Path) -> None:
+    """Defekt R2-1: full render against the real template produces ZERO
+    marker-red runs.
+
+    This is the integration-level guard for the systemic production bug.
+    The real 19-slide template originally shipped with marker-red on
+    every dynamic value (Slides 1, 2, 4, 5, 9, 15, 16, 19 visibly in
+    the production-defect report). After substitution via generate_pptx
+    with a fully-populated context, NO run anywhere in the deck may
+    still carry a marker-red color. If this test fails, either a new
+    placeholder was added without value or the color-reset logic
+    regressed.
+    """
+    ctx = _full_context()
+    # Use the same realistic-flavored fixture values from the Slide 9 /
+    # Slide 5 tests so substitution actually overwrites everything.
+    ctx["pv_verkauf_ct_kwh"] = "22,00"
+    ctx["ersparnis_gesamt_vertragslaufzeit_eur"] = "156.000,00"
+    ctx["pacht_einnahme_einmalig_eur"] = "50.000,00"
+    ctx["co2_tonnen_gesamt_vertragslaufzeit"] = "28,44"
+
+    out = tmp_path / "real-no-marker-red.pptx"
+    generate_pptx(_REAL_TEMPLATE, out, context=ctx)
+
+    pres = Presentation(str(out))
+    offenders: list[str] = []
+    for slide_idx, slide in enumerate(pres.slides, start=1):
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for para_idx, paragraph in enumerate(shape.text_frame.paragraphs):
+                for run_idx, run in enumerate(paragraph.runs):
+                    try:
+                        rgb = run.font.color.rgb
+                    except (AttributeError, KeyError, TypeError):
+                        continue
+                    if not _is_marker_red(rgb):
+                        continue
+                    # Whitespace-only runs are visually invisible regardless
+                    # of their color and were never part of the production
+                    # defect report. They typically come from static layout
+                    # spacers (tabs between bullet items, etc.) that never
+                    # ran through the substitution pipeline. Ignoring them
+                    # keeps this test focused on the actual customer-facing
+                    # bug: substituted VALUES still rendering in red.
+                    if not run.text.strip():
+                        continue
+                    offenders.append(
+                        f"slide {slide_idx} / shape {shape.name!r} / "
+                        f"para {para_idx} / run {run_idx} / "
+                        f"rgb={rgb!r} / text={run.text!r}"
+                    )
+
+    assert not offenders, (
+        f"{len(offenders)} marker-red run(s) with visible text survived "
+        f"substitution — either a placeholder was missed or color-reset "
+        f"regressed.\nFirst 10:\n  - " + "\n  - ".join(offenders[:10])
+    )
+
+
+# --- anti-regression tests for Runde-2 defects (R2-2 .. R2-10, 2026-05-31) ----
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_template_has_no_empty_red_marker_rectangles() -> None:
+    """Defekt R2-2: leere rote Marker-Rechtecke sind aus dem Template entfernt.
+
+    Der Template-Autor hatte als Authoring-Hint leere rote Outline-Rechtecke
+    auf den Slides 2, 5, 10, 15, 19 platziert. Diese sind durch
+    ``scripts/remove-marker-frames.py`` entfernt worden. Wenn dieser Test
+    bricht, ist entweder das Skript regrediert oder jemand hat ein neues
+    leeres rotes Outline-Rechteck eingefügt — beides ist customer-hostile.
+    """
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    offenders: list[str] = []
+    for slide_idx, slide in enumerate(pres.slides, start=1):
+        for shape in slide.shapes:
+            if shape.shape_type != MSO_SHAPE_TYPE.AUTO_SHAPE:
+                continue
+            # Skip shapes with non-marker fill (solid/gradient content).
+            try:
+                fill_type = shape.fill.type
+                if fill_type is not None and int(fill_type) != 5:
+                    continue
+            except (AttributeError, KeyError, TypeError):
+                pass
+            # Skip shapes with text content.
+            if getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
+                continue
+            # Check line color — only marker-red outlines are offenders.
+            try:
+                if shape.line.color.type is None:
+                    continue
+                rgb = shape.line.color.rgb
+                if rgb is None or not _is_marker_red(rgb):
+                    continue
+            except (AttributeError, KeyError, TypeError):
+                continue
+            offenders.append(f"slide {slide_idx} / shape {shape.name!r} (id={shape.shape_id})")
+
+    assert not offenders, (
+        f"{len(offenders)} empty red marker rectangle(s) survived R2-2 cleanup. "
+        f"Re-run scripts/remove-marker-frames.py.\nOffenders:\n  - " + "\n  - ".join(offenders)
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_5_image_before_and_after_render_at_same_bounding_box(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-3: BEFORE und AFTER landen auf Slide 5 in identischer Größe.
+
+    Vor R2-3 hatte image_before W=248 H=428 (Portrait!) und image_after
+    W=429 H=258 — visuell mismatched. Nach R2-3 werden beide Slots durch
+    den ``_IMAGE_FORCED_GEOMETRY_EMU``-Override auf die identische
+    Marker-Rechteck-Geometrie gesnapped (W=4297028 H=2554545 EMU,
+    BEFORE auf T=1797069, AFTER auf T=5295559, beide L=968392).
+    """
+    from app.services.pptx_generator import (
+        _IMAGE_AFTER_NAME,
+        _IMAGE_BEFORE_NAME,
+        _IMAGE_FORCED_GEOMETRY_EMU,
+        _SLIDE5_IMAGE_HEIGHT_EMU,
+        _SLIDE5_IMAGE_WIDTH_EMU,
+    )
+
+    # Sanity: the geometry-override constants are wired in.
+    assert _IMAGE_BEFORE_NAME in _IMAGE_FORCED_GEOMETRY_EMU
+    assert _IMAGE_AFTER_NAME in _IMAGE_FORCED_GEOMETRY_EMU
+    before_geom = _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_BEFORE_NAME]
+    after_geom = _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_AFTER_NAME]
+    # Same column (L), same width, same height.
+    assert before_geom[0] == after_geom[0], "BEFORE/AFTER must share L (column alignment)"
+    assert before_geom[2] == after_geom[2] == _SLIDE5_IMAGE_WIDTH_EMU, (
+        "BEFORE/AFTER must share the canonical width"
+    )
+    assert before_geom[3] == after_geom[3] == _SLIDE5_IMAGE_HEIGHT_EMU, (
+        "BEFORE/AFTER must share the canonical height"
+    )
+
+    # Render against the real template and assert the picture shapes
+    # actually land at the forced geometry.
+    before = _make_png(tmp_path / "b.png", colour=(20, 60, 20))
+    after = _make_png(tmp_path / "a.png", colour=(180, 180, 60))
+    out = tmp_path / "real-r2-3.pptx"
+    generate_pptx(
+        _REAL_TEMPLATE,
+        out,
+        context=_full_context(),
+        image_before_path=before,
+        image_after_path=after,
+    )
+    pres = Presentation(str(out))
+    slide5 = pres.slides[4]
+    image_before = next((s for s in slide5.shapes if s.name == _IMAGE_BEFORE_NAME), None)
+    image_after = next((s for s in slide5.shapes if s.name == _IMAGE_AFTER_NAME), None)
+    assert image_before is not None, "image_before missing from slide 5"
+    assert image_after is not None, "image_after missing from slide 5"
+    # The picture shape itself uses contain-fit, so its width/height
+    # may letterbox below the slot when the image's aspect ratio
+    # differs. The TOTAL slot however (image position + offsets) must
+    # be inside the canonical bounding box. Strict equality: since our
+    # _make_png fixtures produce a square 200x200, contain-fit on a
+    # 4297028x2554545 slot produces a 2554545x2554545 inner box
+    # centered horizontally. We assert top/height equal the slot's
+    # canonical values for an exact-match guarantee.
+    assert int(image_before.top) == _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_BEFORE_NAME][1], (
+        f"image_before top {int(image_before.top)} != "
+        f"canonical {_IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_BEFORE_NAME][1]}"
+    )
+    assert int(image_after.top) == _IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_AFTER_NAME][1], (
+        f"image_after top {int(image_after.top)} != "
+        f"canonical {_IMAGE_FORCED_GEOMETRY_EMU[_IMAGE_AFTER_NAME][1]}"
+    )
+    # Both images must end up at the same height (the whole point of
+    # R2-3 — no more BEFORE-portrait / AFTER-landscape mismatch).
+    assert int(image_before.height) == int(image_after.height), (
+        f"BEFORE height {int(image_before.height)} != AFTER height "
+        f"{int(image_after.height)} — R2-3 regression."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_4_headline_numbers_use_text_to_fit_shape() -> None:
+    """Defekt R2-4: Slide-4-Headline-Zahlen haben TEXT_TO_FIT_SHAPE.
+
+    Die fünf großen Zahlen-Shapes auf Slide 4 (anlage_kwp,
+    pv_erzeugung_kwh_jahr, eigenverbrauchsquote_prozent,
+    ersparnis_gesamt_vertragslaufzeit_eur, pacht_einnahme_einmalig_eur)
+    müssen TEXT_TO_FIT_SHAPE haben, damit lange Werte (z. B.
+    "3.000.000") nicht aus der Box laufen.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide4 = pres.slides[3]
+    expected_ids = {6, 9, 15, 19, 29}
+    actual: dict[int, str | None] = {}
+    for shape in slide4.shapes:
+        sid = int(shape.shape_id)
+        if sid not in expected_ids:
+            continue
+        if not shape.has_text_frame:
+            actual[sid] = None
+            continue
+        actual[sid] = str(shape.text_frame.auto_size)
+    missing = expected_ids - actual.keys()
+    assert not missing, f"Slide-4 expected shape ids missing: {sorted(missing)}"
+    wrong = {
+        sid: kind for sid, kind in actual.items() if kind != str(MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE)
+    }
+    assert not wrong, (
+        f"Slide-4 headline shapes without TEXT_TO_FIT_SHAPE: {wrong}. "
+        "Re-run scripts/normalize-slide-r2-template-edits.py."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_15_has_no_chart_shape_but_has_szenario_text_placeholders() -> None:
+    """Defekt R2-5 (documented-not-a-bug): Slide 15 hat KEINEN Chart-Shape.
+
+    Der Runde-2-Report schlug vor, einen Chart auf Slide 15 via
+    ``chart.replace_data`` dynamisch zu befüllen. Inspection ergab:
+    Slide 15 enthält KEINEN python-pptx-Chart (auch keinen
+    graphicFrame mit chart-URI). Die Sensitivitätswerte werden
+    bereits via Text-Placeholders ``szenario_*_preis_ct_kwh`` und
+    ``szenario_*_ersparnis_eur`` dynamisch eingefügt.
+
+    Dieser Test dokumentiert das aktuelle Template-Layout. Falls ein
+    künftiges Template-Update einen echten Chart einführt, wird dieser
+    Test rot — und der Reviewer weiß, dass dann ``_update_sensitivity_chart``
+    nachgereicht werden muss (siehe DECISIONS.md 2026-05-31 R2-5).
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide15 = pres.slides[14]
+    chart_shapes = [s for s in slide15.shapes if hasattr(s, "has_chart") and s.has_chart]
+    assert len(chart_shapes) == 0, (
+        f"Slide 15 now has {len(chart_shapes)} chart shape(s) — "
+        "implement dynamic chart update per DECISIONS R2-5 follow-up."
+    )
+    # Belt-and-braces: confirm the szenario placeholders are present.
+    all_text = "\n".join(
+        shape.text_frame.text for shape in slide15.shapes if getattr(shape, "has_text_frame", False)
+    )
+    for key in (
+        "szenario_1_preis_ct_kwh",
+        "szenario_1_ersparnis_eur",
+        "szenario_2_preis_ct_kwh",
+        "szenario_2_ersparnis_eur",
+        "szenario_3_preis_ct_kwh",
+        "szenario_3_ersparnis_eur",
+    ):
+        assert "{{" + key + "}}" in all_text, (
+            f"Slide 15 must keep {{{{{key}}}}} placeholder — "
+            "text-driven sensitivity rendering depends on it."
+        )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_19_empty_termin_does_not_render_dangling_label(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-7: leere Termin-Vorschläge produzieren KEIN „1) am Uhr".
+
+    Slice-3b's Phrase-Pattern (PR #55, Defekte D1+D2+D3) löste die
+    leeren-Termin-Anhänger im Template (``{{termin_1_phrase}}``).
+    Dieser Test erzwingt das vom Render-Output her: wenn die Context-
+    Werte für termin_1_phrase / termin_2_phrase / termin_oder_phrase
+    leer sind, darf NIRGENDWO auf Slide 19 ein verwaister „1) am Uhr"
+    oder „2) am Uhr" stehen bleiben.
+    """
+    ctx = _full_context()
+    # Simuliere leere Termine: alle drei Phrase-Keys auf leeren String.
+    ctx["termin_1_phrase"] = ""
+    ctx["termin_2_phrase"] = ""
+    ctx["termin_oder_phrase"] = ""
+
+    out = tmp_path / "real-empty-termin.pptx"
+    generate_pptx(_REAL_TEMPLATE, out, context=ctx)
+    pres = Presentation(str(out))
+    slide19 = pres.slides[18]
+    all_text = "\n".join(
+        shape.text_frame.text for shape in slide19.shapes if getattr(shape, "has_text_frame", False)
+    )
+    # Beide dangling-label-Patterns dürfen NICHT vorkommen.
+    offenders = []
+    for needle in ("1) am", "2) am", " Uhr"):
+        # Match wird tolerant gemacht: bei leerem Phrase steht entweder
+        # gar nichts oder ein einsamer Punkt — auf keinen Fall der
+        # template-author's Stub-Text.
+        if needle in all_text:
+            # "Uhr" alleine kann legitimer Body-Text sein; wir sind nur
+            # bei der Kombination mit den Termin-Patterns interessiert.
+            if needle == " Uhr" and not ("1) am  Uhr" in all_text or "2) am  Uhr" in all_text):
+                continue
+            offenders.append(needle)
+    assert not offenders, (
+        f"Slide 19 zeigt verwaiste Termin-Labels {offenders!r} bei leerem "
+        "Phrase-Context (Defekt R2-7 — Phrase-Pattern war supposed to "
+        "make these go away)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_1_berater_shape_uses_text_to_fit_shape() -> None:
+    """Defekt R2-8: Slide-1 Berater-Shape hat weiterhin TEXT_TO_FIT_SHAPE.
+
+    R1-Nachzügler: PR #54 (Defekt C3) hat das Property gesetzt; dieser
+    Test erzwingt es, falls eine spätere Template-Edit-PR es zurücksetzt.
+    """
+    from pptx.enum.text import MSO_AUTO_SIZE
+
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide1 = pres.slides[0]
+    berater = next(
+        (s for s in slide1.shapes if s.name == "Textfeld 3"),
+        None,
+    )
+    assert berater is not None, "Slide 1 'Textfeld 3' (Berater) missing"
+    assert berater.has_text_frame
+    assert berater.text_frame.auto_size == MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE, (
+        f"Slide-1 Berater-Shape auto_size={berater.text_frame.auto_size!r} — "
+        "expected TEXT_TO_FIT_SHAPE (Defekt R2-8)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_inhalte_row_uniform_height_and_top() -> None:
+    """Defekt R2-10: Slide-17 Inhalte-Spalten haben einheitliche Höhe + Top.
+
+    Die 7 Inhalte-Spalten-Shapes (Textfeld 2-7 + Textfeld 20) müssen
+    auf identischer Höhe UND auf identischer Top-Position sitzen,
+    damit die Spalten-Reihe optisch wie eine Linie wirkt. R1's PR #53
+    normalisierte einmalig; R2-10 erzwingt das als Invariante.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    names = {
+        "Textfeld 2",
+        "Textfeld 3",
+        "Textfeld 4",
+        "Textfeld 5",
+        "Textfeld 6",
+        "Textfeld 7",
+        "Textfeld 20",
+    }
+    inhalte = [s for s in slide17.shapes if s.name in names]
+    assert len(inhalte) == 7, (
+        f"Slide 17 expected 7 Inhalte shapes, found {len(inhalte)}: "
+        f"{sorted(s.name for s in inhalte)}"
+    )
+    heights = {int(s.height) for s in inhalte}
+    tops = {int(s.top) for s in inhalte}
+    assert len(heights) == 1, (
+        f"Slide-17 Inhalte heights NOT uniform: {sorted(heights)} — "
+        "re-run scripts/normalize-slide-r2-template-edits.py."
+    )
+    assert len(tops) == 1, (
+        f"Slide-17 Inhalte tops NOT uniform: {sorted(tops)} — "
+        "re-run scripts/normalize-slide-r2-template-edits.py."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_slide_17_ergebnisse_row_uniform_top() -> None:
+    """Defekt R2-10: Slide-17 Ergebnisse-Spalten teilen die identische Top-Linie.
+
+    "Spalte 5 sitzt tiefer" war das User-Symptom. Heights bleiben
+    pro-Spalte variabel (jede Box hat anderen Wording-Bedarf); aber
+    die Top-Position MUSS einheitlich sein, damit die Reihe optisch
+    auf einer Linie sitzt.
+    """
+    pres = Presentation(str(_REAL_TEMPLATE))
+    slide17 = pres.slides[16]
+    names = {
+        "Textfeld 8",
+        "Textfeld 9",
+        "Textfeld 10",
+        "Textfeld 11",
+        "Textfeld 12",
+        "Textfeld 13",
+        "Textfeld 21",
+    }
+    ergebnisse = [s for s in slide17.shapes if s.name in names]
+    assert len(ergebnisse) == 7, f"Slide 17 expected 7 Ergebnisse shapes, found {len(ergebnisse)}"
+    tops = {int(s.top) for s in ergebnisse}
+    assert len(tops) == 1, (
+        f"Slide-17 Ergebnisse tops NOT uniform: {sorted(tops)} — "
+        "re-run scripts/normalize-slide-r2-template-edits.py."
     )

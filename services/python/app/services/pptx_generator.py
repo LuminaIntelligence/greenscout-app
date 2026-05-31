@@ -38,7 +38,21 @@ Key design points:
     Termin would be hostile to the Berater UX); the warning surfaces in
     structured logs so we can catch real misses.
 
-3.  **Image replacement.** Image shapes named ``image_before`` and
+3.  **Marker-red color reset (Defekt R2-1, 2026-05-31).** The template
+    author marks every dynamic value in red (``#FF0000``) as a manual
+    fill-in hint. Once replaced via the substitution pipeline, the red
+    color is customer-hostile (SPEC §8.1's design palette does not
+    include red — only forest-green, plant-green, muted-lime,
+    foreground, background, link). After each substitution this
+    module resets the run's color to either a non-marker neighbor
+    color found elsewhere in the same text frame, or to the SPEC
+    foreground / forest-green fallback. SPEC accent colors (link
+    ``#CC3366``, plant-green, etc.) are explicitly NOT touched —
+    only the tight ``#FF0000``-neighborhood detected by
+    ``_is_marker_red``. See the helper docstrings and DECISIONS.md
+    2026-05-31 for the channel-threshold rationale.
+
+4.  **Image replacement.** Image shapes named ``image_before`` and
     ``image_after`` have their existing picture replaced in-place via
     the same shape's blob (using ``shape.image.blob = ...`` would not
     update the relationship to a new file; we instead capture the
@@ -62,10 +76,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from PIL import Image
 from pptx import Presentation
+from pptx.dml.color import RGBColor
 from pptx.util import Emu
 
 if TYPE_CHECKING:
@@ -80,6 +95,185 @@ _PLACEHOLDER_RE = re.compile(r"\{\{([a-z][a-z0-9_]*)\}\}")
 #: Shape names that receive image substitution at render time.
 _IMAGE_BEFORE_NAME = "image_before"
 _IMAGE_AFTER_NAME = "image_after"
+
+# --- Defekt R2-3 (2026-05-31) -----------------------------------------
+#
+# Slide 5 ships BEFORE and AFTER photos in two visually-paired
+# bounding boxes. The template originally placed thin red outline
+# rectangles ("Rechteck 3" and "Rechteck 6") at the intended image
+# positions — those marker frames were removed in Defekt R2-2 (see
+# scripts/remove-marker-frames.py). The image-placeholder shapes
+# themselves (image_before, image_after) inherited geometry from the
+# template-author's working state, which differed between the two:
+# image_before sat at W=248 H=428 (portrait!) and image_after at
+# W=429 H=258 — visually mismatched and not customer-presentable.
+#
+# Fix: snap BOTH image slots to the dimensions captured from the
+# removed marker rectangles (W=451 H=268 px -> 4297028 x 2554545 EMU)
+# at the marker-rect anchor points. BEFORE goes to the upper rect
+# (T=1797069 EMU), AFTER to the lower one (T=5295559 EMU). Both
+# share L=968392 EMU (perfectly column-aligned).
+#
+# 914400 EMU = 1 inch; values below are reproduced exactly from
+# the pre-R2-2 template inspection so the customer-visible layout
+# matches the original author's intent.
+_SLIDE5_IMAGE_LEFT_EMU = 968392
+_SLIDE5_IMAGE_WIDTH_EMU = 4297028
+_SLIDE5_IMAGE_HEIGHT_EMU = 2554545
+_SLIDE5_IMAGE_BEFORE_TOP_EMU = 1797069
+_SLIDE5_IMAGE_AFTER_TOP_EMU = 5295559
+
+#: Forced geometry per image-placeholder shape (Defekt R2-3). The
+#: ``_replace_image_in_slide`` driver substitutes these EMU values
+#: in place of whatever the placeholder shape itself carries — both
+#: BEFORE and AFTER end up at the same width and height so the
+#: customer sees a coherent pair instead of one portrait + one
+#: landscape thumbnail. Adding a new image_* shape with no entry here
+#: falls back to the shape's own geometry (current behaviour for
+#: future slots).
+_IMAGE_FORCED_GEOMETRY_EMU: dict[str, tuple[int, int, int, int]] = {
+    # (left, top, width, height)
+    _IMAGE_BEFORE_NAME: (
+        _SLIDE5_IMAGE_LEFT_EMU,
+        _SLIDE5_IMAGE_BEFORE_TOP_EMU,
+        _SLIDE5_IMAGE_WIDTH_EMU,
+        _SLIDE5_IMAGE_HEIGHT_EMU,
+    ),
+    _IMAGE_AFTER_NAME: (
+        _SLIDE5_IMAGE_LEFT_EMU,
+        _SLIDE5_IMAGE_AFTER_TOP_EMU,
+        _SLIDE5_IMAGE_WIDTH_EMU,
+        _SLIDE5_IMAGE_HEIGHT_EMU,
+    ),
+}
+
+# --- Marker-Red color reset (Defekt R2-1, 2026-05-31) -----------------
+#
+# The original PPTX template authored by GreenScout marks every dynamic
+# value in red (#FF0000) as an authoring hint for the consultant doing the
+# fill-in manually. Once the value is replaced with real text via our
+# substitution pipeline, the red color is meaningless — worse, it is
+# customer-hostile because SPEC §8.1's design palette does NOT include
+# red (only forest-green, plant-green, muted-lime, foreground, background,
+# link). The substituted runs MUST therefore lose the marker color and
+# adopt the slide's normal body color.
+#
+# Detection heuristic: a tight RGB neighborhood around (255, 0, 0) that
+# catches the marker-red and crimson variants used by the template author
+# while NOT touching SPEC's `link` accent #CC3366 or any legitimately
+# colorful run a future template might introduce.
+
+#: Marker-red detection threshold (per channel): R must be ≥200, G+B ≤80.
+#: Tight enough that the SPEC §8.1 link color #CC3366 (R=204 G=51 B=102)
+#: is rejected (B=102 > 80) while #FF0000 / #DC143C / similar pass.
+_MARKER_RED_R_MIN = 200
+_MARKER_RED_GB_MAX = 80
+
+#: SPEC §8.1 fallback colors for the color-reset routine.
+_SPEC_FOREGROUND = RGBColor(0x00, 0x00, 0x00)  # body color
+_SPEC_FOREST_GREEN = RGBColor(0x2D, 0x47, 0x3E)  # headlines ≥ 24pt
+
+#: Font-size threshold (in points) at or above which a substituted run is
+#: considered a headline and gets forest-green instead of foreground.
+_HEADLINE_FONT_PT_MIN = 24.0
+
+
+def _is_marker_red(rgb: RGBColor | None) -> bool:
+    """True if ``rgb`` is the red marker-color from the template authoring step.
+
+    Marker-red is the template author's hint that a value needs to be
+    replaced; once substituted, the color must NOT carry over (Defekt
+    R2-1, 2026-05-31). The detection window is intentionally tight:
+
+    - ``None`` (no rgb set, e.g. theme-color-only runs) returns False —
+      we don't second-guess theme colors.
+    - SPEC §8.1's ``link`` (``#CC3366``, R=204 G=51 B=102) is explicitly
+      rejected by the channel thresholds (B=102 > 80) so future template
+      authors can use the link color without being color-reset.
+    - Any future deliberate non-red accent in the SPEC palette
+      (forest-green, plant-green, muted-lime) sits well outside the
+      window.
+
+    See DECISIONS.md 2026-05-31 (Defekt R2-1) for the rationale.
+    """
+    if rgb is None:
+        return False
+    # RGBColor is a tuple[int, int, int] subclass; pyright's stubs lose the
+    # element type because the class signature predates PEP 646. The cast
+    # is purely a type hint — runtime semantics are unchanged.
+    channels = cast("tuple[int, int, int]", rgb)
+    return (
+        channels[0] >= _MARKER_RED_R_MIN
+        and channels[1] <= _MARKER_RED_GB_MAX
+        and channels[2] <= _MARKER_RED_GB_MAX
+    )
+
+
+def _safe_get_run_rgb(run: Any) -> RGBColor | None:
+    """Return a run's explicit ``RGBColor`` or None if no RGB is set.
+
+    python-pptx raises ``AttributeError`` (and occasionally other
+    error types depending on inheritance state) when ``.rgb`` is
+    accessed on a theme-color / no-color run. We swallow those into
+    ``None`` because a missing RGB just means "we have no opinion to
+    reset" — the run keeps whatever it inherits from the placeholder.
+    """
+    try:
+        return run.font.color.rgb
+    except (AttributeError, KeyError, TypeError):
+        return None
+
+
+def _resolve_replacement_color(run: Any, text_frame: Any) -> RGBColor:
+    """Pick a non-marker color for a substituted run (Defekt R2-1).
+
+    Strategy:
+
+    1. **Prefer a neighbor.** Scan every other run in the same text
+       frame for one whose RGB is set AND is NOT marker-red. The first
+       such color wins — this keeps the substituted run visually
+       consistent with the static labels on the same slide, even if
+       a future template uses a non-foreground body color.
+
+    2. **Fallback by font size.** If no usable neighbor exists, we
+       cannot know whether the substituted run is body text or a
+       headline. SPEC §8.1 lists forest-green as the headline color
+       and foreground (black) as body. We use a 24pt threshold: at or
+       above is a headline, below is body. Runs with no explicit
+       ``font.size`` (i.e. inheriting from the layout) default to
+       foreground — the safer choice for body-heavy slides.
+    """
+    for paragraph in text_frame.paragraphs:
+        for other in paragraph.runs:
+            if other is run:
+                continue
+            other_rgb = _safe_get_run_rgb(other)
+            if other_rgb is not None and not _is_marker_red(other_rgb):
+                return other_rgb
+
+    try:
+        size = run.font.size
+        if size is not None and size.pt >= _HEADLINE_FONT_PT_MIN:
+            return _SPEC_FOREST_GREEN
+    except (AttributeError, TypeError):
+        pass
+    return _SPEC_FOREGROUND
+
+
+def _reset_marker_color_if_present(run: Any, text_frame: Any) -> bool:
+    """If ``run`` carries the marker-red color, swap it for a SPEC body color.
+
+    Returns True if a swap happened. No-op (returns False) when the run's
+    color is not marker-red — explicitly avoids touching legitimate
+    SPEC accent colors (link #CC3366, forest-green, plant-green, etc.).
+    Called by the substitution routine after each run.text rewrite.
+    """
+    current = _safe_get_run_rgb(run)
+    if not _is_marker_red(current):
+        return False
+    replacement = _resolve_replacement_color(run, text_frame)
+    run.font.color.rgb = replacement
+    return True
 
 
 def _format_value(value: Any) -> str:
@@ -111,7 +305,11 @@ def _local_tag(element: Any) -> str:
     return str(tag)
 
 
-def _replace_in_paragraph(paragraph: Any, context: dict[str, Any]) -> int:
+def _replace_in_paragraph(
+    paragraph: Any,
+    context: dict[str, Any],
+    text_frame: Any = None,
+) -> int:
     """Replace every placeholder in a single paragraph, preserving run formatting.
 
     **Soft-line-break preservation (Defekte C1 + F1, 2026-05-29).**
@@ -180,6 +378,16 @@ def _replace_in_paragraph(paragraph: Any, context: dict[str, Any]) -> int:
         runs[0].text = rewritten
         for run in runs[1:]:
             run.text = ""
+        # Defekt R2-1 (2026-05-31): if any run in this segment carried the
+        # template author's marker-red color, swap it for the slide's
+        # normal body color. We reset BOTH the surviving runs[0] and the
+        # cleared runs[1:] — the cleared ones still own the marker color
+        # in their <a:rPr>, which would resurface the moment anyone adds
+        # text back into the run (e.g. a future re-render pass). See SPEC
+        # §4.8 + DECISIONS.md 2026-05-31 for the rationale.
+        if text_frame is not None:
+            for run in runs:
+                _reset_marker_color_if_present(run, text_frame)
     return substitutions
 
 
@@ -211,8 +419,12 @@ def _replace_in_shape(shape: Any, context: dict[str, Any]) -> int:
         return count
     if not getattr(shape, "has_text_frame", False):
         return 0
-    for paragraph in shape.text_frame.paragraphs:
-        count += _replace_in_paragraph(paragraph, context)
+    text_frame = shape.text_frame
+    for paragraph in text_frame.paragraphs:
+        # Pass the parent text_frame so _replace_in_paragraph can scan
+        # sibling runs across all paragraphs for a neighbor-color match
+        # when resetting marker-red (Defekt R2-1).
+        count += _replace_in_paragraph(paragraph, context, text_frame)
     return count
 
 
@@ -274,10 +486,19 @@ def _replace_image_in_slide(slide: Any, shape_name: str, image_path: Path) -> bo
         logger.info("pptx_generator: image shape '%s' not found on slide, skipping", shape_name)
         return False
 
-    slot_left = int(target.left) if target.left is not None else 0
-    slot_top = int(target.top) if target.top is not None else 0
-    slot_width = int(target.width) if target.width is not None else 0
-    slot_height = int(target.height) if target.height is not None else 0
+    # Defekt R2-3 (2026-05-31): for image shapes whose intended geometry
+    # is fixed by the SPEC (currently slide-5 BEFORE / AFTER pair), snap
+    # to the forced dimensions instead of inheriting the shape's own
+    # (potentially mismatched) box. This guarantees BEFORE and AFTER
+    # land at the same width and height in the customer output.
+    forced = _IMAGE_FORCED_GEOMETRY_EMU.get(shape_name)
+    if forced is not None:
+        slot_left, slot_top, slot_width, slot_height = forced
+    else:
+        slot_left = int(target.left) if target.left is not None else 0
+        slot_top = int(target.top) if target.top is not None else 0
+        slot_width = int(target.width) if target.width is not None else 0
+        slot_height = int(target.height) if target.height is not None else 0
 
     # Remove the placeholder shape from the slide's XML tree.
     sp_element: Any = target._element  # python-pptx exposes no public delete API.

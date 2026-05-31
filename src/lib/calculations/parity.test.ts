@@ -97,3 +97,27 @@ describe("T-034 parity — TS composeAll() vs shared fixtures", () => {
     });
   }
 });
+
+// --- Defekt R2-9 (2026-05-31) Slide-14 invariant ---------------------
+//
+// Algebraic identity (proof in services/python/tests/test_parity.py):
+//
+//     ohne_pv - mit_pv == ersparnis_pro_jahr
+//
+// Defekt A2 silently violated it (mit_pv used a hardcoded constant
+// instead of the user-input pv_verkauf). Hard-wiring it as a parity
+// invariant prevents the regression from sneaking back in.
+describe("R2-9 invariant — Slide-14 ohne_pv − mit_pv == ersparnis_pro_jahr", () => {
+  for (const fx of fixtureFile.fixtures) {
+    it(`holds for fixture ${fx.name}`, () => {
+      const actual = composeAll(fx.input);
+      const diff = actual.stromkostenOhnePvEurJahr - actual.stromkostenMitPvEurJahr;
+      const ersparnis = actual.ersparnisProJahr;
+      expect(
+        within(diff, ersparnis, fixtureFile.toleranceMonetary),
+        `Slide-14 identity violated: ohne_pv (${actual.stromkostenOhnePvEurJahr}) - ` +
+          `mit_pv (${actual.stromkostenMitPvEurJahr}) = ${diff}, but ersparnis_pro_jahr = ${ersparnis}.`,
+      ).toBe(true);
+    });
+  }
+});

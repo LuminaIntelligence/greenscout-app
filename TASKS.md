@@ -477,6 +477,11 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Runde-2 Sammel-PR ✅ Defekte R2-1 bis R2-10 + CI-0 (Pyright-Drift)
+- **Branch:** `fix/r2-cleanup-all-defects` (merged via Sammel-PR, replaces PR #58 functionally).
+- **Summary:** Konsolidierter Sammel-PR für alle 10 Runde-2-Defekte (7 neu + 3 R1-Nachzügler) plus den CI-Block durch pyright-Version-Drift. R2-1 (Marker-Color-Reset) via cherry-pick aus PR #58 übernommen. R2-2 entfernt 6 leere rote Outline-Rechtecke aus dem Template via `scripts/remove-marker-frames.py`. R2-3 snapt slide-5 BEFORE/AFTER-Images auf identische Bounding-Box (Geometrie aus den entfernten Marker-Rechtecken in Python-Konstanten verewigt). R2-4/R2-6/R2-8/R2-10 konsolidiert via `scripts/normalize-slide-r2-template-edits.py` (TEXT_TO_FIT_SHAPE auf 5 Slide-4-Headline-Numbers + 4 Slide-17-Inhalte-Top-Drift korrigiert; Slide-1/16-Properties verifiziert). R2-5 documented-not-a-bug — Slide 15 hat keinen Chart-Shape, Sensitivitätswerte sind bereits text-placeholder-driven. R2-7 Anti-Regression-Test für empty-Termin. R2-9 verified A2-Code-Fix korrekt + neue algebraische Parity-Invariante `ohne_pv − mit_pv == ersparnis_pro_jahr` auf JEDER der 22 Parity-Fixtures in TS + Python. CI-0: pyright auf 1.1.391 gepinnt + tests/-Pfad mit reportUnknown* auf "none" im executionEnvironments-Override (app/ bleibt strict). PR #58 funktional obsolet.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-31 — Runde-2-Defekte konsolidiert (R2-1 bis R2-10) + Pyright-CI-Fix".
+
 ### Defekt E1 ✅ German two-decimal money/ct convention (typed formatters)
 - **Merged:** 2026-05-30 via PR #56.
 - **Branch:** `fix/german-number-formatting`
