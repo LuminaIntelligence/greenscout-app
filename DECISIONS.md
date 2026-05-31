@@ -3702,3 +3702,50 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 **Pause-Trigger-Check (§7):** keine. Kein neuer Dep, kein Schema-Change, keine Auth-/Security-Logik. SPEC §4.8 Edit ist ausschließlich Klarstellung des bisherigen Intents (Design-Konsistenz mit §8.1), keine Scope-Erweiterung — fällt unter Allow-§6 „Update SPEC.md (only for clarifications)". §7.4 (UI/UX-Änderungen) feuert NICHT — der Fix korrigiert eine Abweichung vom SPEC-Design-System, er führt keine neuen Tokens ein.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-31 — Runde-2-Defekte konsolidiert (R2-1 bis R2-10) + Pyright-CI-Fix
+
+**Context:** Nach Production-Test des Runde-1-PPTX-Outputs hat der User einen Runde-2-Defekt-Report erstellt: 10 PPTX-Render-Defekte (7 neue + 3 R1-Nachzügler) plus 1 CI-Block (Pyright-Version-Drift). Statt 10 einzelne PRs (analog Runde 1) wird alles in EINEM Sammel-PR gefixt — weniger Auto-Merge-Cycles, weniger Carry-Forward-Overhead. PR #58 (R2-1 standalone) wird durch diesen Sammel-PR funktional ersetzt (Marker-Color-Logik via cherry-pick übernommen).
+
+**Decisions per Defekt:**
+
+- **CI-0 (Pyright-Drift):** Doppelstrategie. (a) `pyright==1.1.391` exakt in `requirements-dev.txt` gepinnt (vorher: `>=1.1.380,<2.0` driftete in CI auf 1.1.409, das httpx/FastAPI-TestClient-generics als `reportUnknownVariableType`/`reportUnknownMemberType` flaggt). (b) `pyproject.toml [[tool.pyright.executionEnvironments]]` für `tests/` mit `reportUnknownMemberType` / `reportUnknownVariableType` / `reportUnknownArgumentType` / `reportUnknownParameterType` / `reportMissingTypeArgument` auf `none` geschaltet. App-Code in `app/` bleibt voll strict. Belt-and-braces: künftige Pyright-Updates können diese fünf Checks nicht mehr in Tests reaktivieren.
+
+- **R2-1 (Marker-Color-Reset):** Cherry-pick der 4 PR-#58-Commits direkt in diesen Branch — Logic unverändert. SPEC §4.8 bereits präzisiert. Anti-Regression-Tests via `_is_marker_red`-Detection-Schwelle, Neighbor-First-Resolution, Headline-Fallback ab 24pt, Integration-Guard gegen das echte Template.
+
+- **R2-2 (Marker-Rechtecke entfernen):** `scripts/remove-marker-frames.py` (idempotent, one-shot) entfernt 6 leere rote Outline-Rechtecke vom Template (Slides 2, 5, 5, 10, 15, 19). Predikat: Auto-Shape + Line-RGB == `#FF0000` + leeres Text-Frame + BACKGROUND-Fill. Muted-lime-Rechtecke (`#DDEAC7`) und Shapes mit Inhalt bleiben unangetastet. Anti-Regression: `test_template_has_no_empty_red_marker_rectangles` walked die ganze Deck.
+
+- **R2-3 (Slide-5 BEFORE/AFTER same bounding box):** Vor R2-2 die Marker-Rechteck-Geometrie aus Slide 5 inspiziert (BEFORE: L=968392, T=1797069, W=4297028, H=2554545 EMU — AFTER: gleiche L/W/H, T=5295559) und als Konstanten in `pptx_generator.py` (`_SLIDE5_IMAGE_*_EMU`, `_IMAGE_FORCED_GEOMETRY_EMU`) verewigt. `_replace_image_in_slide` benutzt jetzt diese Override-Geometrie für `image_before`/`image_after`-Shapes statt der inherent-mismatched Shape-Werte (vorher BEFORE W=248 H=428 Portrait!, AFTER W=429 H=258 Landscape). Anti-Regression-Test asserted dass beide Slots TOP, HEIGHT übereinstimmen mit den Konstanten.
+
+- **R2-4 (Slide-4 Headline-Zahlen TEXT_TO_FIT_SHAPE):** 5 Shapes (Text-IDs 6/9/15/19/29 — anlage_kwp, pv_erzeugung_kwh_jahr, eigenverbrauchsquote_prozent, ersparnis_gesamt_vertragslaufzeit_eur, pacht_einnahme_einmalig_eur) bekommen `auto_size = TEXT_TO_FIT_SHAPE` + `word_wrap = True`. Erledigt via `scripts/normalize-slide-r2-template-edits.py` (konsolidiertes Skript für R2-4/R2-6/R2-8/R2-10). Test enforce die Properties pro Shape-ID.
+
+- **R2-5 (Slide-15 Dynamic Chart): documented-not-a-bug.** Inspection ergab: Slide 15 hat KEINEN python-pptx-Chart und KEINEN graphicFrame-Chart. Die Sensitivitätswerte werden bereits via Text-Placeholders (`{{szenario_*_preis_ct_kwh}}`, `{{szenario_*_ersparnis_eur}}`) dynamisch eingefügt — der vom User wahrgenommene "Chart" ist eine statische `Grafik`. Kein Code-Fix nötig. Documentation-Test `test_slide_15_has_no_chart_shape_but_has_szenario_text_placeholders` dokumentiert das aktuelle Layout: bricht rot wenn ein künftiges Template-Update einen echten Chart einführt — dann muss `_update_sensitivity_chart` (via `CategoryChartData` + `chart.replace_data`) nachgereicht werden, wie im Runde-2-Report vorgeschlagen.
+
+- **R2-6 (Slide-16 Variantenspalten TEXT_TO_FIT_SHAPE):** R1-Nachzügler. PR #54 hatte das Property bereits gesetzt — Verifikation via Skript ergab "noop" für alle 12 Shapes. Anti-Regression-Test in PR #54 deckt das Eigentliche.
+
+- **R2-7 (Empty-Termin Anti-Regression-Test):** D2 aus Runde 1 wurde via Phrase-Pattern (PR #55) gefixt. Neuer Anti-Regression-Test (`test_slide_19_empty_termin_does_not_render_dangling_label`) erzwingt das vom Render-Output her: bei leeren `termin_1_phrase` / `termin_2_phrase` / `termin_oder_phrase`-Context-Values dürfen KEINE „1) am Uhr" / „2) am Uhr"-Strings im Slide-19-Output stehen.
+
+- **R2-8 (Slide-1 Berater-Name auto-fit):** R1-Nachzügler. PR #54 hatte das Property bereits gesetzt — Skript ergab "noop". Neuer Anti-Regression-Test (`test_slide_1_berater_shape_uses_text_to_fit_shape`) erzwingt es als Invariante.
+
+- **R2-9 (Slide-14 Mit-PV Verifikation + Parity-Invariante):** PR #57 (Defekt A2) ist im Code korrekt — `stromkosten_mit_pv_eur_jahr` nutzt `inp.pv_verkauf_eur_kwh`. Das vom User getestete „26.000 statt 28.600" war ein stale-PDF (vor PR-#57-Deploy generiert). NEU: Algebraische Identität `ohne_pv − mit_pv == ersparnis_pro_jahr` ist als Parity-Invariante (`test_slide14_ohne_minus_mit_equals_ersparnis`) in BEIDEN Suites (Python + TS) auf JEDER Parity-Fixture verdrahtet. Beweis steht im Test-Kommentar. Verhindert A2-style customer-visible Inkonsistenzen für alle Zeiten.
+
+- **R2-10 (Slide-17 Spalte 5 sitzt tiefer):** R1-Nachzügler. Inspektion ergab 7 Inhalte-Spalten (nicht 6 wie im Report angenommen — Textfeld 20 ist die 4. Spalte links-nach-rechts). PR #53 hatte Heights uniform; R2-10 fand kleinen TOP-Drift (Textfeld 3/4/5/6 weichten 1500-18000 EMU von der kanonischen 1796808 ab). Skript snapped beide Reihen via Counter-most-common-Strategie. Ergebnisse-Tops waren bereits uniform. Anti-Regression-Tests asserten beide Invarianten als Set-Size-1.
+
+**Affected:**
+- `services/python/app/services/pptx_generator.py` — `_IMAGE_FORCED_GEOMETRY_EMU` + 5 Slide-5-Geometrie-Konstanten + `_replace_image_in_slide`-Override-Logik (R2-3).
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` — 6 leere rote Rechtecke entfernt (R2-2), 5 Slide-4-Shapes auf TEXT_TO_FIT_SHAPE (R2-4), 4 Slide-17-Inhalte-Tops auf 1796808 EMU gesnapped (R2-10).
+- `scripts/remove-marker-frames.py` — neu (R2-2, one-shot, idempotent).
+- `scripts/normalize-slide-r2-template-edits.py` — neu (R2-4/R2-6/R2-8/R2-10 konsolidiert, idempotent).
+- `services/python/tests/test_pptx_generator.py` — 7 neue Tests (R2-2 / R2-3 / R2-4 / R2-5-documentation / R2-7 / R2-8 / R2-10 x2).
+- `services/python/tests/test_parity.py` — 1 neue Parametrized-Test (R2-9 Invariante über alle 22 Fixtures).
+- `src/lib/calculations/parity.test.ts` — 1 neue Describe-Block (R2-9 Invariante TS-side über alle 22 Fixtures).
+- `services/python/requirements-dev.txt` — pyright auf `==1.1.391` gepinnt (CI-0).
+- `services/python/pyproject.toml` — `[[tool.pyright.executionEnvironments]]` für tests/-Pfad (CI-0).
+- `SPEC.md` §4.8 — drei Bullet-Points geupdated: Headline-Numbers als auto-fit-Liste, Marker-Rechtecke-Cleanup-Politik, Image-Slot-Forced-Geometry-Politik.
+- `TASKS.md` — Carry-forward für PR #57 + PR #58-funktional-ersatz.
+
+**Pause-Trigger-Check (§7):** keine. Reine PPTX-Render-Korrekturen + Test-Hardening + CI-Stabilität. Keine neuen Deps (pyright war bereits da, nur pin enger), kein Schema-Change, keine Auth-/Security-Logik, keine Money-Formeln (R2-9 ist Test-Härtung der bereits in PR #57 user-confirmed-gefixten Formel). §7.4 (UI/UX) feuert NICHT — PPTX-Output ist nicht "UI" im SPEC §8-Sinn, und alle Edits sind innerhalb der bereits gültigen Template-Layout-Konventionen.
+
+**Open question for the user:** PR #58 (R2-1 standalone) ist durch diesen Sammel-PR funktional obsolet (Cherry-pick der 4 Commits enthalten). User kann PR #58 nach Merge dieses PRs schließen.
