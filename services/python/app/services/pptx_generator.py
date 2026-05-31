@@ -96,6 +96,57 @@ _PLACEHOLDER_RE = re.compile(r"\{\{([a-z][a-z0-9_]*)\}\}")
 _IMAGE_BEFORE_NAME = "image_before"
 _IMAGE_AFTER_NAME = "image_after"
 
+# --- Defekt R2-3 (2026-05-31) -----------------------------------------
+#
+# Slide 5 ships BEFORE and AFTER photos in two visually-paired
+# bounding boxes. The template originally placed thin red outline
+# rectangles ("Rechteck 3" and "Rechteck 6") at the intended image
+# positions — those marker frames were removed in Defekt R2-2 (see
+# scripts/remove-marker-frames.py). The image-placeholder shapes
+# themselves (image_before, image_after) inherited geometry from the
+# template-author's working state, which differed between the two:
+# image_before sat at W=248 H=428 (portrait!) and image_after at
+# W=429 H=258 — visually mismatched and not customer-presentable.
+#
+# Fix: snap BOTH image slots to the dimensions captured from the
+# removed marker rectangles (W=451 H=268 px -> 4297028 x 2554545 EMU)
+# at the marker-rect anchor points. BEFORE goes to the upper rect
+# (T=1797069 EMU), AFTER to the lower one (T=5295559 EMU). Both
+# share L=968392 EMU (perfectly column-aligned).
+#
+# 914400 EMU = 1 inch; values below are reproduced exactly from
+# the pre-R2-2 template inspection so the customer-visible layout
+# matches the original author's intent.
+_SLIDE5_IMAGE_LEFT_EMU = 968392
+_SLIDE5_IMAGE_WIDTH_EMU = 4297028
+_SLIDE5_IMAGE_HEIGHT_EMU = 2554545
+_SLIDE5_IMAGE_BEFORE_TOP_EMU = 1797069
+_SLIDE5_IMAGE_AFTER_TOP_EMU = 5295559
+
+#: Forced geometry per image-placeholder shape (Defekt R2-3). The
+#: ``_replace_image_in_slide`` driver substitutes these EMU values
+#: in place of whatever the placeholder shape itself carries — both
+#: BEFORE and AFTER end up at the same width and height so the
+#: customer sees a coherent pair instead of one portrait + one
+#: landscape thumbnail. Adding a new image_* shape with no entry here
+#: falls back to the shape's own geometry (current behaviour for
+#: future slots).
+_IMAGE_FORCED_GEOMETRY_EMU: dict[str, tuple[int, int, int, int]] = {
+    # (left, top, width, height)
+    _IMAGE_BEFORE_NAME: (
+        _SLIDE5_IMAGE_LEFT_EMU,
+        _SLIDE5_IMAGE_BEFORE_TOP_EMU,
+        _SLIDE5_IMAGE_WIDTH_EMU,
+        _SLIDE5_IMAGE_HEIGHT_EMU,
+    ),
+    _IMAGE_AFTER_NAME: (
+        _SLIDE5_IMAGE_LEFT_EMU,
+        _SLIDE5_IMAGE_AFTER_TOP_EMU,
+        _SLIDE5_IMAGE_WIDTH_EMU,
+        _SLIDE5_IMAGE_HEIGHT_EMU,
+    ),
+}
+
 # --- Marker-Red color reset (Defekt R2-1, 2026-05-31) -----------------
 #
 # The original PPTX template authored by GreenScout marks every dynamic
@@ -435,10 +486,19 @@ def _replace_image_in_slide(slide: Any, shape_name: str, image_path: Path) -> bo
         logger.info("pptx_generator: image shape '%s' not found on slide, skipping", shape_name)
         return False
 
-    slot_left = int(target.left) if target.left is not None else 0
-    slot_top = int(target.top) if target.top is not None else 0
-    slot_width = int(target.width) if target.width is not None else 0
-    slot_height = int(target.height) if target.height is not None else 0
+    # Defekt R2-3 (2026-05-31): for image shapes whose intended geometry
+    # is fixed by the SPEC (currently slide-5 BEFORE / AFTER pair), snap
+    # to the forced dimensions instead of inheriting the shape's own
+    # (potentially mismatched) box. This guarantees BEFORE and AFTER
+    # land at the same width and height in the customer output.
+    forced = _IMAGE_FORCED_GEOMETRY_EMU.get(shape_name)
+    if forced is not None:
+        slot_left, slot_top, slot_width, slot_height = forced
+    else:
+        slot_left = int(target.left) if target.left is not None else 0
+        slot_top = int(target.top) if target.top is not None else 0
+        slot_width = int(target.width) if target.width is not None else 0
+        slot_height = int(target.height) if target.height is not None else 0
 
     # Remove the placeholder shape from the slide's XML tree.
     sp_element: Any = target._element  # python-pptx exposes no public delete API.
