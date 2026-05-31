@@ -39,6 +39,7 @@ from app.services.pptx_generator import (
     _PLACEHOLDER_RE,
     _contain_fit,
     _format_value,
+    _is_marker_red,
     generate_pptx,
 )
 
@@ -960,4 +961,262 @@ def test_template_uses_phrase_keys_not_raw_fields_for_empty_safe_slots() -> None
     )
     assert "Flurstück: {{flurstueck}}" not in all_text, (
         "Slide 4's 'Flurstück: {{flurstueck}}' raw-pattern is back — see Defekt D1."
+    )
+
+
+# --- anti-regression tests for marker-red color reset (Defekt R2-1) -----
+# --- (2026-05-31) ------------------------------------------------------
+
+# Background: the original PPTX template ships with every dynamic value
+# colored red (#FF0000) as a manual fill-in marker for the consultant who
+# would otherwise edit the deck by hand. Once we substitute a real value
+# via _replace_in_paragraph, the red color must be reset — SPEC §8.1's
+# design palette does not include red, only forest-green, plant-green,
+# muted-lime, foreground, background, link. Leaving the marker color on
+# substituted runs turned every customer-facing slide red-spotted (Slides
+# 1, 2, 4, 5, 9, 15, 16, 19 in the production-defect report).
+#
+# The helper _is_marker_red() / _resolve_replacement_color() /
+# _reset_marker_color_if_present() implement the fix; the tests below
+# pin the detection thresholds + the substitution behavior so a future
+# refactor cannot silently reintroduce the bug.
+
+
+def test_marker_red_detected_correctly() -> None:
+    """Defekt R2-1: ``_is_marker_red`` detects #FF0000-neighborhood only.
+
+    The detection window catches the template author's marker red plus
+    crimson-ish variants used in some hand-edited templates while
+    explicitly REJECTING every SPEC §8.1 color so legitimate brand
+    accents are never reset by accident. ``None`` (no rgb set, e.g.
+    theme-color runs) is also rejected — we don't second-guess
+    theme-colors.
+    """
+    from pptx.dml.color import RGBColor
+
+    # Marker-red and red-neighborhood variants → True.
+    assert _is_marker_red(RGBColor(0xFF, 0x00, 0x00)) is True  # exact #FF0000
+    assert _is_marker_red(RGBColor(0xDC, 0x14, 0x3C)) is True  # crimson
+    assert _is_marker_red(RGBColor(0xC8, 0x00, 0x00)) is True  # dark red
+    assert _is_marker_red(RGBColor(0xFF, 0x32, 0x32)) is True  # bright red
+
+    # SPEC §8.1 palette → False (must stay untouched).
+    assert _is_marker_red(RGBColor(0xCC, 0x33, 0x66)) is False  # link (R=204 B=102)
+    assert _is_marker_red(RGBColor(0x2D, 0x47, 0x3E)) is False  # forest-green
+    assert _is_marker_red(RGBColor(0x6A, 0x8F, 0x4E)) is False  # plant-green
+    assert _is_marker_red(RGBColor(0xB2, 0xD0, 0x82)) is False  # muted-lime
+    assert _is_marker_red(RGBColor(0x00, 0x00, 0x00)) is False  # foreground
+    assert _is_marker_red(RGBColor(0xFF, 0xFF, 0xFF)) is False  # background
+
+    # No-rgb (theme-color or unset) → False (defensive, no opinion).
+    assert _is_marker_red(None) is False
+
+
+def test_substitution_resets_marker_red_to_neighbor_color(tmp_path: Path) -> None:
+    """Defekt R2-1: substituted runs lose marker-red and adopt a neighbor color.
+
+    Build a text frame with (a) a static dark-colored neighbor run that
+    has nothing to substitute, and (b) a marker-red run containing
+    ``{{key}}``. After substitution, the marker-red run's color must
+    have been swapped for the neighbor's color — proving the
+    "prefer-neighbor" branch of ``_resolve_replacement_color`` runs.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = tx.text_frame
+
+    # Paragraph 0: a static dark-grey neighbor run with no placeholders.
+    neighbor_color = RGBColor(0x33, 0x33, 0x33)
+    tf.paragraphs[0].add_run().text = "Static label"
+    tf.paragraphs[0].runs[0].font.color.rgb = neighbor_color
+
+    # Paragraph 1: a marker-red run with a placeholder to substitute.
+    para1 = tf.add_paragraph()
+    para1.add_run().text = "Wert: {{value}}"
+    para1.runs[0].font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+
+    _replace_in_shape(tx, {"value": "ersetzt"})
+
+    # Static neighbor untouched.
+    assert tf.paragraphs[0].runs[0].font.color.rgb == neighbor_color
+    # Substituted run took on the neighbor's color, not the marker red.
+    substituted_rgb = tf.paragraphs[1].runs[0].font.color.rgb
+    assert substituted_rgb == neighbor_color, (
+        f"Substituted run kept marker-red instead of adopting neighbor color: "
+        f"got {substituted_rgb!r}, expected {neighbor_color!r} (Defekt R2-1, 2026-05-31)."
+    )
+    # And the text really was substituted.
+    assert tf.paragraphs[1].runs[0].text == "Wert: ersetzt"
+
+
+def test_substitution_keeps_non_marker_colors(tmp_path: Path) -> None:
+    """Defekt R2-1: existing SPEC accent colors survive substitution.
+
+    A run that is NOT marker-red — e.g. a SPEC `link` (#CC3366) or
+    forest-green run that happens to contain a placeholder — must keep
+    its color after substitution. The reset is opt-in on marker-red
+    only.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(2))
+    tf = tx.text_frame
+
+    link_color = RGBColor(0xCC, 0x33, 0x66)  # SPEC §8.1 link
+    forest_green = RGBColor(0x2D, 0x47, 0x3E)  # SPEC §8.1 forest-green
+
+    tf.paragraphs[0].add_run().text = "Link {{href}}"
+    tf.paragraphs[0].runs[0].font.color.rgb = link_color
+    para1 = tf.add_paragraph()
+    para1.add_run().text = "Headline {{title}}"
+    para1.runs[0].font.color.rgb = forest_green
+
+    _replace_in_shape(tx, {"href": "example.com", "title": "Auswertung"})
+
+    # Both colors must remain — substitution does not touch them.
+    assert tf.paragraphs[0].runs[0].font.color.rgb == link_color, (
+        "SPEC §8.1 link color was reset — must only reset marker-red (Defekt R2-1)."
+    )
+    assert tf.paragraphs[1].runs[0].font.color.rgb == forest_green, (
+        "SPEC §8.1 forest-green color was reset — must only reset marker-red (Defekt R2-1)."
+    )
+
+
+def test_substitution_falls_back_to_foreground_when_no_neighbor(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-1: lone marker-red run falls back to SPEC foreground.
+
+    When the text frame contains no usable neighbor color (e.g. the
+    only static-colored siblings are themselves marker-red, or there
+    are no siblings at all), the resolver falls back to SPEC §8.1
+    foreground (#000000) for body-sized fonts.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches, Pt
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1))
+    tf = tx.text_frame
+    tf.paragraphs[0].add_run().text = "{{lonely}}"
+    run = tf.paragraphs[0].runs[0]
+    run.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+    run.font.size = Pt(12)  # body size → foreground fallback
+
+    _replace_in_shape(tx, {"lonely": "alone"})
+
+    assert run.font.color.rgb == RGBColor(0x00, 0x00, 0x00), (
+        f"Lone marker-red run did not fall back to SPEC foreground: "
+        f"got {run.font.color.rgb!r} (Defekt R2-1, 2026-05-31)."
+    )
+
+
+def test_substitution_falls_back_to_forest_green_for_large_headline(
+    tmp_path: Path,
+) -> None:
+    """Defekt R2-1: lone marker-red headline run falls back to forest-green.
+
+    When font.size ≥ 24pt and no usable neighbor is present, the run
+    is treated as a headline and gets SPEC §8.1 forest-green (#2D473E)
+    rather than black foreground — matching the template's visual
+    hierarchy for big titles.
+    """
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor
+    from pptx.util import Inches, Pt
+
+    from app.services.pptx_generator import _replace_in_shape
+
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    tx = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(2))
+    tf = tx.text_frame
+    tf.paragraphs[0].add_run().text = "{{headline}}"
+    run = tf.paragraphs[0].runs[0]
+    run.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+    run.font.size = Pt(28)  # headline size → forest-green fallback
+
+    _replace_in_shape(tx, {"headline": "Machbarkeitsstudie"})
+
+    assert run.font.color.rgb == RGBColor(0x2D, 0x47, 0x3E), (
+        f"Lone marker-red headline did not fall back to SPEC forest-green: "
+        f"got {run.font.color.rgb!r} (Defekt R2-1, 2026-05-31)."
+    )
+
+
+@pytest.mark.skipif(not _REAL_TEMPLATE.exists(), reason="real template not in this checkout")
+def test_real_template_no_marker_red_after_substitution(tmp_path: Path) -> None:
+    """Defekt R2-1: full render against the real template produces ZERO
+    marker-red runs.
+
+    This is the integration-level guard for the systemic production bug.
+    The real 19-slide template originally shipped with marker-red on
+    every dynamic value (Slides 1, 2, 4, 5, 9, 15, 16, 19 visibly in
+    the production-defect report). After substitution via generate_pptx
+    with a fully-populated context, NO run anywhere in the deck may
+    still carry a marker-red color. If this test fails, either a new
+    placeholder was added without value or the color-reset logic
+    regressed.
+    """
+    ctx = _full_context()
+    # Use the same realistic-flavored fixture values from the Slide 9 /
+    # Slide 5 tests so substitution actually overwrites everything.
+    ctx["pv_verkauf_ct_kwh"] = "22,00"
+    ctx["ersparnis_gesamt_vertragslaufzeit_eur"] = "156.000,00"
+    ctx["pacht_einnahme_einmalig_eur"] = "50.000,00"
+    ctx["co2_tonnen_gesamt_vertragslaufzeit"] = "28,44"
+
+    out = tmp_path / "real-no-marker-red.pptx"
+    generate_pptx(_REAL_TEMPLATE, out, context=ctx)
+
+    pres = Presentation(str(out))
+    offenders: list[str] = []
+    for slide_idx, slide in enumerate(pres.slides, start=1):
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for para_idx, paragraph in enumerate(shape.text_frame.paragraphs):
+                for run_idx, run in enumerate(paragraph.runs):
+                    try:
+                        rgb = run.font.color.rgb
+                    except (AttributeError, KeyError, TypeError):
+                        continue
+                    if not _is_marker_red(rgb):
+                        continue
+                    # Whitespace-only runs are visually invisible regardless
+                    # of their color and were never part of the production
+                    # defect report. They typically come from static layout
+                    # spacers (tabs between bullet items, etc.) that never
+                    # ran through the substitution pipeline. Ignoring them
+                    # keeps this test focused on the actual customer-facing
+                    # bug: substituted VALUES still rendering in red.
+                    if not run.text.strip():
+                        continue
+                    offenders.append(
+                        f"slide {slide_idx} / shape {shape.name!r} / "
+                        f"para {para_idx} / run {run_idx} / "
+                        f"rgb={rgb!r} / text={run.text!r}"
+                    )
+
+    assert not offenders, (
+        f"{len(offenders)} marker-red run(s) with visible text survived "
+        f"substitution — either a placeholder was missed or color-reset "
+        f"regressed.\nFirst 10:\n  - " + "\n  - ".join(offenders[:10])
     )
