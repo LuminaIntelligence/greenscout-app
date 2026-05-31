@@ -3670,3 +3670,35 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 **Pause-Trigger-Check (§7.7 Money-Calc):** §7.7 feuert grundsätzlich für money-Calc-Änderungen — gleicher Scope wie DECISIONS 2026-05-27 (Pacht-Formel-Freigabe). User hat explizit als §7.7-Follow-up bestätigt: „Der user-input ist die einzige Quelle für die Einspeisevergütung — die Konstante darf nicht hardcoded den user-input überschreiben." Die Mapping-Disambiguierung Q3 vom 2026-05-26 wird durch diese spätere User-Entscheidung überschrieben.
 
 **Open question for the user:** —
+
+---
+
+## 2026-05-31 — Defekt R2-1: Reset der roten Marker-Schriftfarbe bei Substitution (user-confirmed)
+
+**Context:** Runde-2-Defekt-Report nach erstem in Production deployedten PPTX-Lauf zeigt: jeder aus einem `{{key}}`-Platzhalter substituierte Wert trägt die rote Marker-Farbe des Original-Templates weiter. Visible auf Slides 1, 2, 4, 5, 9, 15, 16, 19 — u. a. „Mittelgrundstr. Test in Flurstück Fl0234" (Slide 2), „500 / 50.000,00 € / 3.000.000 / 4 %" (Slide 4), „22,00 CENT netto / kWh" (Slide 5), „28,00 netto ct/kWh" (Slide 9), alle Szenario-Werte (Slide 15), „Variante B: Flächenpacht und Stromlieferung (empfohlen)" (Slide 16), „Admin GreenScout / Wir melden uns bei Ihnen!" (Slide 19). Nicht kundenpräsentabel — SPEC §8.1 listet kein Rot.
+
+**Root cause:** Die rote Schriftfarbe im Template ist ein Erstellungs-Hilfsmittel — sie markiert die Stellen, die ein Berater bei manueller Befüllung ersetzen müsste. Sie ist NICHT Teil von SPEC §8.1 (`forest-green`, `plant-green`, `muted-lime`, `foreground`, `background`, `link` — kein Rot). Die Substitutions-Routine `_replace_in_paragraph` in `services/python/app/services/pptx_generator.py` hat die Marker-Farbe als „intended formatting" beibehalten — basierend auf einer Über-Interpretation von SPEC §4.8 („Replacement keeps run-level formatting (font, colour, size)"). Bei jedem substituierten Run kam dadurch das Rot wieder mit.
+
+**Decision (user-confirmed via Defekt-Report Fix-Strategie):**
+
+1. **Marker-Detection mit tight RGB-Schwelle.** Ein Run gilt als „marker-red", wenn `R ≥ 200 AND G ≤ 80 AND B ≤ 80`. Die Schwelle ist eng genug, dass SPEC §8.1 `link` `#CC3366` (R=204, G=51, B=102 → B=102 > 80) NICHT als Marker erkannt wird; SPEC `forest-green`, `plant-green`, `muted-lime` liegen alle weit außerhalb des Fensters. Theme-color-only Runs (kein expliziter RGB-Wert, AttributeError beim Zugriff) gelten als „keine Marker-Meinung" → False. Implementiert als `_is_marker_red(rgb)` mit pinning-Tests in `tests/test_pptx_generator.py::test_marker_red_detected_correctly`.
+
+2. **Color-Resolve mit Neighbor-First + SPEC-Fallback.** Bevorzugt wird die Farbe eines benachbarten statisch-dunklen Runs im selben `text_frame` (über alle Paragraphen scannen, ersten nicht-marker-roten Run gewinnen lassen). Falls kein solcher Nachbar existiert: SPEC §8.1 `forest-green` (`#2D473E`) für Runs mit `font.size ≥ 24pt` (Headlines), sonst `foreground` (`#000000`) für Body. Implementiert als `_resolve_replacement_color(run, text_frame)`.
+
+3. **Reset NUR wenn marker-red.** Andere Farben (SPEC `link`, `forest-green`, plant-green Akzent — alles was die Detection passieren lässt) bleiben unangetastet. Test `test_substitution_keeps_non_marker_colors` pin die Invariant.
+
+4. **Reset auf ALLE Runs eines Segments, nicht nur runs[0].** Während der Substitution wird `runs[0].text = rewritten` gesetzt und `runs[1:].text = ""` (cleared). ABER: die geleerten Runs[1:] tragen weiter die Marker-Rot-Farbe in ihrer `<a:rPr>`. Sobald sie wieder Text bekommen (re-render-Pass, manueller Edit), würden sie rot zurückkommen. Lösung: Color-Reset auf ALLE Runs eines Segments anwenden (`for run in runs: _reset_marker_color_if_present(run, text_frame)`), nicht nur den Survivor. Integration-Test fängt 76 → 1 (nach 1. Anlauf) → 0 (nach Erweiterung auf alle Segment-Runs) Marker-Red-Runs.
+
+5. **Integration-Test gegen das echte Template.** `test_real_template_no_marker_red_after_substitution` (skipped wenn das echte Template nicht im Checkout liegt) macht eine volle Substitution gegen das 19-Slide-Template mit synthetischen Werten und zählt jeden Run mit visibler Text-Content, dessen Farbe nach `_is_marker_red` rot ist. Whitespace-only Runs (Tabs / Spaces — visuell unsichtbar, statische Layout-Spacer die nie durch die Substitution laufen) sind explizit erlaubt; nur substituierte sichtbare Werte werden gefangen. Dieser Test ist der finale Anti-Regression-Guard.
+
+6. **SPEC §4.8 wird präzisiert.** Der Satz „Replacement keeps run-level formatting (font, colour, size)" wird ersetzt durch eine genauere Beschreibung der Color-Reset-Politik plus expliziten Hinweis, dass das rote Template-Marker-Rot ein Authoring-Hint und kein Design-Element ist. Schützt zukünftige Implementer vor demselben Missverständnis.
+
+**Affected:**
+- `services/python/app/services/pptx_generator.py` — Neue Module-Konstanten (`_MARKER_RED_R_MIN`, `_MARKER_RED_GB_MAX`, `_SPEC_FOREGROUND`, `_SPEC_FOREST_GREEN`, `_HEADLINE_FONT_PT_MIN`) + 4 neue Helper (`_is_marker_red`, `_safe_get_run_rgb`, `_resolve_replacement_color`, `_reset_marker_color_if_present`). `_replace_in_paragraph` erweitert um `text_frame`-Parameter und Color-Reset-Hook auf alle Segment-Runs nach Text-Rewrite. `_replace_in_shape` reicht den `text_frame`-Kontext durch. Module-Docstring erweitert um neuen Invarianten-Punkt #3.
+- `services/python/tests/test_pptx_generator.py` — 6 neue Tests: `test_marker_red_detected_correctly` (Detection-Schwelle vs. SPEC-Palette), `test_substitution_resets_marker_red_to_neighbor_color` (Prefer-Neighbor-Branch), `test_substitution_keeps_non_marker_colors` (link + forest-green bleiben unangetastet), `test_substitution_falls_back_to_foreground_when_no_neighbor` (Body-Fallback), `test_substitution_falls_back_to_forest_green_for_large_headline` (Headline-Fallback ab 24pt), `test_real_template_no_marker_red_after_substitution` (Integration gegen das echte Template — 0 Marker-Red mit visiblem Text).
+- `SPEC.md` §4.8 — Klarstellung der Color-Reset-Politik plus expliziter Verweis auf das `_is_marker_red`-Detection-Fenster und die SPEC-Palette-Fallback-Hierarchie.
+- `TASKS.md` — Carry-forward für PR #57 (Defekt A2) nachgeholt (war noch nicht in Recently completed).
+
+**Pause-Trigger-Check (§7):** keine. Kein neuer Dep, kein Schema-Change, keine Auth-/Security-Logik. SPEC §4.8 Edit ist ausschließlich Klarstellung des bisherigen Intents (Design-Konsistenz mit §8.1), keine Scope-Erweiterung — fällt unter Allow-§6 „Update SPEC.md (only for clarifications)". §7.4 (UI/UX-Änderungen) feuert NICHT — der Fix korrigiert eine Abweichung vom SPEC-Design-System, er führt keine neuen Tokens ein.
+
+**Open question for the user:** —
