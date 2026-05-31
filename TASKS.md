@@ -477,6 +477,12 @@
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
+### Defekt A2 ✅ stromkosten_mit_pv nutzt user-input pv_verkauf statt Konstante
+- **Merged:** 2026-05-30 via PR #57.
+- **Branch:** `fix/calc-mit-pv-formula`
+- **Summary:** Production-Symptom: generierte PPTX zeigte auf Slide 14 `Mit PV: ca. 26.000 € pro Jahr` bei einer Test-Studie mit verbrauch=eigenverbrauch=130.000, pv_verkauf=0,22, versorger=0,28. Erwartet: `28.600 €` (130k × 0,22). Tatsächlich nutzten beide Calc-Module (TS + Python) eine PROVISIONAL `EINSPEISE_VERGUETUNG_DEFAULT_EUR_KWH = 0,20 €/kWh`-Konstante (aus Slice-3a `docs/pptx-mapping.md` Q3-Sign-off) statt des user-input `pvVerkaufEurKwh`. Root cause: dokumentierte Mapping-Disambiguierung ignorierte den user-input. Fix (§7.7 User-Freigabe als Follow-up zur 2026-05-27 Pacht-Formel-Freigabe): `stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_preis + pv_eigenverbrauch × pv_verkauf_eur_kwh`. Konstante komplett aus TS+Py-Modulen entfernt (Tombstone-Kommentare als Audit-Spur). Parity-Fixtures regeneriert (23 Cases). Anti-Regression-Test mit verbatim Defekt-Fixture (130k/130k/0,28/0,22 → 28.600 €) TS+Py parallel. `docs/pptx-mapping.md` Q3-Resolution durchgestrichen + Revisions-Note. Carry-forward zum nächsten PR (Defekt R2-1 — rote Marker-Schriftfarbe).
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-30 — Defekt A2: stromkosten_mit_pv nutzt user-input pv_verkauf statt Konstante".
+
 ### Defekt E1 ✅ German two-decimal money/ct convention (typed formatters)
 - **Merged:** 2026-05-30 via PR #56.
 - **Branch:** `fix/german-number-formatting`
