@@ -146,6 +146,68 @@ implement exactly this set; any deviation should be flagged before merge.
 - `{{image_before}}` — `StudyImage.type = BEFORE` processed file (T-029b). **Slide 5 only** (since Defekt B1, 2026-05-29).
 - `{{image_after}}` — `StudyImage.type = AFTER` processed file (T-029b). **Slide 5 only.**
 
+**Forced geometry (Defekt R2-3, 2026-05-31).** Both image slots snap
+to a fixed bounding box in EMU regardless of the placeholder shape's
+own dimensions:
+
+| Slot | L (EMU) | T (EMU) | W (EMU) | H (EMU) |
+|---|---|---|---|---|
+| `image_before` (slide 5, upper) | 968 392 | 1 797 069 | 4 297 028 | 2 554 545 |
+| `image_after` (slide 5, lower) | 968 392 | 5 295 559 | 4 297 028 | 2 554 545 |
+
+Both end up at the same W × H so the BEFORE/AFTER pair always
+renders as a coherent visual pair. The geometry was captured from
+the marker rectangles `Rechteck 3` / `Rechteck 6` (deleted in Defekt
+R2-2) before they were removed; it now lives as Python constants
+(`_SLIDE5_IMAGE_*_EMU`, `_IMAGE_FORCED_GEOMETRY_EMU`) in
+`services/python/app/services/pptx_generator.py`.
+
+---
+
+## Marker frames (red outline rectangles)
+
+**Defekt R2-2 (2026-05-31)** removed every empty red outline rectangle
+that the template author had placed as a manual "value goes here" /
+"image goes here" hint. Six shapes were deleted across the template:
+
+| Slide | Shape | Notes |
+|---|---|---|
+| 2 | `Rechteck 3` | over the customer-object headline |
+| 5 | `Rechteck 3` | BEFORE image marker → geometry captured for R2-3 |
+| 5 | `Rechteck 6` | AFTER image marker → geometry captured for R2-3 |
+| 10 | `Rechteck 1` | over the PV-Anlagenkonzept block |
+| 15 | `Rechteck 1` | over the Sensitivitätsanalyse block |
+| 19 | `Rechteck 16` | over the Termin / Kontakt block |
+
+Cleanup is one-shot via `scripts/remove-marker-frames.py` (idempotent).
+Anti-regression test `test_template_has_no_empty_red_marker_rectangles`
+guards against re-introduction.
+
+Non-marker rectangles with deliberate accent colours (e.g. muted-lime
+`Rechteck: abgerundete Ecken` cards on slide 5, line colour `#DDEAC7`)
+are NOT touched — they are part of the SPEC §8.1 design palette.
+
+---
+
+## Slide 15 sensitivity chart (documented-not-a-bug)
+
+**Defekt R2-5 (2026-05-31).** The Runde-2-Report proposed populating
+a python-pptx chart on slide 15 via `chart.replace_data`. Template
+inspection confirmed slide 15 has **no chart shape** (no
+`graphicFrame` with chart URI, no `pptx.Chart` object). The
+Sensitivitätswerte are already rendered as dynamic text via the
+`{{szenario_*_preis_ct_kwh}}` / `{{szenario_*_ersparnis_eur}}`
+placeholders. The visual "chart" the user saw is a static `Grafik`
+asset, not a data-bound chart.
+
+Should a future template update introduce a real chart object, the
+documentation test
+`test_slide_15_has_no_chart_shape_but_has_szenario_text_placeholders`
+will go red, signalling that an `_update_sensitivity_chart` helper
+(see the proposed `CategoryChartData` + `chart.replace_data` pattern
+in the original R2-5 report) must be implemented before the chart
+goes live in production.
+
 ---
 
 ## Per-slide breakdown
