@@ -31,6 +31,19 @@ typeCheckingMode = "strict"
 reportMissingImports = "error"
 reportGeneralTypeIssues = "error"
 
+# Defekt CI-0 (2026-05-31): Tests run with loosened strict-mode checks.
+# FastAPI's TestClient (via httpx) returns Unknown-typed responses, which under
+# strict mode floods the test suite with reportUnknownMemberType / -VariableType /
+# -ArgumentType noise — no real safety benefit in test code. Pyright version pinned
+# in requirements-dev.txt for additional drift protection.
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportMissingTypeArgument = "none"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
