@@ -4,7 +4,13 @@
 # Multi-stage build (deps → builder → runner). Anchored on Next.js's standalone
 # output (next.config.ts `output: "standalone"`).
 #
-# Builder-Stages: Node 24 (alpine), entspricht der .nvmrc-Pin.
+# Builder-Stages: Node 24 (bookworm-slim, glibc) — matched die jammy-Glibc-ABI
+# des Runner-Images. Verhindert einen `@node-rs/argon2`-musl/glibc-Mismatch im
+# Standalone-Trace: NAPI-Native-Bindings werden in `deps` als platform-spezifische
+# optional-deps installiert (`@node-rs/argon2-linux-x64-gnu` für bookworm/jammy),
+# danach via NFT in den Runner durchgereicht. Wäre `deps` auf alpine (musl), würde
+# nur die musl-Binding landen und der Jammy-Runner beim Auth.js-Login mit
+# `Failed to load native binding` crashen.
 #
 # Runner-Stage: `mcr.microsoft.com/playwright:v1.60.0-jammy` — bringt Chromium
 # + alle Ubuntu-System-Libraries (libnss, libatk, fonts-liberation, …) für den
@@ -14,7 +20,7 @@
 # Version aus package.json gepinnt; bei Bumps in package.json hier nachziehen.
 
 # ----- Stage 1: install production + dev dependencies for the build -----------
-FROM node:24-alpine AS deps
+FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 
 # Copy only the manifests so this layer caches across source-only changes.
@@ -22,14 +28,17 @@ COPY package.json package-lock.json ./
 
 # Optional dependencies are kept on purpose: `@node-rs/argon2` ships its
 # native bindings as platform-specific optional packages
-# (e.g. `@node-rs/argon2-linux-x64-musl` for alpine). Skipping optionals
-# would silently drop the runtime-required binary and break
+# (e.g. `@node-rs/argon2-linux-x64-gnu` for bookworm/jammy/glibc). Skipping
+# optionals would silently drop the runtime-required binary and break
 # `next build`'s page-data collection on the `[...nextauth]` route.
+# Glibc-Base statt alpine ist hier zwingend — der Runner (jammy) ist glibc,
+# eine musl-Binding aus alpine würde im Runner mit `Failed to load native
+# binding` crashen (siehe Header-Kommentar).
 RUN npm ci
 
 
 # ----- Stage 2: build the Next.js production bundle ---------------------------
-FROM node:24-alpine AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules

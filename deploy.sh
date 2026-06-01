@@ -28,6 +28,13 @@ NGINX_SITE_PATH="/etc/nginx/sites-available/greenscout"
 NGINX_SITE_LINK="/etc/nginx/sites-enabled/greenscout"
 WEB_HEALTH_TIMEOUT_SECONDS=120
 
+# Compose-Aufruf-Präfix als Array — `--env-file` ist auf docker-compose-v2
+# strict erforderlich, sobald die Compose-File-Vars wie ${POSTGRES_PASSWORD:?…}
+# interpoliert werden (also bei build, up, exec, logs, ps — bei allen). Ein
+# einzelnes Array verhindert die Drift zwischen den Call-Sites. Verwendung:
+# `"${COMPOSE[@]}" up -d` etc. Wird nach den Pre-flight-Checks initialisiert,
+# damit ENV_FILE garantiert existiert.
+
 # -----------------------------------------------------------------------------
 # Helpers
 # -----------------------------------------------------------------------------
@@ -142,6 +149,14 @@ fi
 
 echo "Voraussetzungen erfüllt."
 
+# Compose-Wrapper. Alle nachfolgenden Compose-Aufrufe MÜSSEN über `"${COMPOSE[@]}" …`
+# laufen — siehe Header-Kommentar oben. `--env-file` ist auf neueren
+# docker-compose-v2-Versionen strict erforderlich, sonst werfen `exec`/`logs`/
+# `ps` einen `required variable POSTGRES_PASSWORD is missing`-Fehler beim
+# Compose-File-Parsing, obwohl der Container längst läuft. Das hatte den
+# Health-Check-Loop in Schritt 3 fälschlich als Timeout markiert.
+COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
+
 # CERTBOT_EMAIL aus .env.production lesen (für Schritt 6).
 # Subshell-Source verhindert Variablen-Leak in den Hauptkontext.
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
@@ -190,7 +205,7 @@ fi
 header "Schritt 2/8: Docker-Images bauen"
 
 echo "Baue Images aus $COMPOSE_FILE — beim ersten Lauf 5-15 Minuten."
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build
+"${COMPOSE[@]}" build
 
 # -----------------------------------------------------------------------------
 # Schritt 3: Container starten
@@ -198,17 +213,17 @@ docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" buil
 header "Schritt 3/8: Container starten"
 
 echo "Starte Container (Web auf 127.0.0.1:4000, Python-Service + DB nur intern)…"
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d
+"${COMPOSE[@]}" up -d
 
 echo "Warte auf web-Container Health (max ${WEB_HEALTH_TIMEOUT_SECONDS}s)…"
 elapsed=0
-until docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T web wget -q --spider http://127.0.0.1:3000/login 2>/dev/null; do
+until "${COMPOSE[@]}" exec -T web wget -q --spider http://127.0.0.1:3000/login 2>/dev/null; do
     if [ "$elapsed" -ge "$WEB_HEALTH_TIMEOUT_SECONDS" ]; then
         err "Timeout: web-Container nicht erreichbar innerhalb von ${WEB_HEALTH_TIMEOUT_SECONDS}s."
         err "Logs der letzten 50 Zeilen:"
-        docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 web || true
-        docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 pyservice || true
-        docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=50 db || true
+        "${COMPOSE[@]}" logs --tail=50 web || true
+        "${COMPOSE[@]}" logs --tail=50 pyservice || true
+        "${COMPOSE[@]}" logs --tail=50 db || true
         exit 1
     fi
     sleep 2
@@ -226,7 +241,7 @@ header "Schritt 4/8: Datenbankmigrationen anwenden"
 # Build), bricht npx laut ab, statt still 'prisma@latest' (derzeit 7.x,
 # inkompatibel zur 5.x-Schema-Syntax) aus der Registry nachzuladen.
 # Siehe DECISIONS.md → "Prisma CLI ins Runtime-Image".
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" exec -T web npx --no-install prisma migrate deploy
+"${COMPOSE[@]}" exec -T web npx --no-install prisma migrate deploy
 echo "Migrationen angewendet."
 
 # -----------------------------------------------------------------------------
@@ -358,12 +373,11 @@ echo ""
 echo "Web:           https://${DOMAIN}"
 echo ""
 echo "Container-Status:"
-# --env-file zwingend: docker-compose.prod.yml interpoliert
-# ${POSTGRES_PASSWORD:?…} aus dem Environment, scheitert sonst beim
-# Compose-File-Parse (kosmetischer Fehler, beeinflusst den Deploy
-# nicht, aber die Status-Anzeige würde rot sein). Konsistent zu den
-# build- und up-Aufrufen in Schritten 2 + 3.
-docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
+# --env-file zwingend (inkl. in `${COMPOSE[@]}` enthalten): docker-compose.prod.yml
+# interpoliert ${POSTGRES_PASSWORD:?…} aus dem Environment, scheitert sonst beim
+# Compose-File-Parse. Konsistent zu allen anderen Compose-Aufrufen über
+# die `COMPOSE`-Array-Variable (siehe Konfigurations-Kopf).
+"${COMPOSE[@]}" ps
 echo ""
 echo "Folge-Deploys:  cd /opt/greenscout && git pull && bash deploy.sh"
 echo ""
