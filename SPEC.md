@@ -7,9 +7,9 @@
 
 ## 1. Vision
 
-A web application for GreenScout e.V. consultants ("Berater") to capture all input data required for a photovoltaic feasibility study and generate a customer-ready feasibility study document (PPTX + PDF) in the established GreenScout layout, with one click.
+A web application for GreenScout e.V. consultants ("Berater") to capture all input data required for a photovoltaic feasibility study and generate a customer-ready feasibility study document (PDF + sharebare Online-Ansicht) in the established GreenScout layout, with one click.
 
-The current process uses a manual Excel workbook (`Machbarkeitsstudien Auswertung.xlsx`) and a PowerPoint template (`Machbarkeitsstudie-PV-Template_v1_6.pptx`). The application replaces the Excel and the manual placeholder-filling step.
+The current process uses a manual Excel workbook (`Machbarkeitsstudien Auswertung.xlsx`) and a PowerPoint template (`Machbarkeitsstudie-PV-Template_v1_6.pptx`). The application replaces the Excel and the manual placeholder-filling step. Das Original-PDF unter `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` dient als visuelle Soll-Vorlage für die React-Slide-Renderer-Implementierung (§4.8).
 
 ---
 
@@ -32,7 +32,7 @@ The MVP must deliver these five capabilities:
    Derived values (yearly savings, 20-year savings, lease income, CO₂ tonnage, equivalent hectares of forest and football fields, etc.) computed from inputs server-side. See §5 for the calculation contract.
 
 5. **Document generation**
-   On click: a populated PPTX and a PDF (rendered from that PPTX) are generated and offered for download. Previous versions remain accessible via a per-study version history.
+   Auf Klick werden ein populiertes PDF und eine sharebare Online-Ansicht der Machbarkeitsstudie erzeugt. Frühere Versionen bleiben über die Studien-Versionshistorie erreichbar.
 
 ### 2.2 V2 (next iteration)
 
@@ -180,24 +180,29 @@ CO₂ values (approximate, agreed with GreenScout):
 
 **These constants must live in a single named-constants module on each side (TS and Py) and be covered by tests** — they may shift when GreenScout updates its methodology.
 
-### 4.8 Document generation
+### 4.8 React-Slide-Renderer-Architektur
 
-Strategy: **populate the existing PPTX template via named placeholders**, never re-build the layout from scratch.
+> **Pivot 2026-06-01 (§7.10, user-autorisiert):** Die ursprüngliche PPTX-Template-Pipeline ist ersatzlos durch eine React-Komponenten-Architektur abgelöst. Rationale + Folge-PRs siehe `DECISIONS.md` 2026-06-01.
 
-- Template lives at `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` in the Python service.
-- All variable text on the slides — currently shown in red (`#FF0000`) in the original template — must be **replaced with named placeholders** of the form `{{snake_case_key}}` (e.g. `{{customer_object_address}}`, `{{anlage_kwp}}`, `{{pacht_einnahme}}`).
-- Replacement preserves the placeholder run's font and size, **but resets the colour to the slide's normal body colour** — preferring the colour of a neighbouring static run in the same text frame, otherwise falling back to SPEC §8.1 `foreground` (`#000000`) for body text and `forest-green` (`#2D473E`) for headlines (font size ≥ 24 pt). The red template-author colour (RGB-distance ≤ a tight neighbourhood of `#FF0000`, see `_is_marker_red` in `pptx_generator.py`) is a manual fill-in marker from the template-authoring step, NOT a design element — SPEC §8.1's palette does not include red, only `forest-green`, `plant-green`, `muted-lime`, `foreground`, `background`, `link`. Any remaining marker-red after substitution signals either a missed placeholder or a regression in the colour-reset routine; the integration test `test_real_template_no_marker_red_after_substitution` enforces this. Deliberate SPEC accent colours (`link` `#CC3366`, `forest-green`, etc.) are NOT touched by the reset.
-- Text boxes with potentially long content (addresses, object names, customer name, headline numbers like `anlage_kwp` / `pv_erzeugung_kwh_jahr` / `ersparnis_gesamt_vertragslaufzeit_eur`) must have `auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE` so they shrink when the value is long.
-- **Empty red marker rectangles** (pure outline `#FF0000` auto-shapes with no fill and no text — the template author's "image goes here" / "value goes here" hints) are removed from the template entirely (Defekt R2-2, 2026-05-31). They were customer-visible and meaningless after substitution. The integration test `test_template_has_no_empty_red_marker_rectangles` enforces their absence; the one-shot cleanup lives at `scripts/remove-marker-frames.py`. SPEC accent rectangles with non-marker line colours (`muted-lime` cards on slide 5, etc.) are kept untouched.
-- Image placeholders are replaced by inserting the uploaded `BEFORE` / `AFTER` image into a fixed geometry (Defekt R2-3, 2026-05-31). The slide-5 BEFORE and AFTER photos snap to identical bounding boxes (`_IMAGE_FORCED_GEOMETRY_EMU` in `pptx_generator.py`) so the pair always renders at the same width and height — captured from the marker rectangles that were removed in R2-2. Image scaling is contain/letterbox to preserve the source aspect ratio.
+Strategie: **19 Slides als komponentenbasierter React-Tree, serverseitig mit Playwright zu PDF gerendert.** Online-Ansicht für Kunden über signierten HMAC-Token. Visuelle Soll-Vorlage ist das Original-PDF unter `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` (bleibt im Repo erhalten — Pixel-Soll für die React-Komponenten-Umsetzung).
 
-PPTX → PDF conversion uses headless LibreOffice in a side-by-side container:
+- **Komponenten-Tree:** Jede Slide lebt als eigene React-Komponente unter `src/features/studies/document/slides/` (z. B. `slide-01-title.tsx` … `slide-19-contact.tsx`). Ein Root-`<Document>`-Wrapper komposit die 19 Slides; Storybook-Stories pro Slide für visuelle Regression.
+- **Props-Contract:** Jede Slide erhält die zusammengestellten Studien-Daten als Props (Customer, Study, DerivedValues, Consultant). Die Datenmontage geschieht in einer Server-Action / einem Route-Handler, der Customer + Study + Consultant aus der DB lädt und mit `composeAll()` die DerivedValues vorrechnet (Calc-Endpoint des pyservice bleibt für authoritatives Recalc verfügbar).
+- **Layout:** Tailwind + Brand-Tokens aus §8.1 (`forest-green`, `plant-green`, `muted-lime`, `foreground`, `background`, `link`) + Typografie aus §8.2 (Gabarito Semibold / Regular). Keine neuen Farben.
+- **Chart auf Slide 15:** Recharts (bereits im Stack via shadcn). Sensitivitäts-Szenarien als Bar/Line-Chart, Daten vom Server vorgerechnet.
+- **Slide-17-Timeline:** CSS-Grid mit `grid-auto-rows: 1fr` zur Erzwingung gleicher Spaltenhöhen — ersetzt die fragile PPTX-Grid-Normalisierung der Runde-2-Defekte R2-10 / C2.
+- **Bildplatzhalter:** `<img>` mit `object-fit: cover` und festem Aspect-Ratio-Container — ersetzt die PPTX-Image-Forced-Geometry-Logik aus R2-3. Die uploaded BEFORE/AFTER-Bilder werden weiterhin vom pyservice via Pillow auf eine fixe Bounding-Box resized (Pipeline aus T-029a/b/c bleibt unverändert); die React-Slides binden die fertigen Bilder per relativem Pfad.
+- **PDF-Rendering:** Playwright (bereits in devDependencies) rendert die `<Document>`-Komponente headless aus einer internen Print-Route nach PDF. Implementation in `app/api/studies/[id]/pdf/route.ts`. Print-CSS via `@page` + `page-break-after: always` zwischen Slides; A4-Querformat als Standard.
+- **Online-Ansicht für Kunden:** Öffentliche Route (`app/(public)/studie/[id]/...`) gegated durch signierten HMAC-Token in der URL — kein Login nötig, aber Token + Study-ID müssen serverseitig matchen. Vorab-Light für das Phase-3-Kunden-Portal (SPEC §2.3).
+- **Storybook + visuelle Regression:** Story pro Slide mit gemockten Props; Snapshot-Diffs in CI als zusätzliche Qualitäts-Gate jenseits der Vitest-Unit-Coverage.
+
+PDF-Rendering-Flow:
 
 ```
-libreoffice --headless --convert-to pdf --outdir <out> <input.pptx>
+React<Document> → Next.js Print-Route → Playwright headless → PDF Buffer → ./generated/<studyId>/<filename>.pdf
 ```
 
-LibreOffice is included in the Python service Docker image.
+Keine LibreOffice-Subprozess-Abhängigkeit mehr; LibreOffice + `python-pptx` aus pyservice entfernt. Calc-Endpoint + Image-Processor-Endpoint bleiben im pyservice unverändert.
 
 ### 4.9 Error handling (UX)
 
@@ -398,8 +403,9 @@ German only in MVP. All strings centralised in i18n-ready dictionaries (`src/i18
 ```
 ┌──────────────────────────┐         ┌──────────────────────────┐
 │  Next.js app             │   HTTP  │  Python FastAPI service   │
-│  (frontend + API routes) │ ──────► │  python-pptx + Pillow +   │
-│  Auth, CRUD, file upload │ ◄────── │  headless LibreOffice     │
+│  Auth, CRUD, file upload │ ──────► │  Pillow image processing  │
+│  React-Slides + Playwright│ ◄────── │  PV-Calc (authoritative)  │
+│  PDF rendering            │         │                           │
 └──────────────────────────┘         └──────────────────────────┘
             │                                     │
             ▼                                     ▼
@@ -413,7 +419,7 @@ All containerised; orchestrated by `docker-compose.yml`. Production hosting: a s
 
 ### 7.2 Why a separate Python service?
 
-`python-pptx` is the only mature library for editing existing PowerPoint templates with placeholder replacement while preserving formatting; LibreOffice headless is the most reliable open-source PPTX→PDF renderer. Doing this in Node.js would require recreating the layout in `pptxgenjs`, which is not maintainable for a 19-slide template.
+Pillow is the most reliable open-source image-processing library for the BEFORE/AFTER-Photo-Resize-Pipeline (T-029b), und die authoritative PV-Calculation-Implementation in Python ist die Single-Source-of-Truth für die Parity-Tests gegen den TS-Mirror (T-034). Document-Rendering selbst (PDF + Online-Ansicht) läuft im Next.js-Layer via React-Slide-Komponenten + Playwright (siehe §4.8 + DECISIONS.md 2026-06-01) — die historische Begründung für den separaten Service (`python-pptx` + LibreOffice) ist nach dem §7.10-Pivot entfallen, der Service selbst bleibt aber wegen Image + Calc bestehen.
 
 ### 7.3 Module layout (frontend)
 
@@ -440,21 +446,20 @@ src/
 
 ```
 app/
-  api/                     # FastAPI routers
+  api/                     # FastAPI routers (calc, images, health, version)
   domain/
-    calculations.py        # PV calculations (mirror of TS lib)
+    calculations.py        # PV calculations (authoritative; TS mirrors for live preview)
     constants.py           # CO2 factors, defaults
   services/
-    pptx_generator.py
-    pdf_renderer.py
+    formatters.py
     image_processor.py
   schemas/                 # pydantic models
   config.py
   main.py
-templates/
-  Machbarkeitsstudie-PV-Template_v1_6.pptx
 tests/
 ```
+
+> **2026-06-01 (§7.10-Pivot):** `pptx_generator.py` + `pdf_renderer.py` + die `documents`-Endpoint + das PPTX-Template wurden entfernt. Document-Rendering läuft jetzt vollständig im Next.js-Layer (siehe §4.8). Original-PDF als visuelle Soll-Vorlage liegt unter `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf`.
 
 ---
 
