@@ -3997,3 +3997,46 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 - **§7.10** (Architektur-Pivot) — bereits autorisiert vom 2026-06-01 (User-Master-Pivot).
 
 **Open question for the user:** Keine. Erster Deploy nach Merge sollte sauber durchlaufen. Schritte für User siehe PR-Body „Deploy-Anleitung für User nach Merge".
+
+---
+
+## 2026-06-01 — Hotfix Pivot-Deploy: Playwright im Next.js Standalone-Output
+
+**Context:** Nach Merge des Pivot-Deploy-Hotfix (#64 — argon2 glibc + deploy.sh env-file) auf der Production-VPS ist der Web-Container healthy, Login funktioniert — aber jede Studien-Detail-Seite (`/studies/<id>`) wirft 500. Container-Log:
+
+```
+Error: Failed to load external module playwright:
+  Error: Cannot find module '/app/node_modules/playwright-core/browsers.json'
+Require stack:
+  - /app/node_modules/playwright-core/lib/coreBundle.js
+```
+
+**Root-Cause:** Next.js's `output: "standalone"` macht **statisches Tracing** des Modul-Graphs — kopiert nur Dateien, die per statischem `import` / `require()` referenziert werden. Playwright lädt `playwright-core/browsers.json` zur **Laufzeit** via `fs.readFile` für die Chromium-Browser-Discovery — der Next.js-Tracer übersieht das, die Datei landet nicht in `.next/standalone/node_modules/`.
+
+Plus: die Studien-Detail-Page (`src/app/(app)/studies/[id]/page.tsx`) importiert `generateDocumentAction`, die wiederum `renderStudyToPdf` aus `src/features/studies/document/services/render-pdf.ts` importiert, die wiederum `playwright` top-level importiert. Next.js evaluiert diesen Modul-Graph beim Page-Render — der Modul-Load-Fail kaskadiert zum 500 auf der Detail-Page, **noch bevor** ein User je „Dokument generieren" klickt.
+
+**Decisions:**
+
+1. **`outputFileTracingIncludes`** in `next.config.ts` mit catch-all-Route `/**/*` → erzwingt, dass die kompletten Playwright-Trees (`playwright`, `playwright-core`) in den Standalone-Output kopiert werden. Kostet ~25 MB extra im Standalone-Bundle, robust gegen alle Lade-Pfade (PDF-Renderer-Route, generate-document-Action, Detail-Seite via Server-Action-Modul-Graph). Per-Route-Tunen (z.B. nur `/studies/*` + `/api/studies/*/pdf`) ist möglich aber Brittle gegenüber zukünftigen Routes — catch-all ist MVP-tauglich; späteres Tunen ist taste-level wenn Image-Size ein Issue wird.
+
+2. **`serverExternalPackages`** in `next.config.ts` um `"playwright"` + `"playwright-core"` erweitert (top-level in Next.js 15+, NICHT mehr unter `experimental`). Next.js bundlet diese Packages nicht in den Server-Build, sondern lädt sie zur Laufzeit aus `node_modules` — verhindert, dass der Tracer Playwrights internen Lazy-Loader-Code in den Bundle inliniert (was die Runtime-`fs.readFile`-Pfade nochmal kaputt machen würde).
+
+3. **Lazy-Import** in `src/features/studies/document/services/render-pdf.ts`: `chromium` wird via `await import("playwright")` **innerhalb der `renderStudyToPdf`-Funktion** geladen statt top-level. Type-Import (`import type { Browser }`) bleibt top-level — wird vom TS-Compiler aus dem Runtime-Bundle ge-stripped. Verschiebt einen etwaigen Modul-Load-Fail vom Page-Render-Modul-Graph-Init zum tatsächlichen Funktions-Aufruf — Detail-Page-Render kann nicht mehr kaskadieren. Defensive Tiefe, falls die `outputFileTracingIncludes`-Konfig in einer zukünftigen Next.js-Version anders evaluiert wird.
+
+**Affected:**
+
+- `next.config.ts` — `serverExternalPackages` + `outputFileTracingIncludes` Top-Level-Keys ergänzt. Inline-Kommentar erklärt Problem + Fix.
+- `src/features/studies/document/services/render-pdf.ts` — `import { chromium, type Browser } from "playwright"` aufgespalten in `import type { Browser } from "playwright"` (top-level) + `const { chromium } = await import("playwright")` (im Funktions-Body). Header-Kommentar erklärt Rationale.
+- `DECISIONS.md` — dieser Eintrag.
+
+**Tests:** `render-pdf.test.ts` läuft unverändert grün (17/17 Tests). Vitest's `vi.mock("playwright", ...)` hookt sowohl statische als auch dynamische Imports — keine Test-Anpassung nötig. Coverage auf `render-pdf.ts` bleibt 100% (30/30 Statements, 18/18 Branches, 4/4 Functions).
+
+**Pause-Trigger-Check (§7):**
+
+- **§7.1** (neue Top-Level-Deps) — keine. `playwright` + `playwright-core` sind bereits dependencies aus PR #62 (§7.10-Pivot PR 3). Reine Build-Konfig-Korrekturen.
+- **§7.3** (Auth/Security) — nicht berührt.
+- **§7.8** (Production-Deploy) — wir verändern `next.config.ts` + Service-Code; User führt Deploy weiter manuell aus (CLAUDE.md §8.10).
+- **§7.10** (Architektur-Pivot) — bereits autorisiert. Keine architektonische Änderung, nur Bundling-Reparatur.
+
+**Open question for the user:** Keine. Erster Deploy nach Merge sollte sauber durchlaufen — Detail-Seite muss 200 zurückgeben, „Dokument generieren" muss funktionieren.
+
