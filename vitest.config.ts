@@ -363,6 +363,34 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // §7.10-Pivot PR 2 — 100% on the document data assembler. It's
+        // the single source of truth for "what data goes into a slide
+        // render" and is reused by the PR 3 PDF endpoint + PR 4 public
+        // online view. Every branch (study/customer/consultant missing,
+        // images empty/before-only/both, co2Override propagation,
+        // multi-tenant filter) is covered by the co-located
+        // build-document-data.test.ts.
+        "src/features/studies/document/services/build-document-data.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // §7.10-Pivot PR 2 — 80% per-pattern on the document feature
+        // module overall. The 19 slide components + the SlideFrame +
+        // ImageSlot + the German number formatters all live here; the
+        // smoke tests in slides.test.tsx + format.test.ts +
+        // slide-frame.test.tsx + document.test.tsx exercise every
+        // branch (image-empty / empty-flurstueck / both-termine vs
+        // none / co2-override / chart with 3 szenarios). 80% leaves
+        // room for tiny cosmetic branches without forcing 100% per
+        // file.
+        "src/features/studies/document/**": {
+          lines: 80,
+          branches: 80,
+          functions: 80,
+          statements: 80,
+        },
       },
     },
   },
