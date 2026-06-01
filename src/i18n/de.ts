@@ -428,6 +428,34 @@ export const de = {
   "users.temp-password.action.copy": "In Zwischenablage kopieren",
   "users.temp-password.action.copied": "Kopiert",
   "users.temp-password.action.close": "Schließen",
+  // ─── §7.10-Pivot PR 4 — Kunden-Online-Ansicht („Sie"-Form fuer Kundensicht;
+  //     Berater-internes UI weiterhin „Du"-Form). ─────────────────────────
+  // Berater-UI (intern, „Du").
+  "studies.share.action.create": "Online-Link erzeugen",
+  "studies.share.action.creating": "Link wird erzeugt…",
+  "studies.share.dialog.title": "Online-Link zur Studie",
+  "studies.share.dialog.description":
+    "Mit diesem Link kann der Kunde die Studie ohne Login im Browser ansehen. Der Link ist signiert und läuft am angegebenen Datum ab.",
+  "studies.share.dialog.url-label": "Link",
+  // `{date}` wird vom Aufrufer mit `DD.MM.YYYY` ersetzt.
+  "studies.share.dialog.expires-at": "Gültig bis {date}",
+  "studies.share.dialog.copy": "In Zwischenablage kopieren",
+  "studies.share.dialog.copied": "Kopiert",
+  "studies.share.dialog.close": "Schließen",
+  "studies.share.toast.success": "Online-Link erzeugt.",
+  "studies.share.toast.error.forbidden":
+    "Du bist nicht berechtigt, einen Link für diese Studie zu erzeugen.",
+  "studies.share.toast.error.not-found": "Studie nicht gefunden.",
+  "studies.share.toast.error.validation": "Ungültige Anfrage.",
+  "studies.share.toast.error.server": "Link konnte nicht erzeugt werden. Bitte erneut versuchen.",
+  "studies.share.toast.copied": "Link in die Zwischenablage kopiert.",
+  // Kunden-Online-Ansicht (extern, „Sie").
+  "public-study.expired.title": "Link abgelaufen",
+  "public-study.expired.body":
+    "Dieser Link zur Machbarkeitsstudie ist abgelaufen. Bitte wenden Sie sich an Ihre Beraterin oder Ihren Berater, um einen neuen Link zu erhalten.",
+  "public-study.footer.copyright": "© GreenScout 2026",
+  // `{date}` wird vom Aufrufer mit `DD.MM.YYYY` ersetzt.
+  "public-study.banner.valid-until": "Diese Vorschau ist gültig bis {date}.",
 } as const;
 
 export type TranslationKey = keyof typeof de;

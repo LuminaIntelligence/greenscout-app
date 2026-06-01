@@ -492,33 +492,17 @@
 ---
 
 ### T-061 Playwright-PDF-Endpoint
-- **Status:** 🟦 IN PROGRESS (PR `feat/pivot-3-playwright-pdf`; carry-forward Status-Flip auf ✅ in PR 4 nach Merge)
-- **Feature:** studies (document renderer)
-- **Type:** feat
-- **Effort:** M
-- **Blocks:** T-062
-- **Blocked by:** T-060 ✅ (PR #61 gemerged 2026-06-01)
-- **Description:**
-  Server-seitiger PDF-Render-Endpoint unter `app/api/studies/[id]/pdf/route.ts`: lädt Studie + Customer + Consultant + StudyImages aus der DB, rechnet via `composeAll()` die DerivedValues vor, rendert die `<Document>`-React-Komponente via Playwright headless in eine PDF-Buffer, persistiert die Datei unter `./generated/<studyId>/<filename>.pdf` und schreibt eine `GeneratedDocument`-Zeile (`format = "PDF"`) plus eine `AuditLog`-`GENERATE_DOCUMENT`-Zeile. Print-CSS via `@page` + `page-break-after: always` zwischen Slides; A4-Querformat als Standard. Die bestehende `generateDocumentAction` (`src/features/studies/actions/generate-document.ts`) wird neu verdrahtet: `callDocumentsGenerate` (Python-Service-PPTX-Endpoint, in PR 1 zur Laufzeit defekt) entfällt, statt-dessen direkter Aufruf des neuen PDF-Endpoints. Die zwei `GeneratedDocument`-Zeilen (vorher PPTX + PDF) werden zu einer (`format = "PDF"`). `callDocumentsGenerate` aus `src/lib/python-service-client.ts` wird entfernt (kein Caller mehr).
-- **Acceptance criteria:**
-  - [ ] Endpoint `app/api/studies/[id]/pdf/route.ts` rendert eine syntaktisch valide PDF (`%PDF`-Header, mind. 19 Seiten via Page-Break).
-  - [ ] `generateDocumentAction` ersetzt — nur noch ein `GeneratedDocument`-Eintrag pro Run (`format = "PDF"`); kein PPTX mehr.
-  - [ ] `callDocumentsGenerate` aus `python-service-client.ts` entfernt + alle Tests entsprechend abgerüstet.
-  - [ ] Performance-Budget < 30s end-to-end (SPEC §6.2) auch für die 19-Slide-Render-Pipeline.
-  - [ ] Audit-Log-Eintrag enthält `pdfDocumentId` + `pdfPath`.
-  - [ ] Per-pattern Vitest-Coverage 100% auf `generate-document.ts` + 100% auf neuem Route-Handler.
-- **Files likely touched:** `app/api/studies/[id]/pdf/route.ts` (neu), `src/features/studies/document/render-pdf.ts` (neue Server-Action-Library, Playwright-Aufruf), `src/features/studies/actions/generate-document.ts` (rewire), `src/lib/python-service-client.ts` (entfernung `callDocumentsGenerate`), `src/features/studies/services/document-history.ts` (anpassen wenn vorhanden).
-- **Pause-triggers anticipated:** §7.5 (Breaking API change im Pyservice ist in PR 1 bereits erfolgt; Frontend-Seite jetzt rewired — kein Pyservice-Call mehr für Doc-Gen). §7.1 (Playwright in `dependencies` falls noch nicht: in PR 2 vermutlich von devDeps in deps verschoben).
+*(T-061 carried forward to Recently completed — gemerged via PR #62 als der §7.10-Pivot-PR-3/4-Vertical.)*
 
 ---
 
 ### T-062 Kunden-Online-Ansicht mit HMAC-Token
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (PR `feat/pivot-4-public-share`; carry-forward Status-Flip auf ✅ im nächsten PR nach Merge)
 - **Feature:** studies (public-share)
 - **Type:** feat
 - **Effort:** M
 - **Blocks:** —
-- **Blocked by:** T-061
+- **Blocked by:** T-061 ✅ (PR #62 gemerged 2026-06-01)
 - **Description:**
   Sharebare Online-Ansicht der Machbarkeitsstudie für Kunden ohne Login: öffentliche Route `app/(public)/studie/[id]/page.tsx` rendert den `<Document>`-React-Tree (identisch zur PDF-Render-Quelle aus T-061) in einer Web-Variante mit Page-Navigation (sidebar mit 19 Slide-Thumbnails oder ähnlich). Zugriff gegated durch signierten HMAC-Token im Query-Param (`?t=<base64-hmac>`): Server validiert Token gegen `STUDY_SHARE_HMAC_SECRET` (neue env var) + Study-ID + Ablauf-Datum (Default: 90 Tage). Berater löst Token via Server-Action auf der Study-Detail-Seite aus ("Online-Ansicht-Link erzeugen"). Audit-Log-Eintrag `SHARE_LINK_CREATED` (additiv zur SPEC §5.1 allow-list — ist DSGVO-relevant, daher §7.11-Aufmerksamkeit). Vorab-Light für Phase-3-Kundenportal aus SPEC §2.3.
 - **Acceptance criteria:**
@@ -548,6 +532,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### §7.10-Pivot PR 3/4 ✅ Playwright-PDF-Renderer + Action-Rewire (T-061)
+- **Merged:** 2026-06-01 via PR #62.
+- **Branch:** `feat/pivot-3-playwright-pdf`
+- **Summary:** Dritter PR der §7.10-Pivot-Serie. Headless-Chromium-PDF-Renderer via Playwright: `renderStudyToPdf(studyId)` startet `chromium.launch()` und navigiert zu der internen Route `/internal/render-study/[id]` mit `x-internal-render-token: $INTERNAL_RENDER_TOKEN`-Header. Die Route lädt `buildStudyDocumentData()` direkt aus der DB und rendert `<StudyDocument data={data} />`; bei Token-Mismatch / fehlender ENV / fehlender Studie → `notFound()`. Print-CSS via `@page size 1920px 1080px landscape` + `page-break-after: always` auf jeder `.slide-frame`. `generateDocumentAction` neu verdrahtet: ein `GeneratedDocument`-Eintrag (`format = "PDF"`), AuditLog-changeSet `{ pdfDocumentId, pdfPath, pdfFilename }`, neuer errorCode `render` ersetzt `pyservice`. `callDocumentsGenerate` aus `python-service-client.ts` entfernt + alle 18 Tests entsprechend abgerüstet; `generate-document-phrases.ts` (Defekte D1+D2+D3 hotfix) ersatzlos entfernt — Phrase-Logik lebt jetzt in `src/features/studies/document/format.ts` und wird von den React-Slides selbst gerendert. `playwright@^1.60.0` als Top-Level-`dependencies`. Web-Dockerfile auf `mcr.microsoft.com/playwright:v1.60.0-jammy` (~1.4 GB statt ~280 MB; bringt Chromium + alle Linux-Libs mit). `tmpfs: /dev/shm:size=256m` auf `web`-Container in `docker-compose.prod.yml`. Prisma `binaryTargets += debian-openssl-3.0.x`. Middleware `isPublicPath` whitelistet `/internal/render-study/*`. Deploy-Pre-Flight für `INTERNAL_RENDER_TOKEN` in `deploy.sh` + Doku in `.env.production.example` + `docs/deploy-anleitung.md`. SPEC §4.8 PDF-Rendering-Flow-Diagramm + Token-Gate dokumentiert. Per-pattern 100% Vitest Coverage auf `render-pdf.ts` + `generate-document.ts`.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-06-01 — §7.10-Pivot PR 3: Playwright-PDF-Renderer + generate-document-Action-Rewire".
 
 ### §7.10-Pivot PR 2/4 ✅ 19 React-Slide-Komponenten + Dev-Preview
 - **Merged:** 2026-06-01 via PR #61.

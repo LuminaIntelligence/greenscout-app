@@ -229,6 +229,22 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // §7.10-Pivot PR 4 — 100% on the create-share-link Server Action.
+        // Trust-boundary class: every issued share URL is a token that
+        // grants UN-AUTHENTICATED access to a study's customer data, so
+        // every branch (validation, no-session, not-found, foreign-
+        // BERATER, ADMIN god-mode, default vs custom expiresInDays,
+        // APP_URL trim, share-token throws (missing APP_URL / missing
+        // secret / non-Error throw), audit-write throws, audit fields
+        // — incl. NO token leak in changeSet — header extraction with/
+        // without `x-forwarded-for`) is covered by
+        // create-share-link.test.ts.
+        "src/features/studies/actions/create-share-link.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
         // T-040 — 100% on the generate-document Server Action.
         // Same trust-boundary class as the other studies actions: input
         // -> session -> repo lookups -> pyservice call -> persist +
@@ -372,6 +388,20 @@ export default defineConfig({
         // browser.close cleanup, close-throws-swallowed, launch fails
         // without close) is covered by render-pdf.test.ts.
         "src/features/studies/document/services/render-pdf.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
+        // §7.10-Pivot PR 4 — 100% on the HMAC share-token service. Trust-
+        // boundary class: every „token verifiziert" entscheidet, ob ein
+        // public-Route-Request Kundendaten ausliefert. Every branch
+        // (roundtrip happy, tampered payload/signature, expired,
+        // malformed formats incl. broken JSON / missing fields / wrong
+        // types / null / non-string, missing env secret, length-
+        // mismatch shortcut on timingSafeEqual, expiryFromDays) is
+        // covered by share-token.test.ts.
+        "src/features/studies/document/services/share-token.ts": {
           lines: 100,
           branches: 100,
           functions: 100,

@@ -178,6 +178,16 @@ function isPublicPath(pathname: string): boolean {
   // exakt `/internal/render-study/<id>` — keine anderen `/internal/*`-Pfade
   // werden via diesen Bypass abgedeckt.
   if (pathname.startsWith("/internal/render-study/")) return true;
+  // §7.10-Pivot PR 4: öffentliche Kunden-Online-Ansicht. Auth ist NICHT
+  // via Session — der Kunde hat keinen GreenScout-Account. Stattdessen
+  // schützt sich die Route selbst per signiertem HMAC-Token im Query-
+  // Param `?t=<token>` (siehe `src/features/studies/document/services/
+  // share-token.ts` + `src/app/(public)/studie/[id]/page.tsx`). Bei
+  // fehlendem / invalid / abgelaufenem Token → notFound() bzw. die
+  // eigene Expired-Error-Page. **Pfad-Match ist strikt** auf
+  // `/studie/<id>` (keine anderen `/studie/*`-Pfade — der `(public)`
+  // Route-Group-Marker wird vom Bundler nicht in der URL gezeigt).
+  if (pathname.startsWith("/studie/")) return true;
   return false;
 }
 

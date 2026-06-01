@@ -3909,3 +3909,59 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 **Open question for the user:** Bei großen Studien (viele Bilder, hohe Slide-Inhalts-Dichte) kann Chromium-Memory-Footprint sichtbar werden. tmpfs:256m + `--disable-dev-shm-usage` ist konservative MVP-Defaults — wenn nach erstem Live-Test auf VPS OOM auftritt: tmpfs erhöhen oder Browser-Pool-Pattern einführen. Erstmal naive Variante shippen, dann live verifizieren.
 
 **Folge-PR:** PR 4 — HMAC-gated Kunden-Online-Ansicht unter `app/(public)/studie/[id]/`. Status-Flip T-061 ✅ → DONE Carry-forward + T-062 IN PROGRESS in PR 4.
+
+---
+
+## 2026-06-01 — §7.10-Pivot PR 4: HMAC-gated Kunden-Online-Ansicht (FINAL)
+
+**Context:** PR 4/4 der §7.10-Pivot-Serie (§7.10-Freigabe vom 2026-06-01; §7.3 User-Zitat „bewusst öffentlich für Kunden ohne Account"). Letzte Etappe: öffentliche Read-only-Ansicht der Studie für Kunden ohne Login unter `/studie/[id]?t=<token>`. Branch: `feat/pivot-4-public-share` aus `origin/main` nach PR #62 Merge.
+
+**Decisions:**
+
+- **Token-Format:** `<base64url(JSON-payload)>.<base64url(HMAC-SHA256-sig)>` mit constant-time-Vergleich via `crypto.timingSafeEqual`. Standard-Industrie-Pattern (AWS S3 pre-signed, Slack OAuth state, Stripe webhook signatures); KEIN JWT (overkill für intra-app Use-Case, keine Federation/OAuth, vermeidet zusätzliche CVE-Oberfläche). Length-Mismatch-Guard vor `timingSafeEqual` (wirft sonst).
+- **Default-Expiry: 30 Tage**, im Token-Payload hardcoded, server-side verifiziert. Anpassbar pro Link via `expiresInDays` Action-Param (1–365). 30 Tage entspricht der typischen Berater-Kunde-Korrespondenz-Frist nach dem Termin-Vorschlag auf Slide 19.
+- **Revocation-by-Rotation:** keine separate Token-Revocation-Tabelle in MVP. Rotation von `STUDY_SHARE_HMAC_SECRET` (z. B. via `openssl rand -base64 32` + Container-Restart) invalidiert ALLE ausgestellten Tokens auf einen Schlag. Granulare per-Link-Revocation = Folge-Iteration (wäre eine `ShareToken`-Tabelle + ID-Claim im Payload). KISS für MVP.
+- **DSGVO-AuditLog:** beim Link-Erzeugen wird ein `SHARE_LINK_CREATED`-Eintrag geschrieben (entityType=`Study`, entityId=`<studyId>`, changeSet `{ tokenExpiresAt: [null, ISO], ttlDays: [null, N] }`). Der Token selbst KOMMT NICHT in das Log (anti-Geheimnis-Leak). IP + User-Agent aus den Request-Headers mit Null-Fallback. Action ist additiv zur SPEC §5.1 allow-list — String-typed in der Repo-Schicht, kein Enum.
+- **Robots: noindex,nofollow** auf der Public-Route via `metadata.robots` im Layout. Defense-in-depth gegen Suchmaschinen-Indexierung des Token-bestückten Pfads — falls jemand den Link öffentlich teilt, soll er trotzdem nicht über Google auffindbar werden.
+- **Microcopy-Split:** Berater-internes UI „Du"-Form (`studies.share.*`), Kundenfacing „Sie"-Form (`public-study.*`). Konsistent mit SPEC §4.6 / §8.3.
+- **Layout: minimal, ohne Topbar/Sidebar/Session-Provider** — saubere Customer-facing Präsentation. Footer mit GreenScout-Marker + © Copyright. Pattern analog zu `internal/render-study/[id]/layout.tsx` aus PR 3.
+- **Token-Studie-Mismatch → notFound() (Anti-Token-Hopping):** Der Token-`studyId` MUSS mit dem Route-`id`-Param matchen. Verhindert, dass ein Angreifer einen valide-signierten Token für Studie A für Studie B wiederverwendet. Token-Inhalt wird also nicht als Master-Key betrachtet, sondern als Tupel (Token-Sig, Token-Studie, URL-Studie) — alle drei müssen passen.
+- **Status-Code-Differenzierung:** expired → eigene Error-Page mit „Sie"-Microcopy + Hinweis „Berater um neuen Link bitten" (200 OK, sichtbarer Fehler-Text); invalid / malformed / Token-Studie-Mismatch → `notFound()` (404, keine Info-Leakage zur Existenz / Nicht-Existenz des Tokens oder der Studie).
+- **Middleware-Bypass:** `isPublicPath` whitelistet `/studie/<id>` (analog zum `/internal/render-study/`-Bypass aus PR 3). Der Kunde hat kein Auth-Cookie; der HMAC-Token im Query-Param ersetzt den Session-Auth-Branch.
+- **APP_URL trim:** trailing slashes werden gestrippt (`.replace(/\/+$/, "")`) damit die URL-Assembly sauber bleibt. `encodeURIComponent(studyId)` für unusual IDs.
+- **KEIN Confirmation-UI** beim Link-Erzeugen — Berater weiß was er tut (KISS). Wenn gewünscht, kleine Folge-Iteration.
+
+**Affected:**
+
+- `src/features/studies/document/services/share-token.ts` + `.test.ts` (28 Cases, 100% Coverage)
+- `src/features/studies/actions/create-share-link.ts` + `.test.ts` (22 Cases, 100% Coverage)
+- `src/app/(public)/studie/[id]/{layout,page}.tsx` + `.test.tsx` (11 Cases gesamt)
+- `src/app/(app)/studies/[id]/page.tsx` — Action-Reihe um `<ShareLinkDialog />` erweitert
+- `src/features/studies/components/share-link-dialog.tsx` + `.test.tsx` (9 Cases, 97/85/100/100 Coverage)
+- `src/middleware.ts` + `.test.ts` — Public-Route-Bypass + Test
+- `src/i18n/de.ts` — neue Microcopy-Keys (`studies.share.*` „Du"-Form, `public-study.*` „Sie"-Form)
+- `.env.example` + `.env.production.example` — `STUDY_SHARE_HMAC_SECRET` Block mit Doku
+- `deploy.sh` — `STUDY_SHARE_HMAC_SECRET` in REQUIRED_VARS
+- `docs/deploy-anleitung.md` — Tabellen-Zeile + Hinweis auf Revocation-by-Rotation
+- `SPEC.md` §4.8 — Online-Ansicht-Abschnitt vollständig dokumentiert
+- `vitest.config.ts` — neue per-pattern Coverage-Thresholds (100% auf `share-token.ts` + `create-share-link.ts`)
+- `DECISIONS.md` — dieser Eintrag
+- `TASKS.md` — T-061 ✅ DONE Carry-forward + T-062 🟦 IN PROGRESS (status flip auf ✅ im nächsten PR nach Merge)
+
+**Pause-Trigger-Check (§7):**
+
+- **§7.10** autorisiert (Master-Pivot, User 2026-06-01).
+- **§7.3** Auth — vom User explizit „bewusst öffentlich für Kunden ohne Account, nicht durch Auth.js"-autorisiert. HMAC-Token ist Service-zu-User Shared-Secret-Pattern analog zu signierten S3-URLs; **kein User-Auth-Flow**.
+- **§7.11 DSGVO** — Customer-PII auf Public-Route. Mitigiert durch:
+  * Token-Expiry (Default 30 Tage, server-side enforced),
+  * AuditLog `SHARE_LINK_CREATED`,
+  * `noindex/nofollow` Robots-Meta,
+  * Anti-Token-Hopping (Token-Studie ≠ Route-Studie → notFound),
+  * Revocation-by-Rotation via Secret-Wechsel.
+- **§7.1** — KEINE neuen Top-Level-Deps. `share-token.ts` nutzt nur Node-builtin `crypto`; UI nutzt bestehende `lucide-react`, `sonner`, shadcn-Primitives.
+- **§7.4** — visuelle Layout-Änderung durch §7.10-Freigabe gedeckt; Brand-Tokens aus SPEC §8.1+§8.2 verbatim.
+- **§7.5 / §7.6 / §7.9** — nicht berührt.
+
+**Open question for the user:** Default-Expiry 30 Tage — wenn anders gewünscht, leicht änderbar via `DEFAULT_SHARE_TOKEN_TTL_DAYS`. Confirmation-UI „Möchten Sie wirklich einen öffentlichen Link erzeugen?" nicht eingebaut — KISS — Berater weiß was er tut. Wenn gewünscht, kleine Folge-Iteration. Granulare per-Link-Revocation (statt Revocation-by-Rotation) ebenfalls Folge-Iteration.
+
+**§7.10-Pivot komplett abgeschlossen.** PRs #60, #61, #62, #63 schließen die Architektur-Migration ab.
