@@ -462,6 +462,74 @@
 
 ---
 
+### Slice 16 — Renderer-Pivot (§7.10)
+
+*(Folge-PRs der 2026-06-01 §7.10-Architektur-Pivot-Serie. PR 1 — Scope + Cleanup — ist die Vorbereitung; PR 2/3/4 implementieren den neuen Render-Stack. Siehe DECISIONS.md 2026-06-01.)*
+
+### T-060 React-Slide-Komponenten + Storybook
+- **Status:** ⬜ TODO
+- **Feature:** studies (document renderer)
+- **Type:** feat
+- **Effort:** L (19 Slides — könnte für Review-Tractability in zwei PRs gesplittet werden, T-060a Slides 1-10 + T-060b Slides 11-19; PR-2-Implementierer entscheidet)
+- **Blocks:** T-061
+- **Blocked by:** PR 1 (`chore/pivot-1-spec-and-cleanup`) gemerged
+- **Description:**
+  19 React-Slide-Komponenten unter `src/features/studies/document/slides/` (eine Datei pro Slide, kebab-case: `slide-01-title.tsx` … `slide-19-contact.tsx`). Jede Komponente nimmt die zusammengestellten Studien-Daten als Props (Customer, Study, DerivedValues, Consultant) und rendert das Slide-Layout via Tailwind + Brand-Tokens aus SPEC §8.1 / §8.2. Original-PDF `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` als visuelle Soll-Vorlage; Pixel-Abweichung ≤5% pro Slide. Slide 15 nutzt Recharts (Sensitivitäts-Chart). Slide 17 nutzt CSS-Grid mit `grid-auto-rows: 1fr` (ersetzt die fragile PPTX-Slide-17-Grid-Normalisierung aus R2-10/C2). Bildplatzhalter `<img>` mit `object-fit: cover` und festem Aspect-Ratio-Container. Storybook-Stories pro Slide mit gemockten Props für visuelle Regression — Snapshot-Diffs in CI als zusätzliche Qualitäts-Gate jenseits der Vitest-Unit-Coverage.
+- **Acceptance criteria:**
+  - [ ] Alle 19 Slides existieren als React-Komponenten unter `src/features/studies/document/slides/`.
+  - [ ] Jede Slide hat eine Storybook-Story mit gemockten Props (Vorlage-Datensatz aus dem Original-PDF).
+  - [ ] Visuelle Abweichung gegen `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` ≤5% pro Slide (visuell-checkt im Storybook).
+  - [ ] Brand-Tokens aus SPEC §8.1 + §8.2 sind die einzigen Farb-/Typo-Quellen — kein neuer Hex.
+  - [ ] Storybook-Snapshot-Diff-Test in CI verdrahtet.
+  - [ ] Per-pattern Vitest-Coverage 100% auf `src/features/studies/document/slides/**` (Props-Validation + Empty-Value-Handling).
+- **Files likely touched:** `src/features/studies/document/slides/slide-*.tsx` (19 neue Dateien), `src/features/studies/document/document.tsx` (Root-Wrapper), `src/features/studies/document/types.ts` (Props-Contract), `src/features/studies/document/slides/*.stories.tsx` (Storybook), `.storybook/main.ts` + `.storybook/preview.ts` (Storybook-Konfiguration), `vitest.config.ts` (per-pattern threshold).
+- **Pause-triggers anticipated:** §7.1 (Storybook + Recharts werden vermutlich als neue Top-Level-Deps eingeführt — Pause-Trigger §7.1 beim Setup). §7.4 (visuelle Layout-Änderungen — innerhalb der bereits gültigen Brand-Tokens, daher minimal-feuernd; jedes neue Token wäre §7.4).
+
+---
+
+### T-061 Playwright-PDF-Endpoint
+- **Status:** ⬜ TODO
+- **Feature:** studies (document renderer)
+- **Type:** feat
+- **Effort:** M
+- **Blocks:** T-062
+- **Blocked by:** T-060
+- **Description:**
+  Server-seitiger PDF-Render-Endpoint unter `app/api/studies/[id]/pdf/route.ts`: lädt Studie + Customer + Consultant + StudyImages aus der DB, rechnet via `composeAll()` die DerivedValues vor, rendert die `<Document>`-React-Komponente via Playwright headless in eine PDF-Buffer, persistiert die Datei unter `./generated/<studyId>/<filename>.pdf` und schreibt eine `GeneratedDocument`-Zeile (`format = "PDF"`) plus eine `AuditLog`-`GENERATE_DOCUMENT`-Zeile. Print-CSS via `@page` + `page-break-after: always` zwischen Slides; A4-Querformat als Standard. Die bestehende `generateDocumentAction` (`src/features/studies/actions/generate-document.ts`) wird neu verdrahtet: `callDocumentsGenerate` (Python-Service-PPTX-Endpoint, in PR 1 zur Laufzeit defekt) entfällt, statt-dessen direkter Aufruf des neuen PDF-Endpoints. Die zwei `GeneratedDocument`-Zeilen (vorher PPTX + PDF) werden zu einer (`format = "PDF"`). `callDocumentsGenerate` aus `src/lib/python-service-client.ts` wird entfernt (kein Caller mehr).
+- **Acceptance criteria:**
+  - [ ] Endpoint `app/api/studies/[id]/pdf/route.ts` rendert eine syntaktisch valide PDF (`%PDF`-Header, mind. 19 Seiten via Page-Break).
+  - [ ] `generateDocumentAction` ersetzt — nur noch ein `GeneratedDocument`-Eintrag pro Run (`format = "PDF"`); kein PPTX mehr.
+  - [ ] `callDocumentsGenerate` aus `python-service-client.ts` entfernt + alle Tests entsprechend abgerüstet.
+  - [ ] Performance-Budget < 30s end-to-end (SPEC §6.2) auch für die 19-Slide-Render-Pipeline.
+  - [ ] Audit-Log-Eintrag enthält `pdfDocumentId` + `pdfPath`.
+  - [ ] Per-pattern Vitest-Coverage 100% auf `generate-document.ts` + 100% auf neuem Route-Handler.
+- **Files likely touched:** `app/api/studies/[id]/pdf/route.ts` (neu), `src/features/studies/document/render-pdf.ts` (neue Server-Action-Library, Playwright-Aufruf), `src/features/studies/actions/generate-document.ts` (rewire), `src/lib/python-service-client.ts` (entfernung `callDocumentsGenerate`), `src/features/studies/services/document-history.ts` (anpassen wenn vorhanden).
+- **Pause-triggers anticipated:** §7.5 (Breaking API change im Pyservice ist in PR 1 bereits erfolgt; Frontend-Seite jetzt rewired — kein Pyservice-Call mehr für Doc-Gen). §7.1 (Playwright in `dependencies` falls noch nicht: in PR 2 vermutlich von devDeps in deps verschoben).
+
+---
+
+### T-062 Kunden-Online-Ansicht mit HMAC-Token
+- **Status:** ⬜ TODO
+- **Feature:** studies (public-share)
+- **Type:** feat
+- **Effort:** M
+- **Blocks:** —
+- **Blocked by:** T-061
+- **Description:**
+  Sharebare Online-Ansicht der Machbarkeitsstudie für Kunden ohne Login: öffentliche Route `app/(public)/studie/[id]/page.tsx` rendert den `<Document>`-React-Tree (identisch zur PDF-Render-Quelle aus T-061) in einer Web-Variante mit Page-Navigation (sidebar mit 19 Slide-Thumbnails oder ähnlich). Zugriff gegated durch signierten HMAC-Token im Query-Param (`?t=<base64-hmac>`): Server validiert Token gegen `STUDY_SHARE_HMAC_SECRET` (neue env var) + Study-ID + Ablauf-Datum (Default: 90 Tage). Berater löst Token via Server-Action auf der Study-Detail-Seite aus ("Online-Ansicht-Link erzeugen"). Audit-Log-Eintrag `SHARE_LINK_CREATED` (additiv zur SPEC §5.1 allow-list — ist DSGVO-relevant, daher §7.11-Aufmerksamkeit). Vorab-Light für Phase-3-Kundenportal aus SPEC §2.3.
+- **Acceptance criteria:**
+  - [ ] Öffentliche Route ohne Auth-Gate erreichbar (eigene `(public)` Route-Group).
+  - [ ] HMAC-Token-Validierung server-seitig; ungültige / abgelaufene Tokens → 403 mit eigener Error-Page.
+  - [ ] Berater-UI: Button "Online-Ansicht-Link erzeugen" auf Study-Detail-Seite; Token-URL in einer Copy-to-Clipboard-Komponente.
+  - [ ] Berater kann Token revoken (zwei Wege: explizit, oder durch Token-Rotation via env-Variable).
+  - [ ] Audit-Log-Eintrag bei Token-Erzeugung + Aufruf (Read-Counter im Audit-Log).
+  - [ ] Per-pattern Vitest-Coverage 100% auf HMAC-Helper + Server-Action.
+  - [ ] Playwright-E2E: Token-Generation + Token-Resolve-Happy-Path + Expired-Token-Pfad.
+- **Files likely touched:** `app/(public)/studie/[id]/page.tsx` (neu), `app/(public)/studie/[id]/error.tsx` (neu), `src/features/studies/services/share-token.ts` (neue HMAC-Library), `src/features/studies/actions/create-share-link.ts` (Server-Action), `src/features/studies/components/share-link-dialog.tsx` (UI), `.env.example` (`STUDY_SHARE_HMAC_SECRET` ergänzen), `src/i18n/de.ts` (neue Microcopy-Keys, **„Sie"**-Form für Kunden-Sicht!).
+- **Pause-triggers anticipated:** §7.11 (Public-Share ist DSGVO-relevant — der Token erlaubt nicht-authentifizierten Zugriff auf Kundendaten; Token-TTL + Revoke + Audit-Trail sind Schutzlinien). §7.3 (HMAC-Secret-Handling — analog zu T-042 SMTP-Crypto, aber separates Secret).
+
+---
+
 ## Future (Phase 3)
 
 *(parked items — not actionable in MVP, kept here as placeholders so the scope decision is visible)*
@@ -478,9 +546,15 @@
 *(implementer / reviewer move tasks here once merged. Newest first.)*
 
 ### Runde-2 Sammel-PR ✅ Defekte R2-1 bis R2-10 + CI-0 (Pyright-Drift)
-- **Branch:** `fix/r2-cleanup-all-defects` (merged via Sammel-PR, replaces PR #58 functionally).
+- **Merged:** 2026-05-31 via PR #59.
+- **Branch:** `fix/r2-cleanup-all-defects` (replaces PR #58 functionally; PR #58 closed without merge).
 - **Summary:** Konsolidierter Sammel-PR für alle 10 Runde-2-Defekte (7 neu + 3 R1-Nachzügler) plus den CI-Block durch pyright-Version-Drift. R2-1 (Marker-Color-Reset) via cherry-pick aus PR #58 übernommen. R2-2 entfernt 6 leere rote Outline-Rechtecke aus dem Template via `scripts/remove-marker-frames.py`. R2-3 snapt slide-5 BEFORE/AFTER-Images auf identische Bounding-Box (Geometrie aus den entfernten Marker-Rechtecken in Python-Konstanten verewigt). R2-4/R2-6/R2-8/R2-10 konsolidiert via `scripts/normalize-slide-r2-template-edits.py` (TEXT_TO_FIT_SHAPE auf 5 Slide-4-Headline-Numbers + 4 Slide-17-Inhalte-Top-Drift korrigiert; Slide-1/16-Properties verifiziert). R2-5 documented-not-a-bug — Slide 15 hat keinen Chart-Shape, Sensitivitätswerte sind bereits text-placeholder-driven. R2-7 Anti-Regression-Test für empty-Termin. R2-9 verified A2-Code-Fix korrekt + neue algebraische Parity-Invariante `ohne_pv − mit_pv == ersparnis_pro_jahr` auf JEDER der 22 Parity-Fixtures in TS + Python. CI-0: pyright auf 1.1.391 gepinnt + tests/-Pfad mit reportUnknown* auf "none" im executionEnvironments-Override (app/ bleibt strict). PR #58 funktional obsolet.
 - **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-05-31 — Runde-2-Defekte konsolidiert (R2-1 bis R2-10) + Pyright-CI-Fix".
+
+### Defekt R2-1 standalone ❌ Closed obsolete (PR #58)
+- **Status:** PR #58 wurde NICHT gemerged; durch den Sammel-PR #59 funktional ersetzt (R2-1-Marker-Color-Reset via Cherry-pick der 4 PR-#58-Commits in den R2-Sammel-Branch übernommen).
+- **Branch:** `fix/pptx-reset-marker-color` — closed.
+- **Summary:** Standalone-Defekt-R2-1-PR (Marker-Color-Reset) wurde during Review zugunsten der Sammel-PR-Strategie verworfen, um Carry-Forward-Overhead zu sparen. Inhalt in PR #59 erhalten; Status-Flip carry-forward.
 
 ### Defekt E1 ✅ German two-decimal money/ct convention (typed formatters)
 - **Merged:** 2026-05-30 via PR #56.
