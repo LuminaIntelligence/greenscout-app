@@ -3799,3 +3799,54 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 - **PR 2** — React-Slide-Komponenten + Storybook (alle 19 Slides nahe am Original-PDF, ≤5% Abweichung).
 - **PR 3** — Playwright-PDF-Endpoint (`app/api/studies/[id]/pdf/route.ts`) + Print-CSS + neue Server-Action-Wiring (ersetzt den alten `callDocumentsGenerate`-Aufruf).
 - **PR 4** — Kunden-Online-Ansicht mit HMAC-Token-Gate unter `app/(public)/studie/[id]/route.tsx`.
+
+---
+
+## 2026-06-01 — §7.10-Pivot PR 2: 19 React-Slide-Komponenten gebaut
+
+**Context:** PR 2/4 der Pivot-Serie (§7.10-Freigabe vom 2026-06-01). PR 1 hat aufgeräumt; dieser PR baut die 19 React-Slides als visuelle Soll-Vorlage für PR 3 (Playwright-PDF) und PR 4 (HMAC-Public-Route). Branch: `feat/pivot-2-react-slides` aus `origin/main` nach PR #60 Merge.
+
+**Decisions (silent, §14):**
+
+- **Slide-Dimensionen 1920×1080 logical Pixels (16:9 Landscape)** als Standard-Container via neue `.slide-frame` Utility-Klasse in `globals.css`. Print-CSS in PR 3 wird das auf das gleiche 16:9-PDF-Format mappen — orientiert sich am Original-PDF.
+- **Chart-Library: pure SVG** (kein Recharts). Recharts ist NICHT im `package.json`; eine neue Top-Level-Dep hinzuzufügen wäre §7.1-Pause-Trigger. User hat explizit „SVG oder Recharts" als gleichwertige Alternativen genannt. Drei Bars sind trivial in SVG; Slide 15 nutzt ein 700×600-VIEWBOX-Chart mit hartcodierten Brand-Farben.
+- **Visual-Regression-Tooling: Dev-Only `/dev/slides` Vorschau-Route** statt Storybook. Storybook ist NICHT im `package.json`; Installation wäre §7.1-Pause-Trigger. Die Route lebt unter `src/app/(dev)/dev/slides/page.tsx`, ruft `notFound()` wenn `process.env.NODE_ENV === "production"` (im Production-Build ist sie unsichtbar 404, kein Auth-Leak). Lokaler `npm run dev` → http://localhost:3000/dev/slides rendert alle 19 Slides untereinander gegen `makeFixtureStudyDocumentData()`.
+- **Brand-Tokens via CSS-Variablen + neue `slide-*` Utility-Klassen** in `globals.css`: `.slide-title` (72 px Gabarito SemiBold), `.slide-h2` / `h3` / `h4`, `.slide-body` / `body-lg`, `.slide-caption`, `.slide-data-headline` (96 px), `.slide-data-headline-lg` (128 px), `.slide-footer`. Alle binden auf die SPEC §8.1-Brand-Farben + §8.2-Gabarito (bereits via `next/font/local` self-hosted). Keine neuen Farben.
+- **`StudyDocumentData` als Type** in `src/features/studies/document/types.ts`, gebaut via `buildStudyDocumentData(organizationId, studyId)` in `src/features/studies/document/services/build-document-data.ts`. Type-only-Import von `Customer` / `Study` / `User` aus `@/generated/prisma` analog zum bereits trusted `src/features/auth/types.ts`-Muster; `eslint.config.mjs` Trusted-Path-Override entsprechend erweitert.
+- **Bild-Slots `<img>` mit `aspect-[16/9] object-cover`** über die Shared-Component `<ImageSlot>` (`slides/_components/image-slot.tsx`). Null → Brand-Lime-outlined Platzhalter-Karte mit Label ("Vorher-Bild fehlt" / "Nachher-Bild fehlt"). Set → `<img src="/api/uploads/<id>">` aus dem bestehenden T-029a-Endpoint.
+- **Slide-17-Grid** via Inline-`style={{ gridTemplateColumns: "repeat(6, …)", gridAutoRows: "1fr" }}` — erzwingt 6 gleichhohe Spalten unabhängig vom Inhaltstext-Volumen, ersetzt die fragile PPTX-Slide-17-Grid-Normalisierung (R2-10 / C2-Defekt). Anti-Regression-Test in `slides.test.tsx` prüft `gridAutoRows === "1fr"`.
+- **Slide-Order hartcodiert** im `<StudyDocument>`-Root-Wrapper. Die 19-Slide-Struktur ist Kunden-Sicht-Vertrag (SPEC §4.5 / §4.8), keine Runtime-Configuration.
+
+**Tech-Choice-Konfirmationen:**
+- **Chart**: SVG (Recharts nicht installiert).
+- **Visual-Regression**: `/dev/slides` Vorschau-Route (Storybook nicht installiert).
+- Keine neuen Top-Level-Deps. `package.json` unverändert.
+
+**Affected (vollständig im PR-Diff):**
+- `src/app/globals.css` — neue `.slide-frame` + `.slide-*` Typografie-Utility-Klassen (additiv).
+- `src/features/studies/document/types.ts` (neu).
+- `src/features/studies/document/format.ts` (neu) + `.test.ts`.
+- `src/features/studies/document/services/build-document-data.ts` (neu) + `.test.ts`.
+- `src/features/studies/document/__fixtures__/study-document-data.fixture.ts` (neu) + `.test.ts`.
+- `src/features/studies/document/slides/_components/{slide-frame,image-slot}.tsx` (neu) + `slide-frame.test.tsx`.
+- `src/features/studies/document/slides/slide-{01..19}-*.tsx` (19 neue Dateien) + `slides.test.tsx`.
+- `src/features/studies/document/slides/README.md` (Inventory-Snapshot).
+- `src/features/studies/document/document.tsx` (Root-Composition) + `document.test.tsx`.
+- `src/app/(dev)/dev/slides/page.tsx` (Dev-Preview-Route, Production-404).
+- `vitest.config.ts` — neue per-pattern Coverage-Thresholds (100% auf `build-document-data.ts`, 80% auf `document/**`).
+- `eslint.config.mjs` — Trusted-Path-Erweiterung für `src/features/studies/document/**` (analog zu auth/types.ts + repositories).
+- `docs/pivot/slide-inventory.md` + `docs/pivot/known-deltas.md` (persistente Doku).
+- `DECISIONS.md` — dieser Eintrag.
+- `TASKS.md` — T-060 status flip auf ✅.
+
+**Pause-Trigger-Check (§7):**
+- **§7.10** autorisiert (Master-Pivot, User 2026-06-01).
+- **§7.1** — KEINE neuen Deps. `package.json` unverändert; Recharts/Storybook beide explizit umschifft.
+- **§7.4** — visuelle Layout-Änderung durch §7.10-Freigabe gedeckt; Brand-Tokens aus SPEC §8.1+§8.2 verbatim befolgt, keine neuen Hex-Werte. Slide-Typografie-Skala ist Erweiterung im Rahmen der Brand-Token-Familie.
+- **§7.3 / §7.6 / §7.11 / §7.9** — nicht berührt (keine Auth-/SMTP-/DSGVO-/DB-Schema-Änderung).
+
+**Open question for the user:** keine. Visuelle Verifikation gegen `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` ist User-Aufgabe nach Merge via `npm run dev` → `/dev/slides`. Known-Deltas-Liste siehe `docs/pivot/known-deltas.md` — bewusste Abweichungen (modernisiertes Layout statt 1:1-PPTX-Reproduktion) und offene Sichtungspunkte (Slide-17-Phase-Texte 1:1 aus PPTX übernehmen; Slide-18 EEG-Text Original-Wortlaut).
+
+**Folge-PRs:**
+- **PR 3** — Playwright-PDF-Endpoint (`app/api/studies/[id]/pdf/route.ts`) + Server-Action-Rewire (`callDocumentsGenerate` raus).
+- **PR 4** — HMAC-gated `/studie/[id]/?t=<token>` Public-Online-Ansicht.
