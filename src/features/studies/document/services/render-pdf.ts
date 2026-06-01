@@ -33,7 +33,32 @@
 import { mkdir } from "node:fs/promises";
 import { join as joinPath, resolve as resolvePath } from "node:path";
 
-import { chromium, type Browser } from "playwright";
+// Hotfix (2026-06-01) — Playwright wird via dynamic `await import("playwright")`
+// im Funktions-Body geladen statt top-level. Hintergrund:
+//
+//   Next.js's standalone-Tracer kopiert nur Files, die per statischem
+//   `import` / `require()` referenziert werden. Playwright lädt zur
+//   Laufzeit `playwright-core/browsers.json` via `fs.readFile` — der
+//   Tracer übersieht das, die Datei fehlt im Production-Bundle.
+//
+//   Folge: Ein Top-Level-Import macht den Modul-Load-Fail beim Page-
+//   Render-Init sichtbar (der Modul-Graph der Studien-Detail-Seite
+//   importiert transitiv `renderStudyToPdf` via Server-Action), und
+//   die Detail-Seite wirft 500, BEVOR der User je "Dokument generieren"
+//   klickt.
+//
+//   Lazy-Import verschiebt den potenziellen Lade-Fail in die
+//   `renderStudyToPdf`-Funktion selbst — der Page-Render-Modul-Graph
+//   bleibt unbeeinflusst, und der Fehler tritt (wenn überhaupt) nur
+//   beim tatsächlichen Dokumenten-Generieren auf.
+//
+// Type-Imports bleiben top-level: `import type` wird vom TypeScript-
+// Compiler komplett aus dem Runtime-Bundle ge-stripped — kein
+// Lade-Side-Effect.
+//
+// Siehe DECISIONS.md → "2026-06-01 — Hotfix Pivot-Deploy: Playwright
+// im Next.js Standalone-Output".
+import type { Browser } from "playwright";
 
 /**
  * Return-Shape von `renderStudyToPdf`. `filename` ist NUR der File-Name
@@ -88,6 +113,9 @@ export async function renderStudyToPdf(studyId: string): Promise<RenderStudyToPd
   // Stelle das Zielverzeichnis bereit (idempotent — recursive: true ist
   // EEXIST-tolerant).
   await mkdir(studyDir, { recursive: true });
+
+  // Dynamic-import — siehe Hotfix-Kommentar oben.
+  const { chromium } = await import("playwright");
 
   let browser: Browser | null = null;
   try {
