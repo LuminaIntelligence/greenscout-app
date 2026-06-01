@@ -86,11 +86,17 @@ mounts on host disk are untouched by Compose.
 Both app services run as non-root inside the container as a defence-in-depth
 hardening measure.
 
-## What's intentionally NOT in the pyservice image yet
+## What's intentionally NOT in the pyservice image (2026-06-01 §7.10-Pivot)
 
-- **LibreOffice headless.** Lands in T-039 (PDF rendering). Until then,
-  `pyservice` is a thin FastAPI runtime exposing `/health`.
-- **`python-pptx`, `Pillow`.** Land in T-026 / T-027.
+- **LibreOffice headless.** Vor dem Pivot war LibreOffice für PPTX→PDF-
+  Rendering im pyservice geplant (T-039). Nach dem Pivot rendert das
+  Next.js-Layer via Playwright (SPEC §4.8); LibreOffice ist nicht mehr
+  Teil des pyservice-Images.
+- **`python-pptx`.** Vor dem Pivot für Template-Populierung gedacht.
+  Nach dem Pivot ersatzlos entfallen — React-Slide-Komponenten erfüllen
+  diesen Use-Case.
+- **`Pillow`.** Bleibt drin — die T-029b Image-Pipeline (Resize von
+  BEFORE/AFTER-Photos) läuft weiterhin im pyservice.
 
 ## Quality gates the agent runs on this stack
 

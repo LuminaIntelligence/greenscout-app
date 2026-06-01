@@ -1,8 +1,13 @@
 # Python service (`services/python/`)
 
-FastAPI service for PPTX templating + PDF rendering + image processing.
-Consumed by the Next.js app over internal HTTP inside the Docker network
-(SPEC §7.1). Single-port HTTP service, no message queue.
+FastAPI service für **PV-Calculations + Image-Processing**. Consumed by the
+Next.js app über internal HTTP inside the Docker network (SPEC §7.1).
+Single-port HTTP service, no message queue.
+
+> **2026-06-01:** Nach dem §7.10-Architektur-Pivot ist PPTX-Templating +
+> LibreOffice-PDF-Rendering aus diesem Service entfernt. Document-Rendering
+> läuft jetzt im Next.js-Layer via React-Slide-Komponenten + Playwright
+> (siehe SPEC §4.8 + DECISIONS.md 2026-06-01).
 
 ## Prerequisites
 
@@ -104,7 +109,11 @@ a richer tool is a §7.10 architectural decision and out of scope. See
 
 ## Why a separate Python service at all?
 
-`python-pptx` is the only mature library for editing existing PowerPoint
-templates with placeholder replacement while preserving formatting;
-headless LibreOffice is the most reliable open-source PPTX→PDF renderer.
-SPEC §7.2 covers the architectural rationale.
+Pillow für Image-Processing + die authoritative Python-Calculation-Implementation
+(als Single-Source-of-Truth für Parity-Tests gegen den TS-Mirror) rechtfertigen
+den separaten Service. SPEC §7.2 covers the architectural rationale.
+
+> **Historisch (vor 2026-06-01):** `python-pptx` + headless LibreOffice waren
+> die Begründung für den separaten Service. Nach dem §7.10-Pivot ist beides
+> entfallen; die übrigen Verantwortlichkeiten (Calc + Image-Processing)
+> bleiben.
