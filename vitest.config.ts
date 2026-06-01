@@ -376,6 +376,20 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // §7.10-Pivot PR 3 — 100% on the Playwright PDF-Renderer. Trust-
+        // boundary class: process-boundary call into Chromium with a
+        // shared-secret header. Every branch (missing/empty token, launch
+        // happy path with correct viewport + token + viewport + URL +
+        // port + URL-encoding + font wait + pdf options + mkdir, non-OK
+        // response with diagnostics, null response, page.pdf throws with
+        // browser.close cleanup, close-throws-swallowed, launch fails
+        // without close) is covered by render-pdf.test.ts.
+        "src/features/studies/document/services/render-pdf.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
         // §7.10-Pivot PR 2 — 80% per-pattern on the document feature
         // module overall. The 19 slide components + the SlideFrame +
         // ImageSlot + the German number formatters all live here; the
