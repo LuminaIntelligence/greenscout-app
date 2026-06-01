@@ -183,6 +183,20 @@ describe("middleware routing", () => {
     expectAllHeaders(response);
   });
 
+  it("returns pass-through for /studie/<id> (§7.10-Pivot PR 4 public customer view)", async () => {
+    // The customer has no GreenScout account. Auth comes from the
+    // signed HMAC `?t=<token>` query param verified inside the page
+    // handler — not from the session. Therefore the middleware must
+    // whitelist the path and pass through unmodified, even when
+    // `request.auth` is null.
+    const response = (await middleware(
+      buildRequest("/studie/stu_123", null),
+      {} as never,
+    )) as NextResponse;
+    expect(response.status).toBe(200);
+    expectAllHeaders(response);
+  });
+
   it("redirects to /login when an unauthenticated user hits a protected route", async () => {
     const response = (await middleware(buildRequest("/", null), {} as never)) as NextResponse;
     expect(response.status).toBe(307);
