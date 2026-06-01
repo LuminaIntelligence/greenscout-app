@@ -3850,3 +3850,62 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 **Folge-PRs:**
 - **PR 3** — Playwright-PDF-Endpoint (`app/api/studies/[id]/pdf/route.ts`) + Server-Action-Rewire (`callDocumentsGenerate` raus).
 - **PR 4** — HMAC-gated `/studie/[id]/?t=<token>` Public-Online-Ansicht.
+
+---
+
+## 2026-06-01 — §7.10-Pivot PR 3: Playwright-PDF-Renderer + generate-document-Action-Rewire
+
+**Context:** PR 3/4 der §7.10-Pivot-Serie (§7.10-Freigabe vom 2026-06-01). PR 2 (#61) hat die 19 React-Slides gebaut, dieser PR macht sie zu PDF rendern und ersetzt den alten `callDocumentsGenerate`-Pyservice-Pfad. Branch: `feat/pivot-3-playwright-pdf` aus `origin/main` nach PR #61 Merge.
+
+**Decisions:**
+
+- **Playwright-Architektur:** Headless Chromium navigiert lokal zu einer internen Render-Route der gleichen App (`src/app/internal/render-study/[id]/page.tsx`). Server-Component lädt `buildStudyDocumentData()` direkt aus der DB und rendert `<StudyDocument data={data} />` — kein Daten-Body-Transport zwischen Action und Render-Pipeline. Token-Gate via `INTERNAL_RENDER_TOKEN` Shared-Secret (analog `PYTHON_SERVICE_API_KEY`-Pattern aus T-035). Middleware-Whitelist im `isPublicPath` für den Pfad `/internal/render-study/`, damit der Playwright-Browser ohne Auth-Cookie navigieren kann.
+- **Playwright als Top-Level-Dep:** `playwright@^1.60.0` in `package.json` `dependencies` (KEIN devDep — wird zur Laufzeit gebraucht). Master-Pivot-§7.10-Freigabe deckt die Installation. SPEC §4.8 fordert Playwright explizit als Renderer.
+- **Chromium in production:** Base-Image-Wechsel von `node:24-alpine` auf `mcr.microsoft.com/playwright:v1.60.0-jammy`. ~1.4 GB Image-Size (vs ~280 MB), aber rock-solid — bringt Chromium + alle Linux-System-Libs mit. `playwright install --with-deps` zur Build-Zeit verworfen (mehr Komplexität, schlechtere Reproduzierbarkeit). Image-Tag-Konvention: exakt die Playwright-NPM-Version aus `package.json`.
+- **prisma binaryTargets:** `debian-openssl-3.0.x` hinzugefügt für jammy-Glibc-Build. `linux-musl-openssl-3.0.x` bleibt drin (gewichtsloser Pin gegen Future-Switch-Back).
+- **tmpfs auf /dev/shm:size=256m** in `docker-compose.prod.yml` für den `web`-Container. Chromium-Default-/dev/shm ist 64 MB; reicht für 19-Slide-1920×1080-PDF nicht. `--disable-dev-shm-usage` setzen wir trotzdem im Code als Belt-and-Suspenders.
+- **Print-CSS:** `@page size 1920px 1080px` (16:9 Querformat), `page-break-after: always` auf `.slide-frame`, `print-color-adjust: exact` für Brand-Farb-Backgrounds. Konsistent mit den 1920×1080 Slide-Dimensionen aus PR 2 globals.css.
+- **Document-Format:** nur noch PDF. Bestehende `GeneratedDocument`-PPTX-Einträge in der DB bleiben aus historischer Datenintegrität bestehen; neue Generation erzeugt nur PDF. Damit ist die offene Frage aus DECISIONS 2026-06-01 PR 1 konkretisiert.
+- **Phrase-Helper-File entfernt:** `src/features/studies/actions/generate-document-phrases.ts` (Defekte D1+D2+D3 hotfix) ist in PR 2 obsolet geworden — Phrase-Logik lebt jetzt in `src/features/studies/document/format.ts` und wird von den React-Slides selbst gerendert. Datei + vitest-Threshold-Eintrag konsekutiv entfernt.
+- **AuditLog-changeSet:** kein `pptxDocumentId`/`pptxPath` mehr; ersetzt durch `pdfDocumentId`/`pdfPath`/`pdfFilename`. Action-Result-Shape (`GenerateDocumentResult`) verliert das `pptxDocumentId`-Feld — interne API, kein externer Caller. errorCode `pyservice` → `render`.
+- **callDocumentsGenerate raus:** Function + Interfaces (`DocumentGenerateInput`/`Output`) + 501→"not-implemented"-Kind aus `python-service-client.ts` ersatzlos entfernt. `callCalc` + `callProcessImage` bleiben unangetastet (Image-Pipeline + Calc-Authority im pyservice unverändert).
+- **Browser-Pool-Persistenz verworfen für MVP:** Pro Render eine neue Chromium-Instance. KISS. Wenn später Performance-Engpass: `chromium.launchServer()` + Reconnect-Pattern. Vor Live-Test nicht optimieren.
+- **Error-Handling:** `browser.close()` im finally-Block, swallow-on-close-fail damit Original-Errors überleben. Diagnose-Context bei non-OK Response (`Render-Route lieferte nicht-OK-Status <s> für <url> (INTERNAL_RENDER_TOKEN_SET=true)`).
+
+**Affected:**
+
+- `src/app/internal/render-study/[id]/page.tsx` + `layout.tsx` (neu) — interne Render-Route mit Token-Gate
+- `src/app/internal/render-study/[id]/page.test.tsx` (neu) — 6 token-gate-Pfade
+- `src/features/studies/document/services/render-pdf.ts` (neu) — Playwright-Wrapper
+- `src/features/studies/document/services/render-pdf.test.ts` (neu) — 17 Tests, 100% Coverage
+- `src/features/studies/document/print.css` (neu) — `@page`-Regel + page-break-after
+- `src/features/studies/actions/generate-document.ts` — rewired auf `renderStudyToPdf`; nur noch PDF-Doc-Eintrag; neuer errorCode `render`
+- `src/features/studies/actions/generate-document.test.ts` — 13 Tests (vorher 38 mit Phrase + Pyservice-Mocks); 100% Coverage gehalten
+- `src/features/studies/actions/generate-document-phrases.ts` (entfernt)
+- `src/lib/python-service-client.ts` — `callDocumentsGenerate` + `DocumentGenerateInput/Output` + 501-Kind entfernt
+- `src/lib/python-service-client.test.ts` — 18 `callDocumentsGenerate`-Tests entfernt; 31 weiterhin grün
+- `src/middleware.ts` + `src/middleware.test.ts` — `/internal/render-study/`-Bypass in `isPublicPath`
+- `Dockerfile.web` — Runner-Stage auf `mcr.microsoft.com/playwright:v1.60.0-jammy`; addgroup/adduser → groupadd/useradd; apk openssl entfernt
+- `prisma/schema.prisma` — `debian-openssl-3.0.x` zu binaryTargets hinzugefügt
+- `docker-compose.prod.yml` — `INTERNAL_RENDER_TOKEN` env, `GENERATED_DIR=/app/generated`, `tmpfs: /dev/shm:size=256m`
+- `.env.production.example` — `INTERNAL_RENDER_TOKEN` Block mit Doku
+- `deploy.sh` — `INTERNAL_RENDER_TOKEN` in REQUIRED_VARS
+- `docs/deploy-anleitung.md` — neue Tabellen-Zeile + Hinweis auf ~1.4 GB Image-Size
+- `SPEC.md` §4.8 — Render-Endpoint-Abschnitt + PDF-Rendering-Flow-Diagramm aktualisiert
+- `package.json` + `package-lock.json` — `playwright@^1.60.0` als Top-Level-Dep
+- `vitest.config.ts` — 100% Coverage-Threshold für `render-pdf.ts`; Phrase-Helper-Threshold entfernt
+- `DECISIONS.md` — dieser Eintrag
+- `TASKS.md` — T-060 → ✅ DONE Carry-forward; T-061 → 🟦 IN PROGRESS (status flip nach Merge in PR 4)
+
+**Pause-Trigger-Check (§7):**
+
+- **§7.10** autorisiert (Master-Pivot, User 2026-06-01).
+- **§7.1** — `playwright` Top-Level-Dep. SPEC §4.8 (autorisiert in PR 1) fordert Playwright explizit als Renderer; Installation hier ist Master-Pivot-Implementation.
+- **§7.3** — Token-Logik: Shared-Secret-Pattern analog `PYTHON_SERVICE_API_KEY`, KEIN User-Auth-Flow. Master-Pivot deckt.
+- **§7.5** — Breaking API: `generateDocumentAction`-Result-Shape ändert sich (`pptxDocumentId` weg). Nur intern, kein externer Caller.
+- **§7.4** — Print-CSS ist Renderer-Output, keine visible UI-Layout-Änderung. Brand-Tokens unangetastet.
+- **§7.6 / §7.11 / §7.9** — nicht berührt (kein neues Outbound-HTTP, keine DSGVO-Felder, keine destruktive DB-Migration).
+
+**Open question for the user:** Bei großen Studien (viele Bilder, hohe Slide-Inhalts-Dichte) kann Chromium-Memory-Footprint sichtbar werden. tmpfs:256m + `--disable-dev-shm-usage` ist konservative MVP-Defaults — wenn nach erstem Live-Test auf VPS OOM auftritt: tmpfs erhöhen oder Browser-Pool-Pattern einführen. Erstmal naive Variante shippen, dann live verifizieren.
+
+**Folge-PR:** PR 4 — HMAC-gated Kunden-Online-Ansicht unter `app/(public)/studie/[id]/`. Status-Flip T-061 ✅ → DONE Carry-forward + T-062 IN PROGRESS in PR 4.

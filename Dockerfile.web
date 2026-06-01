@@ -1,8 +1,17 @@
 # syntax=docker/dockerfile:1.7
 # GreenScout Next.js web service.
-# Multi-stage build (deps → builder → runner) producing a minimal runtime image
-# anchored on Next.js's standalone output (next.config.ts `output: "standalone"`).
-# Base image matches the .nvmrc pin (Node 24) per DECISIONS.md.
+#
+# Multi-stage build (deps → builder → runner). Anchored on Next.js's standalone
+# output (next.config.ts `output: "standalone"`).
+#
+# Builder-Stages: Node 24 (alpine), entspricht der .nvmrc-Pin.
+#
+# Runner-Stage: `mcr.microsoft.com/playwright:v1.60.0-jammy` — bringt Chromium
+# + alle Ubuntu-System-Libraries (libnss, libatk, fonts-liberation, …) für den
+# §7.10-Pivot PR 3 Playwright-PDF-Renderer mit. Größer als node:24-alpine
+# (~1.4 GB vs ~280 MB), aber rock-solid — kein `playwright install --with-deps`
+# zur Build-Zeit, kein apt-Tracking. Image-Tag exakt auf die Playwright-NPM-
+# Version aus package.json gepinnt; bei Bumps in package.json hier nachziehen.
 
 # ----- Stage 1: install production + dev dependencies for the build -----------
 FROM node:24-alpine AS deps
@@ -77,36 +86,41 @@ RUN npx --no-install esbuild prisma/seed.ts \
     --outfile=prisma/seed.cjs
 
 
-# ----- Stage 3: minimal runtime ------------------------------------------------
-FROM node:24-alpine AS runner
+# ----- Stage 3: Playwright-fähiges Runtime ------------------------------------
+# §7.10-Pivot PR 3: Wechsel von node:24-alpine auf
+# mcr.microsoft.com/playwright:v1.60.0-jammy. Image bringt Chromium + alle
+# benötigten Linux-System-Libs (libnss3, libatk-bridge2.0, fonts-liberation,
+# libgbm, libxshmfence, libxkbcommon, fonts-noto, …) + Node 22 (auf Ubuntu
+# 22.04 jammy) mit. Trade-off ggü. dem alten alpine-Runner:
+#   + Chromium-Render funktioniert out-of-the-box, kein apt-Install zur
+#     Build-Zeit nötig
+#   + Reproduzierbar — Microsoft pinnt Chromium-Version + alle Deps zur
+#     Playwright-Version
+#   − Image-Size ~1.4 GB statt ~280 MB
+#
+# Image-Tag-Konvention: `v<playwright-version>-jammy`. Bei `npm install
+# playwright@<newer>` hier den Tag ebenfalls bumpen — anti-drift via
+# DECISIONS-Verweis.
+FROM mcr.microsoft.com/playwright:v1.60.0-jammy AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Prisma's schema-engine binary (used by `prisma migrate deploy`) is
-# dynamically linked against libssl/libcrypto. node:24-alpine does NOT
-# ship those by default; without them the engine aborts at startup with
-# "Could not parse schema engine response: Error load …" + "Prisma
-# failed to detect libssl/openssl". `apk add --no-cache openssl` pulls
-# in the libssl3 + libcrypto3 shared objects (and the CLI, which we
-# don't strictly need but it lands together — ~1.5 MB total).
+# Prisma's schema-engine + libssl: Ubuntu jammy bringt libssl3 + OpenSSL 3
+# bereits mit, kein separates apt-install nötig (vs alpine, wo wir openssl
+# noch nachinstallieren mussten).
 #
-# We deliberately skip `ca-certificates` here: GreenScout's prod DB
-# connection runs over the internal docker network without TLS
-# (DATABASE_URL is `postgresql://...@db:5432/...` with no `sslmode`),
-# so the trust store isn't read. If/when the deployment ever talks
-# to a managed Postgres over TLS, append `ca-certificates`.
-#
-# Same base image as builder (node:24-alpine) → Prisma's `native`
-# binaryTarget already resolves correctly to
-# `linux-musl-openssl-3.0.x`; no `binaryTargets` entry needed in
-# prisma/schema.prisma. Locked in via DECISIONS.md.
-RUN apk add --no-cache openssl
+# Prisma `native` binaryTarget muss jetzt auf den Glibc-Build gemappt
+# werden, NICHT auf den musl-Build. Wir setzen das über die
+# binaryTargets in prisma/schema.prisma sowie ENV unten.
 
 # Run as a non-root user (CLAUDE.md §3 hardening — defence in depth).
-RUN addgroup --system --gid 1001 nodejs \
- && adduser --system --uid 1001 nextjs
+# Das playwright-Image enthält bereits einen `pwuser` (UID 1000); wir
+# legen unseren eigenen `nextjs` aber bei (eigene UID/GID = 1001),
+# damit der COPY-chown deterministisch bleibt.
+RUN groupadd --system --gid 1001 nodejs \
+ && useradd --system --uid 1001 --gid nodejs --shell /bin/false nextjs
 
 # Standalone output bundles `server.js` + a pruned node_modules tree.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

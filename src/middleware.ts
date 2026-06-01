@@ -168,6 +168,16 @@ function passThroughWithNonce(request: NextRequest, nonce: string): NextResponse
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/login") return true;
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return true;
+  // §7.10-Pivot PR 3: interne Render-Route für den Playwright-PDF-Renderer.
+  // Auth ist NICHT via Session — der Playwright-Browser hat kein Auth-Cookie.
+  // Stattdessen schützt sich die Route selbst per `INTERNAL_RENDER_TOKEN`
+  // shared-secret Header-Gate (siehe
+  // `src/app/internal/render-study/[id]/page.tsx` → `notFound()` bei
+  // Mismatch). Analoges Pattern zu `PYTHON_SERVICE_API_KEY` (T-035): Service-
+  // zu-Service Shared-Secret, kein User-Auth-Flow. Pfad-Match ist strikt:
+  // exakt `/internal/render-study/<id>` — keine anderen `/internal/*`-Pfade
+  // werden via diesen Bypass abgedeckt.
+  if (pathname.startsWith("/internal/render-study/")) return true;
   return false;
 }
 

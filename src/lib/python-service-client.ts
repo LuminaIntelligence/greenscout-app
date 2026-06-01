@@ -28,14 +28,7 @@ export type PythonServiceCallResult<T> =
   | { ok: true; data: T }
   | {
       ok: false;
-      kind:
-        | "unauthorized"
-        | "bad-request"
-        | "validation"
-        | "not-implemented"
-        | "server-error"
-        | "timeout"
-        | "network";
+      kind: "unauthorized" | "bad-request" | "validation" | "server-error" | "timeout" | "network";
       status?: number;
       message: string;
     };
@@ -83,15 +76,14 @@ function snakeToCamel(key: string): string {
 /**
  * Shallow-convert a record's keys, preserving values.
  *
- * Calc inputs/outputs are flat objects; nested object translation is
- * handled at the call site (see `callDocumentsGenerate`).
+ * Calc inputs/outputs are flat objects.
  *
  * Defensive: if the caller hands in `null` or `undefined`, log + return
- * `{}` instead of throwing. The post-mortem on the production 422-on-
- * /api/documents/generate trail showed that an empty study sub-object
- * surfaces downstream as pydantic's `Field required` on every required
- * leaf — surfacing the empty input at the boundary makes that mode
- * diagnosable from one log line instead of a wall of pydantic detail.
+ * `{}` instead of throwing. Inherited from the §7.10-Pivot-PR-1 era when
+ * a deeply-nested document-generate payload could surface as pydantic's
+ * `Field required` on every required leaf — at the boundary makes that
+ * mode diagnosable from one log line. Kept for `callCalc`-defense even
+ * though `callDocumentsGenerate` was removed in PR 3.
  */
 function translateKeys<T extends Record<string, unknown>>(
   obj: T | null | undefined,
@@ -143,7 +135,6 @@ function statusToKind(
 > {
   if (status === 401) return "unauthorized";
   if (status === 422) return "validation";
-  if (status === 501) return "not-implemented";
   if (status >= 500) return "server-error";
   return "bad-request";
 }
@@ -182,143 +173,6 @@ export async function callCalc(
   const wireData = result.json as Record<string, unknown>;
   const data = translateKeys(wireData, snakeToCamel) as unknown as DerivedValues;
   return { ok: true, data };
-}
-
-/**
- * Inputs to `callDocumentsGenerate`. Slice 3a always returns
- * `not-implemented` (501); the shape is stable so the wiring can ship
- * now.
- */
-export interface DocumentGenerateInput {
-  study: StudyCalcInput;
-  derivedValues: DerivedValues;
-  customerName: string;
-  objectName: string;
-  consultantName: string;
-  imageBeforePath: string | null;
-  imageAfterPath: string | null;
-  /**
-   * Empty-value-safe phrase keys (Defekte D1+D2+D3, 2026-05-29).
-   * Server Action pre-renders each phrase; empty string means the
-   * surrounding template prefix/suffix vanishes with the value.
-   * See `src/features/studies/actions/generate-document.ts` for the
-   * builder helpers.
-   */
-  flurstueckPhrase: string;
-  flurstueckLabelPhrase: string;
-  termin1Phrase: string;
-  termin2Phrase: string;
-  terminOderPhrase: string;
-  modulInfoPhrase: string;
-}
-
-/** Output of `callDocumentsGenerate` when Slice 3b lands. */
-export interface DocumentGenerateOutput {
-  pptxPath: string;
-  pdfPath: string;
-  generatedAt: string; // ISO-8601 UTC.
-}
-
-/**
- * POST /api/documents/generate — Slice 3a: always returns 501
- * (`kind: "not-implemented"`).
- *
- * The full pipeline lands in Slice 3b after the user signs off on
- * `docs/pptx-mapping.md`. The TS shape + translation are ready so
- * Slice 3b only needs to flip the Python side.
- */
-export async function callDocumentsGenerate(
-  input: DocumentGenerateInput,
-): Promise<PythonServiceCallResult<DocumentGenerateOutput>> {
-  // Defensive — surface empty calc-input at the boundary instead of
-  // letting it travel as `study: {}` / `derived_values: {}` into a
-  // pyservice 422 with `loc: ["body", "study"]` + `type: "missing"`.
-  // Documented post-mortem: production-debug 2026-05-27.
-  if (input.study === null || input.study === undefined || Object.keys(input.study).length === 0) {
-    console.error("[callDocumentsGenerate] input.study is empty/null/undefined:", input.study);
-    return {
-      ok: false,
-      kind: "validation",
-      status: 0,
-      message: "Calc-Input fehlt — input.study ist leer.",
-    };
-  }
-  if (
-    input.derivedValues === null ||
-    input.derivedValues === undefined ||
-    Object.keys(input.derivedValues).length === 0
-  ) {
-    console.error(
-      "[callDocumentsGenerate] input.derivedValues is empty/null/undefined:",
-      input.derivedValues,
-    );
-    return {
-      ok: false,
-      kind: "validation",
-      status: 0,
-      message: "Calc-Output fehlt — derivedValues ist leer.",
-    };
-  }
-
-  const wireBody = {
-    study: translateKeys(input.study as unknown as Record<string, unknown>, camelToSnake),
-    derived_values: translateKeys(
-      input.derivedValues as unknown as Record<string, unknown>,
-      camelToSnake,
-    ),
-    customer_name: input.customerName,
-    object_name: input.objectName,
-    consultant_name: input.consultantName,
-    image_before_path: input.imageBeforePath,
-    image_after_path: input.imageAfterPath,
-    // Empty-value-safe phrase keys — Defekte D1+D2+D3 (2026-05-29).
-    flurstueck_phrase: input.flurstueckPhrase,
-    flurstueck_label_phrase: input.flurstueckLabelPhrase,
-    termin_1_phrase: input.termin1Phrase,
-    termin_2_phrase: input.termin2Phrase,
-    termin_oder_phrase: input.terminOderPhrase,
-    modul_info_phrase: input.modulInfoPhrase,
-  };
-
-  // Diagnostic log — sichtbar in container logs für Production-Debugging.
-  // Truncated auf 800 chars um große studies + derived_values + bilder-paths
-  // nicht den Log-Stream zu fluten. Permanent — Slice 3b/Hotfix post-mortem
-  // (2026-05-27): pyservice-422 ohne body-trace ist nicht diagnostizierbar.
-  const wireBodyJson = JSON.stringify(wireBody);
-  console.error(
-    "[callDocumentsGenerate] outbound body (truncated 800):",
-    wireBodyJson.length > 800 ? wireBodyJson.slice(0, 800) + "…[truncated]" : wireBodyJson,
-  );
-
-  let result: { status: number; json: unknown };
-  try {
-    result = await postJson("/api/documents/generate", wireBody);
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return { ok: false, kind: "timeout", message: "Python-Service-Aufruf hat Timeout erreicht." };
-    }
-    const message = err instanceof Error ? err.message : "Unbekannter Netzwerkfehler";
-    return { ok: false, kind: "network", message };
-  }
-
-  if (result.status !== 200) {
-    return {
-      ok: false,
-      kind: statusToKind(result.status),
-      status: result.status,
-      message: `Python-Service antwortete mit Status ${result.status}.`,
-    };
-  }
-
-  const wireData = result.json as Record<string, unknown>;
-  return {
-    ok: true,
-    data: {
-      pptxPath: String(wireData.pptx_path),
-      pdfPath: String(wireData.pdf_path),
-      generatedAt: String(wireData.generated_at),
-    },
-  };
 }
 
 /**

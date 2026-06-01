@@ -77,6 +77,7 @@ if [ ! -f "$ENV_FILE" ]; then
     err "  - SETTINGS_ENCRYPTION_KEY   Verschlüsselungs-Key SMTP-Settings, openssl rand -base64 32"
     err "  - APP_URL                   Öffentliche App-Adresse (https://greenscout.lumina-intelligence.ai)"
     err "  - PYTHON_SERVICE_API_KEY    Shared-Secret zwischen web- und pyservice-Container, openssl rand -base64 32"
+    err "  - INTERNAL_RENDER_TOKEN     Shared-Secret für Playwright→/internal/render-study, openssl rand -base64 32"
     err "  - CERTBOT_EMAIL             (optional, nur beim ersten Cert-Lauf) — Let's-Encrypt-Mail"
     err ""
     err "Kopiere .env.production.example nach .env.production und trage die Werte ein."
@@ -95,6 +96,7 @@ REQUIRED_VARS=(
     "SETTINGS_ENCRYPTION_KEY"
     "APP_URL"
     "PYTHON_SERVICE_API_KEY"
+    "INTERNAL_RENDER_TOKEN"
 )
 missing=()
 for var in "${REQUIRED_VARS[@]}"; do

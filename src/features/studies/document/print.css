@@ -1,0 +1,59 @@
+/*
+ * §7.10-Pivot PR 3 — Print-CSS für den Playwright-PDF-Render.
+ *
+ * Importiert von der internen Render-Route
+ * `src/app/internal/render-study/[id]/page.tsx`. Playwright öffnet diese
+ * Route und ruft `page.pdf({ printBackground: true, preferCSSPageSize: true,
+ * width: "1920px", height: "1080px", landscape: true })`. Die `@page`-Regel
+ * unten teilt der Chromium-Engine mit, dass jedes 1920×1080-Slide-Frame
+ * eine eigene PDF-Seite ist — ohne Margin, ohne Headers/Footers.
+ *
+ * Die Slide-Dimensionen 1920×1080 spiegeln 1:1 die `.slide-frame`-Utility
+ * aus `src/app/globals.css` (PR 2). Print-CSS hält die Geometrie konsistent
+ * zwischen Screen-Preview (`/dev/slides`) und PDF-Output.
+ */
+
+@media print {
+  @page {
+    /* 16:9 Querformat, exakt 1920×1080 logical Pixels — entspricht der
+     * `.slide-frame`-Größe aus globals.css. `margin: 0` verhindert, dass
+     * Chromium die default-A4-Marginalien wieder hinzu-margined. */
+    size: 1920px 1080px;
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    /* Erzwingt, dass Hintergrund-Farben (forest-green Header, plant-green
+     * Accents, muted-lime Backgrounds) in den PDF gerendert werden.
+     * Default-Chromium-Behavior beim Drucken ist "white-only background"
+     * — print-color-adjust: exact polt das ab. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .slide-frame {
+    /* Jeder Slide-Frame ist eine eigene PDF-Seite. break-after wirkt
+     * direkt auf den Slide; page-break-after ist der Legacy-Fallback für
+     * ältere Chromium-Versionen. */
+    page-break-after: always;
+    break-after: page;
+  }
+
+  /* Letztes Slide-Frame: kein erzwungener Seitenumbruch — sonst würde
+   * Chromium eine leere Trailing-Page anhängen. */
+  .slide-frame:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Die Dev-Vorschau-Container im /dev/slides-Preview (Header, Background-
+   * Streifen) sollen NICHT mit gedruckt werden. Sie kommen im internen
+   * Render-Route-Layout (`src/app/internal/render-study/[id]/layout.tsx`)
+   * gar nicht vor — diese Regel ist defensive Belt-and-Suspenders, falls
+   * jemand die Route in `/dev/slides` einbetten würde. */
+  main > header {
+    display: none;
+  }
+}
