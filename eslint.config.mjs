@@ -125,12 +125,25 @@ const eslintConfig = [
   // Auth.js v5 type augmentation (`declare module "next-auth"`) needs the
   // generated `Role` and `FormPref` enum types to type the JWT/Session
   // payload. The file is *only* type imports — no runtime Prisma access.
+  //
+  // §7.10-Pivot PR 2 (2026-06-01) added the studies/document module
+  // because the 19 React-Slide-Komponenten need:
+  //   1. Type-only `Customer`/`Study`/`User` from `@/generated/prisma`
+  //      in `types.ts` (analogous to `features/auth/types.ts`).
+  //   2. Single-level `../` chains for the shared `format.ts`,
+  //      `types.ts`, `__fixtures__/`, and `_components/` siblings —
+  //      they all live inside the same `document/` feature directory
+  //      and a fully-qualified `@/features/studies/document/...` alias
+  //      would be more noise than signal for an intra-feature import.
+  // This is the same "trusted-path" pattern as repositories — narrow
+  // glob, no external imports affected.
   {
     files: [
       "src/lib/db.ts",
       "src/lib/repositories/**/*.ts",
       "prisma/seed.ts",
       "src/features/auth/types.ts",
+      "src/features/studies/document/**/*.{ts,tsx}",
     ],
     rules: {
       "no-restricted-imports": "off",

@@ -467,12 +467,12 @@
 *(Folge-PRs der 2026-06-01 §7.10-Architektur-Pivot-Serie. PR 1 — Scope + Cleanup — ist die Vorbereitung; PR 2/3/4 implementieren den neuen Render-Stack. Siehe DECISIONS.md 2026-06-01.)*
 
 ### T-060 React-Slide-Komponenten + Storybook
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (PR `feat/pivot-2-react-slides`; carry-forward Status-Flip auf ✅ in PR 3 nach Merge)
 - **Feature:** studies (document renderer)
 - **Type:** feat
-- **Effort:** L (19 Slides — könnte für Review-Tractability in zwei PRs gesplittet werden, T-060a Slides 1-10 + T-060b Slides 11-19; PR-2-Implementierer entscheidet)
+- **Effort:** L (19 Slides — als ein PR implementiert; Single-PR-Review-Tractability via dem Inventory-README + dem `/dev/slides`-Preview hergestellt)
 - **Blocks:** T-061
-- **Blocked by:** PR 1 (`chore/pivot-1-spec-and-cleanup`) gemerged
+- **Blocked by:** PR 1 (`chore/pivot-1-spec-and-cleanup`) gemerged → PR #60 (✅ gemerged 2026-06-01)
 - **Description:**
   19 React-Slide-Komponenten unter `src/features/studies/document/slides/` (eine Datei pro Slide, kebab-case: `slide-01-title.tsx` … `slide-19-contact.tsx`). Jede Komponente nimmt die zusammengestellten Studien-Daten als Props (Customer, Study, DerivedValues, Consultant) und rendert das Slide-Layout via Tailwind + Brand-Tokens aus SPEC §8.1 / §8.2. Original-PDF `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` als visuelle Soll-Vorlage; Pixel-Abweichung ≤5% pro Slide. Slide 15 nutzt Recharts (Sensitivitäts-Chart). Slide 17 nutzt CSS-Grid mit `grid-auto-rows: 1fr` (ersetzt die fragile PPTX-Slide-17-Grid-Normalisierung aus R2-10/C2). Bildplatzhalter `<img>` mit `object-fit: cover` und festem Aspect-Ratio-Container. Storybook-Stories pro Slide mit gemockten Props für visuelle Regression — Snapshot-Diffs in CI als zusätzliche Qualitäts-Gate jenseits der Vitest-Unit-Coverage.
 - **Acceptance criteria:**
