@@ -192,14 +192,24 @@ Strategie: **19 Slides als komponentenbasierter React-Tree, serverseitig mit Pla
 - **Chart auf Slide 15:** Recharts (bereits im Stack via shadcn). Sensitivitäts-Szenarien als Bar/Line-Chart, Daten vom Server vorgerechnet.
 - **Slide-17-Timeline:** CSS-Grid mit `grid-auto-rows: 1fr` zur Erzwingung gleicher Spaltenhöhen — ersetzt die fragile PPTX-Grid-Normalisierung der Runde-2-Defekte R2-10 / C2.
 - **Bildplatzhalter:** `<img>` mit `object-fit: cover` und festem Aspect-Ratio-Container — ersetzt die PPTX-Image-Forced-Geometry-Logik aus R2-3. Die uploaded BEFORE/AFTER-Bilder werden weiterhin vom pyservice via Pillow auf eine fixe Bounding-Box resized (Pipeline aus T-029a/b/c bleibt unverändert); die React-Slides binden die fertigen Bilder per relativem Pfad.
-- **PDF-Rendering:** Playwright (bereits in devDependencies) rendert die `<Document>`-Komponente headless aus einer internen Print-Route nach PDF. Implementation in `app/api/studies/[id]/pdf/route.ts`. Print-CSS via `@page` + `page-break-after: always` zwischen Slides; A4-Querformat als Standard.
+- **PDF-Rendering:** Playwright (`playwright`-Top-Level-Dep, ab §7.10-Pivot PR 3) rendert die `<Document>`-Komponente headless aus einer **internen Render-Route** `src/app/internal/render-study/[id]/page.tsx` nach PDF. Die Route ist via Shared-Secret-Header `x-internal-render-token` gegen `process.env.INTERNAL_RENDER_TOKEN` gegated (analog `PYTHON_SERVICE_API_KEY`-Pattern aus §6.3 — Service-zu-Service Shared-Secret, KEIN User-Auth-Flow). Bei Mismatch oder fehlender ENV: `notFound()`. Die Route ist nicht öffentlich auffindbar (kein Sitemap-Eintrag, keine Verlinkung, Middleware-Whitelist nur für den Bypass des Session-Auth-Branchs). Print-CSS via `@page size 1920px 1080px` + `page-break-after: always` zwischen Slides. Implementation des Playwright-Wrappers: `src/features/studies/document/services/render-pdf.ts`; aufgerufen aus `generateDocumentAction`. Output: `<GENERATED_DIR>/<studyId>/study-<id>-<timestamp>.pdf`.
 - **Online-Ansicht für Kunden:** Öffentliche Route (`app/(public)/studie/[id]/...`) gegated durch signierten HMAC-Token in der URL — kein Login nötig, aber Token + Study-ID müssen serverseitig matchen. Vorab-Light für das Phase-3-Kunden-Portal (SPEC §2.3).
 - **Storybook + visuelle Regression:** Story pro Slide mit gemockten Props; Snapshot-Diffs in CI als zusätzliche Qualitäts-Gate jenseits der Vitest-Unit-Coverage.
 
 PDF-Rendering-Flow:
 
 ```
-React<Document> → Next.js Print-Route → Playwright headless → PDF Buffer → ./generated/<studyId>/<filename>.pdf
+generateDocumentAction
+  └── renderStudyToPdf(studyId)
+        └── chromium.launch() → page.goto(
+                                   /internal/render-study/<id>,
+                                   header: x-internal-render-token=<INTERNAL_RENDER_TOKEN>
+                                 )
+              └── Server-Component lädt buildStudyDocumentData(orgId, studyId)
+                   → <StudyDocument data={data} /> (alle 19 Slides)
+              └── page.pdf({ 1920×1080, landscape, printBackground,
+                              preferCSSPageSize, margin: 0 })
+                   → <GENERATED_DIR>/<studyId>/study-<id>-<timestamp>.pdf
 ```
 
 Keine LibreOffice-Subprozess-Abhängigkeit mehr; LibreOffice + `python-pptx` aus pyservice entfernt. Calc-Endpoint + Image-Processor-Endpoint bleiben im pyservice unverändert.
