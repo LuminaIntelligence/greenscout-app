@@ -1,5 +1,11 @@
 # PPTX-Mapping — `Machbarkeitsstudie-PV-Template_v1_6.pptx`
 
+> **⚠️ ARCHIVIERT 2026-06-01 nach §7.10-Architektur-Pivot.**
+> Diese Mapping-Doc war für die PPTX-Template-Pipeline; aktuelle Renderer-Architektur siehe `SPEC.md` §4.8 (React-Slide-Renderer + Playwright-PDF + HMAC-gated Online-Ansicht). Konsolidierter Pivot-Entry siehe `DECISIONS.md` 2026-06-01.
+> Inhalt unten ist historisch — als Referenz für die R2-Defekt-Mitigationen und das ursprüngliche Slide-Mapping-Vertragsmodell.
+
+---
+
 > **✅ SIGNED OFF 2026-05-26 — see DECISIONS.md "Slice 3a sign-off + Slice 3b design".**
 > The six previously-flagged disambiguation items have been resolved
 > by the user; the resolved entries are inlined below in the relevant
