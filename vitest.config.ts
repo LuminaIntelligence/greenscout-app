@@ -243,23 +243,10 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
-        // Defekte D1+D2+D3 hotfix — 100% on the phrase helpers
-        // extracted out of generate-document.ts to satisfy Next.js 15's
-        // "use server" constraint (every export of a Server Action
-        // module must be async — sync helpers fail `next build`). The
-        // helpers (buildFlurstueckPhrase, buildFlurstueckLabelPhrase,
-        // buildTerminPhrase, buildTerminOderPhrase, buildModulInfoPhrase
-        // + private formatGermanDateTime / formatNumberDe) are
-        // exhaustively covered (null / undefined / empty / whitespace /
-        // set, German thousands sep, rounding, both termin slots, etc.)
-        // by the phrase-helper describe blocks in
-        // generate-document.test.ts.
-        "src/features/studies/actions/generate-document-phrases.ts": {
-          lines: 100,
-          branches: 100,
-          functions: 100,
-          statements: 100,
-        },
+        // §7.10-Pivot PR 3 — `generate-document-phrases.ts` entfernt.
+        // Phrase-Logik lebt jetzt in den React-Slides (`format.ts`),
+        // d. h. die D1+D2+D3-Phrase-Schwelle ist redundant geworden.
+        // Siehe DECISIONS 2026-06-01 PR 3.
         // T-035 — 100% on the Python service client. Trust-boundary
         // class: outbound HTTP with shared-secret auth + camel/snake
         // translation. Every branch (env-resolve happy/missing-URL/
