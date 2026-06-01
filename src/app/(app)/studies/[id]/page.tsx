@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { canAccessStudy } from "@/features/auth/utils/can-access-study";
 import { GenerateDocumentButton } from "@/features/studies/components/generate-document-button";
 import { HandoverDialog } from "@/features/studies/components/handover-dialog";
+import { ShareLinkDialog } from "@/features/studies/components/share-link-dialog";
 import { StudyDeleteDialog } from "@/features/studies/components/study-delete-dialog";
 import { StudyDocumentList } from "@/features/studies/components/study-document-list";
 import { t, type TranslationKey } from "@/i18n/de";
@@ -122,7 +123,10 @@ export default async function StudyDetailPage({ params }: PageProps) {
               {t("studies.document.section-subtitle")}
             </p>
           </div>
-          <GenerateDocumentButton studyId={study.id} disabled={study.status === "DRAFT"} />
+          <div className="flex flex-wrap items-center gap-3">
+            <ShareLinkDialog studyId={study.id} />
+            <GenerateDocumentButton studyId={study.id} disabled={study.status === "DRAFT"} />
+          </div>
         </div>
         <StudyDocumentList studyId={study.id} />
       </section>
