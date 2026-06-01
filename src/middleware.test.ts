@@ -169,6 +169,20 @@ describe("middleware routing", () => {
     expectAllHeaders(response);
   });
 
+  it("returns pass-through for /internal/render-study/<id> (§7.10-Pivot PR 3 internal Playwright route)", async () => {
+    // The Playwright-driven Chromium has no session cookie. Auth comes
+    // from the `x-internal-render-token` header check inside the page
+    // handler — not from the session. Therefore the middleware must
+    // whitelist the path and pass through unmodified, even when
+    // `request.auth` is null.
+    const response = (await middleware(
+      buildRequest("/internal/render-study/stu_123", null),
+      {} as never,
+    )) as NextResponse;
+    expect(response.status).toBe(200);
+    expectAllHeaders(response);
+  });
+
   it("redirects to /login when an unauthenticated user hits a protected route", async () => {
     const response = (await middleware(buildRequest("/", null), {} as never)) as NextResponse;
     expect(response.status).toBe(307);
