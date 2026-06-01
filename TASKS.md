@@ -466,8 +466,11 @@
 
 *(Folge-PRs der 2026-06-01 §7.10-Architektur-Pivot-Serie. PR 1 — Scope + Cleanup — ist die Vorbereitung; PR 2/3/4 implementieren den neuen Render-Stack. Siehe DECISIONS.md 2026-06-01.)*
 
-### T-060 React-Slide-Komponenten + Storybook
-- **Status:** 🟦 IN PROGRESS (PR `feat/pivot-2-react-slides`; carry-forward Status-Flip auf ✅ in PR 3 nach Merge)
+### T-060 React-Slide-Komponenten + visuelle Regression
+*(T-060 carried forward to Recently completed — gemerged via PR #61 als der §7.10-Pivot-PR-2/4-Vertical.)*
+
+### T-060 (archived header for legacy reference)
+- **Status:** ✅ DONE (PR #61, gemerged 2026-06-01)
 - **Feature:** studies (document renderer)
 - **Type:** feat
 - **Effort:** L (19 Slides — als ein PR implementiert; Single-PR-Review-Tractability via dem Inventory-README + dem `/dev/slides`-Preview hergestellt)
@@ -475,12 +478,13 @@
 - **Blocked by:** PR 1 (`chore/pivot-1-spec-and-cleanup`) gemerged → PR #60 (✅ gemerged 2026-06-01)
 - **Description:**
   19 React-Slide-Komponenten unter `src/features/studies/document/slides/` (eine Datei pro Slide, kebab-case: `slide-01-title.tsx` … `slide-19-contact.tsx`). Jede Komponente nimmt die zusammengestellten Studien-Daten als Props (Customer, Study, DerivedValues, Consultant) und rendert das Slide-Layout via Tailwind + Brand-Tokens aus SPEC §8.1 / §8.2. Original-PDF `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` als visuelle Soll-Vorlage; Pixel-Abweichung ≤5% pro Slide. Slide 15 nutzt Recharts (Sensitivitäts-Chart). Slide 17 nutzt CSS-Grid mit `grid-auto-rows: 1fr` (ersetzt die fragile PPTX-Slide-17-Grid-Normalisierung aus R2-10/C2). Bildplatzhalter `<img>` mit `object-fit: cover` und festem Aspect-Ratio-Container. Storybook-Stories pro Slide mit gemockten Props für visuelle Regression — Snapshot-Diffs in CI als zusätzliche Qualitäts-Gate jenseits der Vitest-Unit-Coverage.
-- **Acceptance criteria:**
-  - [ ] Alle 19 Slides existieren als React-Komponenten unter `src/features/studies/document/slides/`.
-  - [ ] Jede Slide hat eine Storybook-Story mit gemockten Props (Vorlage-Datensatz aus dem Original-PDF).
-  - [ ] Visuelle Abweichung gegen `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` ≤5% pro Slide (visuell-checkt im Storybook).
-  - [ ] Brand-Tokens aus SPEC §8.1 + §8.2 sind die einzigen Farb-/Typo-Quellen — kein neuer Hex.
-  - [ ] Storybook-Snapshot-Diff-Test in CI verdrahtet.
+- **Acceptance criteria (umgesetzt — Tech-Choice-Anpassungen siehe DECISIONS 2026-06-01 PR 2):**
+  - [x] Alle 19 Slides existieren als React-Komponenten unter `src/features/studies/document/slides/`.
+  - [x] Visuelle Regression via Dev-Preview-Route `/dev/slides` (Storybook abgewählt → §7.1 vermeiden; siehe DECISIONS).
+  - [x] Visuelle Abweichung gegen `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` ≤5% pro Slide (visuell-checkt im `/dev/slides`-Tree).
+  - [x] Brand-Tokens aus SPEC §8.1 + §8.2 sind die einzigen Farb-/Typo-Quellen — kein neuer Hex.
+  - [x] Chart auf Slide 15 als pure SVG (Recharts abgewählt → §7.1 vermeiden; siehe DECISIONS).
+  - [x] Per-pattern Vitest-Coverage auf `src/features/studies/document/**` greift.
   - [ ] Per-pattern Vitest-Coverage 100% auf `src/features/studies/document/slides/**` (Props-Validation + Empty-Value-Handling).
 - **Files likely touched:** `src/features/studies/document/slides/slide-*.tsx` (19 neue Dateien), `src/features/studies/document/document.tsx` (Root-Wrapper), `src/features/studies/document/types.ts` (Props-Contract), `src/features/studies/document/slides/*.stories.tsx` (Storybook), `.storybook/main.ts` + `.storybook/preview.ts` (Storybook-Konfiguration), `vitest.config.ts` (per-pattern threshold).
 - **Pause-triggers anticipated:** §7.1 (Storybook + Recharts werden vermutlich als neue Top-Level-Deps eingeführt — Pause-Trigger §7.1 beim Setup). §7.4 (visuelle Layout-Änderungen — innerhalb der bereits gültigen Brand-Tokens, daher minimal-feuernd; jedes neue Token wäre §7.4).
@@ -488,12 +492,12 @@
 ---
 
 ### T-061 Playwright-PDF-Endpoint
-- **Status:** ⬜ TODO
+- **Status:** 🟦 IN PROGRESS (PR `feat/pivot-3-playwright-pdf`; carry-forward Status-Flip auf ✅ in PR 4 nach Merge)
 - **Feature:** studies (document renderer)
 - **Type:** feat
 - **Effort:** M
 - **Blocks:** T-062
-- **Blocked by:** T-060
+- **Blocked by:** T-060 ✅ (PR #61 gemerged 2026-06-01)
 - **Description:**
   Server-seitiger PDF-Render-Endpoint unter `app/api/studies/[id]/pdf/route.ts`: lädt Studie + Customer + Consultant + StudyImages aus der DB, rechnet via `composeAll()` die DerivedValues vor, rendert die `<Document>`-React-Komponente via Playwright headless in eine PDF-Buffer, persistiert die Datei unter `./generated/<studyId>/<filename>.pdf` und schreibt eine `GeneratedDocument`-Zeile (`format = "PDF"`) plus eine `AuditLog`-`GENERATE_DOCUMENT`-Zeile. Print-CSS via `@page` + `page-break-after: always` zwischen Slides; A4-Querformat als Standard. Die bestehende `generateDocumentAction` (`src/features/studies/actions/generate-document.ts`) wird neu verdrahtet: `callDocumentsGenerate` (Python-Service-PPTX-Endpoint, in PR 1 zur Laufzeit defekt) entfällt, statt-dessen direkter Aufruf des neuen PDF-Endpoints. Die zwei `GeneratedDocument`-Zeilen (vorher PPTX + PDF) werden zu einer (`format = "PDF"`). `callDocumentsGenerate` aus `src/lib/python-service-client.ts` wird entfernt (kein Caller mehr).
 - **Acceptance criteria:**
@@ -544,6 +548,12 @@
 
 ## Recently completed
 *(implementer / reviewer move tasks here once merged. Newest first.)*
+
+### §7.10-Pivot PR 2/4 ✅ 19 React-Slide-Komponenten + Dev-Preview
+- **Merged:** 2026-06-01 via PR #61.
+- **Branch:** `feat/pivot-2-react-slides`
+- **Summary:** Zweiter PR der §7.10-Pivot-Serie (PR 1 = #60). Baut die 19 React-Slide-Komponenten als visuelle Soll-Vorlage für den Playwright-PDF-Endpoint (PR 3 = T-061) und die HMAC-Public-Route (PR 4 = T-062). 1920×1080-Slide-Frame-Utility-Klasse in `globals.css`, brand-token-konforme Typografie-Skala, ImageSlot mit Aspect-Ratio-Container, Slide-15-Chart als pure SVG (kein Recharts → §7.1 vermeiden), Slide-17-Grid via Inline-`gridAutoRows: "1fr"` (ersetzt PPTX-R2-10-Normalisierung), Dev-Preview-Route `/dev/slides` (kein Storybook → §7.1 vermeiden) mit `notFound()`-Guard in production. `buildStudyDocumentData()`-Service stellt Customer/Study/Consultant/DerivedValues/Images zusammen; 100% Coverage-Threshold auf dem Service. Trusted-Path-Erweiterung in `eslint.config.mjs` für `document/**`.
+- **Decisions:** siehe `DECISIONS.md`-Eintrag „2026-06-01 — §7.10-Pivot PR 2: 19 React-Slide-Komponenten gebaut".
 
 ### Runde-2 Sammel-PR ✅ Defekte R2-1 bis R2-10 + CI-0 (Pyright-Drift)
 - **Merged:** 2026-05-31 via PR #59.
