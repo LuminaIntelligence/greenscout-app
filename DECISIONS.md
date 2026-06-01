@@ -3965,3 +3965,35 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 **Open question for the user:** Default-Expiry 30 Tage — wenn anders gewünscht, leicht änderbar via `DEFAULT_SHARE_TOKEN_TTL_DAYS`. Confirmation-UI „Möchten Sie wirklich einen öffentlichen Link erzeugen?" nicht eingebaut — KISS — Berater weiß was er tut. Wenn gewünscht, kleine Folge-Iteration. Granulare per-Link-Revocation (statt Revocation-by-Rotation) ebenfalls Folge-Iteration.
 
 **§7.10-Pivot komplett abgeschlossen.** PRs #60, #61, #62, #63 schließen die Architektur-Migration ab.
+
+---
+
+## 2026-06-01 — Hotfix Pivot-Deploy: argon2 glibc-Switch + deploy.sh env-file-Konsistenz
+
+**Context:** Erstes Production-Deploy der §7.10-Pivot-Serie (PRs #60–#63) auf dem VPS hat zwei Bugs aufgedeckt:
+
+1. **`@node-rs/argon2` lädt nicht auf der Production-VPS** — `Dockerfile.web` baut deps + builder auf `node:24-alpine` (musl libc), Runner ist aber `mcr.microsoft.com/playwright:v1.60.0-jammy` (Ubuntu 22.04, glibc). Die NAPI-Native-Bindings von `@node-rs/argon2` werden als platform-spezifische optional-deps installiert (npm picked die musl-Binding auf Alpine), die musl-`.node`-Datei wird via Next.js standalone-Trace in den Runner kopiert, dort aber von glibc nicht geladen → `Error: Failed to load native binding`. Web-Container loop-crasht beim Boot, Auth.js-Login + Server-Actions die `hashPassword` aus `src/features/auth/utils/hash-password.ts` importieren komplett kaputt.
+
+2. **`deploy.sh` Health-Check-Loop schlägt false-positive fehl** — der initiale `docker compose ... up -d` (Zeile 201) hatte `--env-file "$ENV_FILE"`, aber die nachfolgenden `exec`/`logs`-Aufrufe in der Health-Check-Schleife (Zeile 205) sowie der Prisma-`migrate deploy`-Aufruf (Zeile 229) NICHT. Auf neueren `docker-compose-plugin`-Versionen ist `--env-file` strict erforderlich, sobald die Compose-File-Vars interpoliert werden — sonst wirft Compose `error while interpolating services.db.environment.POSTGRES_PASSWORD: required variable POSTGRES_PASSWORD is missing a value` beim File-Parse. Das ließ den Health-Check-`until`-Loop sofort fail-fast werden, und das Skript meldete dem User "Timeout: web-Container nicht erreichbar" — obwohl der Container zu dem Zeitpunkt sehr wohl noch up war (aber unhealthy wegen Bug 1).
+
+**Decision (1):** Builder-Stages (`deps` + `builder`) in `Dockerfile.web` von `node:24-alpine` auf `node:24-bookworm-slim` umgestellt. Bookworm bringt glibc und matched der Jammy-Glibc-ABI des Playwright-Runners — `npm ci` installiert in `deps` jetzt `@node-rs/argon2-linux-x64-gnu` (statt `-musl`), die `.node`-Datei landet via NFT-Standalone-Trace im Runner und lädt dort sauber. Image-Size deps + builder ~150 MB statt ~110 MB; finales Runner-Image unverändert ~1.4 GB. Build-Zeit-Impact minimal. Verworfene Optionen: (B) im Runner-Stage `npm install @node-rs/argon2` neu — bricht das Slim-Runner-Pattern, weil npm + lockfile mitkommen müssten; (C) `bundleDependencies` für beide Bindings forcen — nicht idiomatisch.
+
+**Decision (2):** Alle Compose-Calls in `deploy.sh` über ein zentrales Bash-Array `COMPOSE=(docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")` geleitet. Verwendung: `"${COMPOSE[@]}" build` / `… up -d` / `… exec -T web …` etc. Verhindert die Drift, die den Bug verursacht hat — wenn jemals ein neuer Compose-Call ergänzt wird, gibt es exakt einen kanonischen Weg, ihn zu schreiben. Initialisierung nach den Pre-flight-Checks (wo `$ENV_FILE` garantiert existiert).
+
+**Decision (3):** `docs/deploy-anleitung.md` Troubleshooting-Sektion ergänzt um expliziten Hinweis "Manuelle `docker compose`-Befehle auf dem Server immer `--env-file .env.production` mitgeben", + die bestehenden `pg_dump`- und Seed-Beispiele im Body um das `--env-file`-Flag korrigiert, damit sie out-of-the-box auf strict-Compose funktionieren.
+
+**Affected:**
+
+- `Dockerfile.web` — Stage `deps` + Stage `builder`: `node:24-alpine` → `node:24-bookworm-slim`; Header-Kommentare + Argon2-Block-Kommentar erklärt glibc/musl-Rationale.
+- `deploy.sh` — `COMPOSE`-Array eingeführt (Zeile ~158); alle 7 operativen Compose-Aufrufe (Schritt 2 build, Schritt 3 up + exec + 3× logs, Schritt 4 migrate deploy, Schritt 8 ps) auf `"${COMPOSE[@]}" …` umgeschrieben.
+- `docs/deploy-anleitung.md` — Troubleshooting-Bullet ergänzt, `pg_dump`- + Seed-Compose-Beispiele um `--env-file .env.production` ergänzt.
+- `DECISIONS.md` — dieser Eintrag.
+
+**Pause-Trigger-Check (§7):**
+
+- **§7.1** (neue Top-Level-Dependency) — `node:24-bookworm-slim` ist eine Base-Image-Variante derselben Node-24-Family wie `node:24-alpine`. Per `CLAUDE.md` §14.2 sind Docker-Base-Image-Varianten taste-level: "node:24-alpine vs node:24-slim vs node:24-bookworm — Pick the smallest viable that still has the libc / build tools needed". Hier ist bookworm das kleinste viable wegen Jammy-Runner-ABI-Kompatibilität. Keine Operator-Anfrage nötig.
+- **§7.3** (Auth/Security) — wir ändern **nichts** an der Auth-Logik. argon2-Hash-Algorithmus, -Parameter, Session-Handling, Lockout — alles unverändert. Wir reparieren ausschließlich, dass die Native-Binding-Datei mit der richtigen libc-ABI im Runner landet. Kein Auth-Code-Diff.
+- **§7.8** (Production-Deploy) — wir verändern Deploy-Skript + Dockerfile, aber der User führt das Deploy weiter manuell aus (CLAUDE.md §8.10). Konsistent.
+- **§7.10** (Architektur-Pivot) — bereits autorisiert vom 2026-06-01 (User-Master-Pivot).
+
+**Open question for the user:** Keine. Erster Deploy nach Merge sollte sauber durchlaufen. Schritte für User siehe PR-Body „Deploy-Anleitung für User nach Merge".
