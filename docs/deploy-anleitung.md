@@ -121,7 +121,7 @@ a) Trage zwei Zeilen in `.env.production` ein:
 
 b) Lade den Web-Container mit der neuen `.env` neu und führe den Seed aus:
 
-    docker compose -p greenscout -f docker-compose.prod.yml up -d web
+    docker compose -p greenscout -f docker-compose.prod.yml --env-file .env.production up -d web
     docker exec greenscout-web node prisma/seed.cjs
 
 c) Login auf https://greenscout.lumina-intelligence.ai/login mit diesen Daten.
@@ -146,8 +146,9 @@ TLS-Cert) werden übersprungen.
 ## Empfehlungen für später
 
 - **DB-Backup vor jedem Update.** Z. B. mit:
-  `docker compose -p greenscout -f docker-compose.prod.yml exec -T db pg_dump -U greenscout greenscout > backup-$(date +%F).sql`
-  Anschließend per `scp` vom Server runterziehen.
+  `docker compose -p greenscout -f docker-compose.prod.yml --env-file .env.production exec -T db pg_dump -U greenscout greenscout > backup-$(date +%F).sql`
+  Anschließend per `scp` vom Server runterziehen. Das `--env-file`-Flag ist
+  auf neueren docker-compose-v2-Versionen strict erforderlich — siehe Troubleshooting unten.
 - **Automatische Cert-Erneuerung.** certbot legt einen systemd-Timer an
   (`systemctl status certbot.timer`). Erneuerung läuft im Hintergrund.
 - **Monitoring.** Z. B. uptimerobot.com gegen die Domain — dann bekommst du
@@ -162,8 +163,16 @@ TLS-Cert) werden übersprungen.
   ist falsch. Vergleiche mit der Vorlage aus dem Skript.
 - certbot scheitert → meistens DNS noch nicht propagiert. Warte 10 Minuten,
   führe `bash deploy.sh` nochmal aus.
-- Container starten nicht → `docker compose -p greenscout logs --tail=100 web`
+- Container starten nicht → `docker compose -p greenscout -f docker-compose.prod.yml --env-file .env.production logs --tail=100 web`
   (bzw. `pyservice` / `db`) zeigt die Fehler.
+- **Manuelle `docker compose`-Befehle auf dem Server:** Immer
+  `--env-file .env.production` (zusätzlich zu `-f docker-compose.prod.yml`)
+  mitgeben. Neuere `docker-compose-plugin`-Versionen sind strict beim
+  Compose-File-Parsing und werfen sonst sofort
+  `error while interpolating services.db.environment.POSTGRES_PASSWORD: required variable POSTGRES_PASSWORD is missing a value` —
+  obwohl die Container ggf. längst laufen. Das gilt für `exec`, `logs`, `ps`,
+  `pg_dump`-Beispiele weiter oben in dieser Anleitung etc. `deploy.sh` selbst
+  ist davon nicht betroffen (zentrales `${COMPOSE[@]}`-Array).
 - **Alte VPS-Installationen mit hardcoded WebSocket-Headern in der nginx-Site**
   (vor diesem Fix angelegt) sollten den Header-Block einmalig entfernen — der
   hardcoded `Connection: upgrade` ist ein Anti-Pattern und kann multipart-Uploads
