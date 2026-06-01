@@ -3749,3 +3749,53 @@ stromkosten_mit_pv_eur_jahr = (verbrauch − pv_eigenverbrauch) × versorger_pre
 **Pause-Trigger-Check (§7):** keine. Reine PPTX-Render-Korrekturen + Test-Hardening + CI-Stabilität. Keine neuen Deps (pyright war bereits da, nur pin enger), kein Schema-Change, keine Auth-/Security-Logik, keine Money-Formeln (R2-9 ist Test-Härtung der bereits in PR #57 user-confirmed-gefixten Formel). §7.4 (UI/UX) feuert NICHT — PPTX-Output ist nicht "UI" im SPEC §8-Sinn, und alle Edits sind innerhalb der bereits gültigen Template-Layout-Konventionen.
 
 **Open question for the user:** PR #58 (R2-1 standalone) ist durch diesen Sammel-PR funktional obsolet (Cherry-pick der 4 Commits enthalten). User kann PR #58 nach Merge dieses PRs schließen.
+
+---
+
+## 2026-06-01 — §7.10-Architektur-Pivot: PPTX → React-Slides + Playwright-PDF (vom User autorisiert)
+
+**Context:** PPTX-Template-Pipeline hat über die Runde-1 und Runde-2 Reviews ~15 visuelle Defekte produziert (siehe PRs #45 bis #59), die alle auf python-pptx-Idiosynkrasien zurückgeführt werden konnten — Marker-Color-Inheritance, Auto-Fit-Edge-Cases, Image-Sizing-Inkonsistenzen, Empty-Value-Phrasen. Cumulative Effort: 13 PRs (#45 bis #59) plus zwei Defekt-Review-Runden. User-Entscheid: Architektur-Pivot zu React-Komponenten + Playwright-PDF-Rendering — visuelle Kontrolle auf Browser-Engine-Niveau, plus eine Online-Ansicht für Kunden als Bonus (Vorab-Light vor dem Phase-3-Portal aus SPEC §2.3).
+
+**Decision (Architecture):**
+- PPTX-Generierung im pyservice ersatzlos gestrichen.
+- 19 React-Slide-Komponenten als neue Architektur unter `src/features/studies/document/slides/`.
+- Playwright (bereits in devDeps) für PDF-Rendering serverseitig.
+- HMAC-gated Public-Route für Kunden-Online-Ansicht.
+- Calc-Endpoint + Image-Processor-Endpoint im pyservice bleiben unverändert.
+
+**Affected (PR 1 — Scope + Cleanup):**
+- `SPEC.md` §1 Vision (PPTX+PDF → PDF + Online-Ansicht), §2.1 Punkt 5 (Document-Generation-Outcome), §4.8 vollständig ersetzt durch React-Slide-Renderer-Architektur, §7.1 Component-Overview-Diagramm, §7.2 Why-separate-Python-service (Begründung umgepolt auf Pillow + Calc-Authority), §7.4 Module-Layout (Pyservice ohne pptx_generator/pdf_renderer/templates).
+- `docs/pptx-mapping.md` → `docs/archive/pptx-mapping.md` (verschoben mit Header-Notiz).
+- `services/python/app/services/pptx_generator.py` entfernt.
+- `services/python/app/services/pdf_renderer.py` entfernt (war Sub-Module von pptx_generator → LibreOffice-Subprocess-Wrapper, ohne PPTX-Endpoint dead-code).
+- `services/python/tests/test_pptx_generator.py` entfernt.
+- `services/python/tests/test_pdf_renderer.py` entfernt.
+- `services/python/app/api/endpoints/documents.py` `/documents/generate`-Endpoint entfernt (ganze Datei, da nur dieser eine Endpoint enthielt).
+- `services/python/app/schemas/documents.py` entfernt (war nur vom entfernten Endpoint genutzt).
+- `services/python/tests/test_api_documents.py` entfernt.
+- `services/python/app/main.py` — documents_router-Import + include_router-Aufruf entfernt + Docstring auf neue Service-Verantwortlichkeit umgeschrieben.
+- `services/python/requirements.txt` — `python-pptx` entfernt (Pillow bleibt für Image-Pipeline).
+- `services/python/Dockerfile` — LibreOffice + Fonts-DejaVu/Liberation apt-install entfernt + Docstrings auf neue Service-Identität umgeschrieben.
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` entfernt; das Original-PDF `docs/reference/Machbarkeitsstudie-PV-Template_v1_6.pdf` bleibt als visuelle Soll-Vorlage.
+- `scripts/apply-pptx-placeholders.py`, `scripts/inspect-pptx.py`, `scripts/remove-slide4-image-shape.py`, `scripts/normalize-slide17-grid.py`, `scripts/normalize-slide1-slide16-fit-to-shape.py`, `scripts/normalize-empty-value-phrases.py`, `scripts/remove-marker-frames.py`, `scripts/normalize-slide-r2-template-edits.py` entfernt — alle waren PPTX-Template-Editier-Helper.
+- `docs/python-service.md` + `docs/docker.md` — Pivot-Hinweise zur entfernten PPTX/LibreOffice-Pipeline eingefügt.
+- `DECISIONS.md` — dieser Eintrag.
+- `TASKS.md` — neue Pivot-Tasks T-060/T-061/T-062 für PR 2/3/4 angelegt; Recently-completed-Carry-forward für PR #58 (closed, obsolet) + PR #59 (R2-Sammel-Merge) nachgezogen.
+
+**Was bewusst NICHT angefasst wird in PR 1:**
+- `src/features/studies/actions/generate-document.ts` — der Aufruf an `callDocumentsGenerate` bleibt zwischenzeitlich existieren. Der Aufruf wird zur Laufzeit fail (Endpoint ist weg), aber Build/Typecheck/Lint bleiben grün. PR 3 ersetzt die Action durch den neuen Playwright-PDF-Endpoint.
+- `src/lib/python-service-client.ts` `callDocumentsGenerate` — Status-Quo-Stub bleibt erhalten; PR 3 räumt ab.
+- `src/features/studies/actions/generate-document-phrases.ts` — bleibt. PR 2 entscheidet ob Phrase-Helper in React-Slides nochmal verwendet werden (vermutlich ja, in angepasster Form).
+- Calc-Endpoint (`/api/calc`) + Image-Processor (`/api/images/process`) + alle ihre Tests bleiben unverändert.
+- Brand-Tokens SPEC §8.1 + §8.2 bleiben unangetastet — sind ohnehin Soll für die React-Slides.
+
+**Pause-Trigger §7.10 — vom User explizit autorisiert** in der Nachricht vom 2026-06-01. Inkludiert: §7.5 (Breaking API change: `/documents/generate`-Endpoint entfernt; PR 1 lässt den Client-Side-Aufruf zwischenzeitlich existieren, PR 3 ersetzt ihn durch den neuen Playwright-PDF-Endpoint). §7.4 (visuelle Layout-Änderung durch neue Renderer-Pipeline; aber Brand-Tokens aus SPEC §8.1+§8.2 bleiben Soll).
+
+**Zwischenzeitliche Funktionalität:** Studie-Generation funktioniert zwischen PR 1 (entfernt Server-Side) und PR 3 (schafft Ersatz) zwischenzeitlich nicht. Build + Tests + CI bleiben grün; nur der `Dokument generieren`-Button im Frontend wird einen Pyservice-Network-Error werfen, bis PR 3 landet. PR 2 (React-Slide-Komponenten + Storybook) ist visuell parallel entwickelbar.
+
+**Open question for the user:** Bestehende `GeneratedDocument`-Einträge mit `format = "PPTX"` in der Production-DB bleiben für historische Datenintegrität bestehen — `format = "PPTX"` wird im `DocFormat`-Enum behalten, aber neue Dokument-Generation produziert ab PR 3 nur noch `format = "PDF"`. (Wenn der User es anders haben will, bitte sagen.)
+
+**Folge-PRs (geplant in dieser Serie):**
+- **PR 2** — React-Slide-Komponenten + Storybook (alle 19 Slides nahe am Original-PDF, ≤5% Abweichung).
+- **PR 3** — Playwright-PDF-Endpoint (`app/api/studies/[id]/pdf/route.ts`) + Print-CSS + neue Server-Action-Wiring (ersetzt den alten `callDocumentsGenerate`-Aufruf).
+- **PR 4** — Kunden-Online-Ansicht mit HMAC-Token-Gate unter `app/(public)/studie/[id]/route.tsx`.
