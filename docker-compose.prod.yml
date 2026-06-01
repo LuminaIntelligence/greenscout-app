@@ -84,12 +84,20 @@ services:
       PYTHON_SERVICE_URL: http://pyservice:8000
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
+      GENERATED_DIR: /app/generated
     ports:
       # Nur auf 127.0.0.1 binden — nginx auf dem Host proxied von außen.
       - "127.0.0.1:4000:3000"
     volumes:
       - greenscout-uploads:/app/uploads
       - greenscout-generated:/app/generated
+    # §7.10-Pivot PR 3: tmpfs auf /dev/shm. Docker-Default-/dev/shm ist 64 MB,
+    # Chromium braucht für den PDF-Render mehr — sonst SIGSEGV oder OOM beim
+    # `page.pdf()`-Call. 256 MB tmpfs ist konservativ und reicht für 19
+    # Slides bei 1920×1080. `--disable-dev-shm-usage` setzen wir trotzdem im
+    # Code (Belt-and-Suspenders, siehe render-pdf.ts).
+    tmpfs:
+      - /dev/shm:size=256m
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
       interval: 10s
