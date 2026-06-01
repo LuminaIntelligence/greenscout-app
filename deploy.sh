@@ -78,6 +78,7 @@ if [ ! -f "$ENV_FILE" ]; then
     err "  - APP_URL                   Öffentliche App-Adresse (https://greenscout.lumina-intelligence.ai)"
     err "  - PYTHON_SERVICE_API_KEY    Shared-Secret zwischen web- und pyservice-Container, openssl rand -base64 32"
     err "  - INTERNAL_RENDER_TOKEN     Shared-Secret für Playwright→/internal/render-study, openssl rand -base64 32"
+    err "  - STUDY_SHARE_HMAC_SECRET   HMAC-Secret für die Kunden-Online-Ansicht (PR 4), openssl rand -base64 32"
     err "  - CERTBOT_EMAIL             (optional, nur beim ersten Cert-Lauf) — Let's-Encrypt-Mail"
     err ""
     err "Kopiere .env.production.example nach .env.production und trage die Werte ein."
@@ -97,6 +98,7 @@ REQUIRED_VARS=(
     "APP_URL"
     "PYTHON_SERVICE_API_KEY"
     "INTERNAL_RENDER_TOKEN"
+    "STUDY_SHARE_HMAC_SECRET"
 )
 missing=()
 for var in "${REQUIRED_VARS[@]}"; do

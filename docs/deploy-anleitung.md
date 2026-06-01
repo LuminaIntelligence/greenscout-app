@@ -74,6 +74,7 @@ In `nano` musst du jeden `REPLACE_ME`-Platzhalter ersetzen:
 | `APP_URL` | bleibt `https://greenscout.lumina-intelligence.ai` |
 | `PYTHON_SERVICE_API_KEY` | `openssl rand -base64 32` — Shared-Secret zwischen web- und pyservice-Container; ohne den schlagen Bild-Uploads fehl |
 | `INTERNAL_RENDER_TOKEN` | `openssl rand -base64 32` — Shared-Secret zwischen dem Playwright-Render-Wrapper und der internen Render-Route. Ohne diesen Token schlägt jede PDF-Generation fehl. Pattern analog `PYTHON_SERVICE_API_KEY`; KEIN User-Auth-Flow. |
+| `STUDY_SHARE_HMAC_SECRET` | `openssl rand -base64 32` — HMAC-Secret für die Kunden-Online-Ansicht (§7.10-Pivot PR 4). Signiert die per Berater-UI erzeugten Share-Links unter `/studie/[id]?t=<token>`. Default-Gültigkeit pro Link: 30 Tage. Rotation des Secrets invalidiert ALLE ausgestellten Share-Links (Revocation-by-Rotation). |
 | `CERTBOT_EMAIL` | deine echte Email — Let's Encrypt schickt dahin Ablauf-Warnungen |
 
 In `nano` speichern: `Strg+O`, Enter, `Strg+X`.
