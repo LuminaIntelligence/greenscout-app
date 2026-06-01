@@ -377,6 +377,20 @@ export default defineConfig({
           functions: 100,
           statements: 100,
         },
+        // §7.10-Pivot PR 4 — 100% on the HMAC share-token service. Trust-
+        // boundary class: every „token verifiziert" entscheidet, ob ein
+        // public-Route-Request Kundendaten ausliefert. Every branch
+        // (roundtrip happy, tampered payload/signature, expired,
+        // malformed formats incl. broken JSON / missing fields / wrong
+        // types / null / non-string, missing env secret, length-
+        // mismatch shortcut on timingSafeEqual, expiryFromDays) is
+        // covered by share-token.test.ts.
+        "src/features/studies/document/services/share-token.ts": {
+          lines: 100,
+          branches: 100,
+          functions: 100,
+          statements: 100,
+        },
         // §7.10-Pivot PR 2 — 80% per-pattern on the document feature
         // module overall. The 19 slide components + the SlideFrame +
         // ImageSlot + the German number formatters all live here; the
