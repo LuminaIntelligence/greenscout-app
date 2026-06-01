@@ -72,7 +72,8 @@ In `nano` musst du jeden `REPLACE_ME`-Platzhalter ersetzen:
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `SETTINGS_ENCRYPTION_KEY` | `openssl rand -base64 32` |
 | `APP_URL` | bleibt `https://greenscout.lumina-intelligence.ai` |
-| `PYTHON_SERVICE_API_KEY` | `openssl rand -base64 32` — Shared-Secret zwischen web- und pyservice-Container; ohne den schlagen Bild-Uploads und Dokument-Generierung fehl |
+| `PYTHON_SERVICE_API_KEY` | `openssl rand -base64 32` — Shared-Secret zwischen web- und pyservice-Container; ohne den schlagen Bild-Uploads fehl |
+| `INTERNAL_RENDER_TOKEN` | `openssl rand -base64 32` — Shared-Secret zwischen dem Playwright-Render-Wrapper und der internen Render-Route. Ohne diesen Token schlägt jede PDF-Generation fehl. Pattern analog `PYTHON_SERVICE_API_KEY`; KEIN User-Auth-Flow. |
 | `CERTBOT_EMAIL` | deine echte Email — Let's Encrypt schickt dahin Ablauf-Warnungen |
 
 In `nano` speichern: `Strg+O`, Enter, `Strg+X`.
@@ -91,7 +92,10 @@ Das Skript macht der Reihe nach:
 1. Prüft Root-Rechte, Linux, alle Voraussetzungs-Tools.
 2. Legt eine 4-GB-Swap-Datei an (falls noch keine da ist) — verhindert,
    dass der Docker-Build den RAM überlaufen lässt.
-3. Baut die Docker-Images (`web`, `pyservice`, `db`). Beim ersten Mal **5-15 Minuten**.
+3. Baut die Docker-Images (`web`, `pyservice`, `db`). Beim ersten Mal **10-25 Minuten** —
+   das Web-Image basiert seit dem §7.10-Pivot (Playwright-PDF-Renderer)
+   auf `mcr.microsoft.com/playwright:vX.Y-jammy` und ist ~1.4 GB groß
+   (vorher ~280 MB mit node-alpine). Mehr Disk + längerer initialer Pull.
 4. Startet die Container. Web ist intern an `127.0.0.1:4000` gebunden.
 5. Wendet alle Datenbank-Migrationen an.
 6. Legt eine nginx-Konfiguration unter `/etc/nginx/sites-available/greenscout` an
