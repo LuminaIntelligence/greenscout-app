@@ -10,6 +10,15 @@
           "top_emu": 3677524,
           "width_emu": 10538460,
           "height_emu": 461665,
+          "is_group": false,
+          "joined_text": "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -29,6 +38,15 @@
           "top_emu": 4777829,
           "width_emu": 11422380,
           "height_emu": 1323439,
+          "is_group": false,
+          "joined_text": "Ihr Ergebnis",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ihr Ergebnis",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -48,6 +66,15 @@
           "top_emu": 7356815,
           "width_emu": 7909560,
           "height_emu": 430887,
+          "is_group": false,
+          "joined_text": "Eingereicht über {{consultant_full_name}} / direkt vom Unternehmen ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Eingereicht über {{consultant_full_name}} / direkt vom Unternehmen ",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -90,6 +117,15 @@
           "top_emu": 2441811,
           "width_emu": 8083509,
           "height_emu": 640913,
+          "is_group": false,
+          "joined_text": "Herzlichen Glückwunsch Ihre Fläche ist umsetzbar!",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Herzlichen Glückwunsch Ihre Fläche ist umsetzbar!",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -109,6 +145,15 @@
           "top_emu": 3618979,
           "width_emu": 7909560,
           "height_emu": 430887,
+          "is_group": false,
+          "joined_text": "{{customer_object_address}} {{flurstueck_phrase}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{customer_object_address}} {{flurstueck_phrase}}",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -137,6 +182,30 @@
           "top_emu": 4676734,
           "width_emu": 8145780,
           "height_emu": 1812035,
+          "is_group": false,
+          "joined_text": "Unsere Auswertung hat ergeben, dass wir nach Abstimmung mit Ihnen, \nin die  Phase II übergehen können. \n\nEntnehmen Sie die genaueren Erklärungen den folgenden Seiten!",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Unsere Auswertung hat ergeben, dass wir nach Abstimmung mit Ihnen, ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "in die  Phase II übergehen können. ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Entnehmen Sie die genaueren Erklärungen den folgenden Seiten!",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -174,6 +243,15 @@
           "top_emu": 1494002,
           "width_emu": 6043270,
           "height_emu": 307777,
+          "is_group": false,
+          "joined_text": "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -198,6 +276,15 @@
           "top_emu": 1066472,
           "width_emu": 13042821,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Für ihr Unternehmen hat sich die Beauftragung unserer Auswertung gelohnt. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Für ihr Unternehmen hat sich die Beauftragung unserer Auswertung gelohnt. ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -217,6 +304,35 @@
           "top_emu": 2061329,
           "width_emu": 13042821,
           "height_emu": 635079,
+          "is_group": false,
+          "joined_text": "In der Prüfung haben wir die grundsätzliche Eignung Ihrer Fläche und deren potenzielle Weiterentwicklung dieser zu einem handelbaren Projektrecht beleuchtet. \n\nFür die Liegenschaft: {{customer_object_address_with_flurstueck}} . \nÖffnen sich drei zentrale Vorteile: \n",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "In der Prüfung haben wir die grundsätzliche Eignung Ihrer Fläche und deren potenzielle Weiterentwicklung dieser zu einem handelbaren Projektrecht beleuchtet. ",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "Für die Liegenschaft: {{customer_object_address_with_flurstueck}} . ",
+              "run_count": 5
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Öffnen sich drei zentrale Vorteile: ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "",
+              "run_count": 0
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -299,6 +415,55 @@
           "top_emu": 3990083,
           "width_emu": 13042821,
           "height_emu": 952619,
+          "is_group": false,
+          "joined_text": "Erstens: \nIhre Fläche kann für ihr Unternehmen einmalige Pachteinnahmen, von bis zu {{pacht_einnahme_einmalig_eur}} € erwirtschaften.\n\nZweitens: \nGrundsätzlich besteht die Möglichkeit, über einen Stromliefervertrag Ihr Unternehmen mit Strom aus der auf Ihrer Fläche zu errichtender Anlage zu versorgen, damit monatlich bis zu {{ersparnis_pro_monat_eur}} € gegenüber ihren heutigen Stromlieferanten einzusparen. Das sind bei 20 Jahren Laufzeit ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €\n\nDrittens:\nDiese Vorteile könnten Sie ohne weitere Investitionen durch ihr Unternehmen erzielen. \n ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Erstens: ",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Ihre Fläche kann für ihr Unternehmen einmalige Pachteinnahmen, von bis zu {{pacht_einnahme_einmalig_eur}} € erwirtschaften.",
+              "run_count": 7
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Zweitens: ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "Grundsätzlich besteht die Möglichkeit, über einen Stromliefervertrag Ihr Unternehmen mit Strom aus der auf Ihrer Fläche zu errichtender Anlage zu versorgen, damit monatlich bis zu {{ersparnis_pro_monat_eur}} € gegenüber ihren heutigen Stromlieferanten einzusparen. Das sind bei 20 Jahren Laufzeit ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+              "run_count": 9
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "Drittens:",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "Diese Vorteile könnten Sie ohne weitere Investitionen durch ihr Unternehmen erzielen. ",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": " ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -530,6 +695,15 @@
           "top_emu": 276790,
           "width_emu": 12206367,
           "height_emu": 452199,
+          "is_group": false,
+          "joined_text": "Auf einen Blick",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Auf einen Blick",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -549,6 +723,15 @@
           "top_emu": 2354339,
           "width_emu": 3366849,
           "height_emu": 477560,
+          "is_group": false,
+          "joined_text": "{{anlage_kwp}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{anlage_kwp}}",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -568,6 +751,15 @@
           "top_emu": 2957467,
           "width_emu": 2180987,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "Installierende Leistung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Installierende Leistung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -587,6 +779,15 @@
           "top_emu": 3199639,
           "width_emu": 3366849,
           "height_emu": 231577,
+          "is_group": false,
+          "joined_text": "Gesamtleistung der geplanten Anlage",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Gesamtleistung der geplanten Anlage",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -606,6 +807,15 @@
           "top_emu": 6233508,
           "width_emu": 3366849,
           "height_emu": 477560,
+          "is_group": false,
+          "joined_text": "{{pv_erzeugung_kwh_jahr}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{pv_erzeugung_kwh_jahr}}",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -625,6 +835,15 @@
           "top_emu": 6865752,
           "width_emu": 1809155,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "Jahresertrag",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jahresertrag",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -644,6 +863,20 @@
           "top_emu": 7207281,
           "width_emu": 3366849,
           "height_emu": 231577,
+          "is_group": false,
+          "joined_text": "ca. {{gesamterzeugung_vertragslaufzeit_kwh}} kWh auf 20 Jahre \nJahresproduktion ca. {{pv_erzeugung_kwh_jahr}} kWh",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "ca. {{gesamterzeugung_vertragslaufzeit_kwh}} kWh auf 20 Jahre ",
+              "run_count": 4
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Jahresproduktion ca. {{pv_erzeugung_kwh_jahr}} kWh",
+              "run_count": 4
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -726,6 +959,15 @@
           "top_emu": 4500929,
           "width_emu": 1780103,
           "height_emu": 361831,
+          "is_group": false,
+          "joined_text": "{{eigenverbrauchsquote_prozent}}%",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{eigenverbrauchsquote_prozent}}%",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -754,6 +996,15 @@
           "top_emu": 4881370,
           "width_emu": 1809155,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "Eigenverbrauch",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Eigenverbrauch",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -773,6 +1024,25 @@
           "top_emu": 3982621,
           "width_emu": 6492370,
           "height_emu": 231577,
+          "is_group": false,
+          "joined_text": "Eigenverbrauch des Bedarfs: ca. {{pv_eigenverbrauch_kwh_jahr}} kWh (41 %)\nÜberschuss Produktion:-    Wird ins öffentliche Netz eingespeist \nOder z.T. in einem zu errichteten Speicher zwischengespeichert ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Eigenverbrauch des Bedarfs: ca. {{pv_eigenverbrauch_kwh_jahr}} kWh (41 %)",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Überschuss Produktion:-    Wird ins öffentliche Netz eingespeist ",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "Oder z.T. in einem zu errichteten Speicher zwischengespeichert ",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -855,6 +1125,15 @@
           "top_emu": 6208309,
           "width_emu": 5140643,
           "height_emu": 477560,
+          "is_group": false,
+          "joined_text": "ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -892,6 +1171,15 @@
           "top_emu": 6854359,
           "width_emu": 1826657,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "Mögliche Stromersparnis für 20 Jahre ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Mögliche Stromersparnis für 20 Jahre ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -911,6 +1199,15 @@
           "top_emu": 7191839,
           "width_emu": 5140643,
           "height_emu": 231577,
+          "is_group": false,
+          "joined_text": "Jährlich ca. {{ersparnis_pro_jahr_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jährlich ca. {{ersparnis_pro_jahr_eur}} €",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -948,6 +1245,15 @@
           "top_emu": 7919629,
           "width_emu": 13382816,
           "height_emu": 246221,
+          "is_group": false,
+          "joined_text": "Vorläufige Kernergebnisse auf Basis der von Ihnen gelieferten Dokumente. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Vorläufige Kernergebnisse auf Basis der von Ihnen gelieferten Dokumente. ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -967,6 +1273,15 @@
           "top_emu": 752774,
           "width_emu": 13031128,
           "height_emu": 1015663,
+          "is_group": false,
+          "joined_text": "Ihre Fläche erspart rund {{co2_tonnen_pro_jahr}} Tonnen CO2 pro Jahr. Dieser Wert entspricht einer jährlichen CO2-Bindung von bis zu {{co2_hektar_mischwald}} Hektar nachhaltig bewirtschafteten deutschen Mischwald, das entspricht ca. {{co2_fussballfelder_pro_jahr}} Fußballfelder pro Jahr.  Bei 20 Jahren Nutzungsdauer sind das {{co2_tonnen_gesamt_vertragslaufzeit}} Tonnen CO2, das sind ca. {{co2_fussballfelder_gesamt_vertragslaufzeit}} Fußballfelder!\t\t\t\t\t",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ihre Fläche erspart rund {{co2_tonnen_pro_jahr}} Tonnen CO2 pro Jahr. Dieser Wert entspricht einer jährlichen CO2-Bindung von bis zu {{co2_hektar_mischwald}} Hektar nachhaltig bewirtschafteten deutschen Mischwald, das entspricht ca. {{co2_fussballfelder_pro_jahr}} Fußballfelder pro Jahr.  Bei 20 Jahren Nutzungsdauer sind das {{co2_tonnen_gesamt_vertragslaufzeit}} Tonnen CO2, das sind ca. {{co2_fussballfelder_gesamt_vertragslaufzeit}} Fußballfelder!\t\t\t\t\t",
+              "run_count": 25
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1202,6 +1517,15 @@
           "top_emu": 6285144,
           "width_emu": 5140643,
           "height_emu": 477560,
+          "is_group": false,
+          "joined_text": "{{pacht_einnahme_einmalig_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{pacht_einnahme_einmalig_eur}} €",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1230,6 +1554,15 @@
           "top_emu": 6943440,
           "width_emu": 1826657,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "Pachteinnahmen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Pachteinnahmen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1249,6 +1582,15 @@
           "top_emu": 7266138,
           "width_emu": 2071449,
           "height_emu": 231577,
+          "is_group": false,
+          "joined_text": "Einmalig gleich zu Beginn",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Einmalig gleich zu Beginn",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1268,6 +1610,15 @@
           "top_emu": 2527843,
           "width_emu": 628412,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "kWp",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "kWp",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1287,6 +1638,15 @@
           "top_emu": 6405683,
           "width_emu": 642221,
           "height_emu": 226219,
+          "is_group": false,
+          "joined_text": "kWh ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "kWh ",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1315,6 +1675,25 @@
           "top_emu": 3925261,
           "width_emu": 3547773,
           "height_emu": 1015663,
+          "is_group": false,
+          "joined_text": "Objektstandort: \n{{customer_object_short_name_and_city}}. \n{{flurstueck_label_phrase}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Objektstandort: ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "{{customer_object_short_name_and_city}}. ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "{{flurstueck_label_phrase}}",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1352,6 +1731,15 @@
           "top_emu": 1847887,
           "width_emu": 12508230,
           "height_emu": 400110,
+          "is_group": false,
+          "joined_text": "VIELEN DANK für Ihren Einsatz zu einer besseren CO2 Bilanz !",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "VIELEN DANK für Ihren Einsatz zu einer besseren CO2 Bilanz !",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1376,6 +1764,15 @@
           "top_emu": 4848208,
           "width_emu": 2869324,
           "height_emu": 461665,
+          "is_group": false,
+          "joined_text": "Später:",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Später:",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1395,6 +1792,15 @@
           "top_emu": 1336924,
           "width_emu": 2869324,
           "height_emu": 461665,
+          "is_group": false,
+          "joined_text": "Jetzt:",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jetzt:",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1414,6 +1820,25 @@
           "top_emu": 1988357,
           "width_emu": 7638394,
           "height_emu": 1323439,
+          "is_group": false,
+          "joined_text": "Pachtzahlung vorab* \t\t\tca. {{pacht_einnahme_einmalig_eur}} EUR netto**\n\t\t\t\t\teinmalige Pachtzahlung für \t\t\t\t\t20 Jahre\n\t",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Pachtzahlung vorab* \t\t\tca. {{pacht_einnahme_einmalig_eur}} EUR netto**",
+              "run_count": 5
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "\t\t\t\t\teinmalige Pachtzahlung für \t\t\t\t\t20 Jahre",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "\t",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1496,6 +1921,25 @@
           "top_emu": 5224078,
           "width_emu": 5861528,
           "height_emu": 1015663,
+          "is_group": false,
+          "joined_text": "Stromliefervertrag***: \nDirekter Bezug aus der PV-Anlage\nca. {{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}} kWh** laut PV-SOL",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Stromliefervertrag***: ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Direkter Bezug aus der PV-Anlage",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "ca. {{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}} kWh** laut PV-SOL",
+              "run_count": 4
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1560,6 +2004,15 @@
           "top_emu": 206427,
           "width_emu": 10291729,
           "height_emu": 830997,
+          "is_group": false,
+          "joined_text": "Vorher - Nachher",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Vorher - Nachher",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1579,6 +2032,25 @@
           "top_emu": 7069536,
           "width_emu": 7638394,
           "height_emu": 938719,
+          "is_group": false,
+          "joined_text": "* Nach Zeichnung Verkauf des zu entwickelnden Projektrechtes - Pachtkonditionen 100 EUR je kWp zzgl. USt. Laufzeit 20 Jahre (5 m² nutzbare Fläche = 1 kWp) (Verlängerung optional 2x 5 Jahre) Umsetzung, Betrieb, Wartung vorbehaltlich der  Prüfung Phase II\n** Werte basieren auf der realitätsnahen Simulation von PV-Sol, siehe Anhang.\n*** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere Umlagen  zzgl. Stromsteuer ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "* Nach Zeichnung Verkauf des zu entwickelnden Projektrechtes - Pachtkonditionen 100 EUR je kWp zzgl. USt. Laufzeit 20 Jahre (5 m² nutzbare Fläche = 1 kWp) (Verlängerung optional 2x 5 Jahre) Umsetzung, Betrieb, Wartung vorbehaltlich der  Prüfung Phase II",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "** Werte basieren auf der realitätsnahen Simulation von PV-Sol, siehe Anhang.",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "*** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere Umlagen  zzgl. Stromsteuer ",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1643,6 +2115,25 @@
           "top_emu": 5199312,
           "width_emu": 3376682,
           "height_emu": 1200329,
+          "is_group": false,
+          "joined_text": "{{pv_verkauf_ct_kwh}} CENT netto / kWhEinsparpotential gegenüber\n dem heutigen Stromlieferanten\nca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €** für 20 Jahre",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{pv_verkauf_ct_kwh}} CENT netto / kWhEinsparpotential gegenüber",
+              "run_count": 5
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": " dem heutigen Stromlieferanten",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €** für 20 Jahre",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1757,6 +2248,15 @@
           "top_emu": 2306870,
           "width_emu": 6380202,
           "height_emu": 303609,
+          "is_group": false,
+          "joined_text": "Dafür stehen wir:",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Dafür stehen wir:",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1785,6 +2285,15 @@
           "top_emu": 3650351,
           "width_emu": 3519845,
           "height_emu": 518160,
+          "is_group": false,
+          "joined_text": "Eigentümer:innen erhalten für Bereitstellung ihrer Flächen einmalig Pachteinnahmen und 20 Jahre günstigeren und CO2-neutraleren Strom, ohne selbst zu investieren.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Eigentümer:innen erhalten für Bereitstellung ihrer Flächen einmalig Pachteinnahmen und 20 Jahre günstigeren und CO2-neutraleren Strom, ohne selbst zu investieren.",
+              "run_count": 4
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1831,6 +2340,15 @@
           "top_emu": 3678688,
           "width_emu": 3519964,
           "height_emu": 259080,
+          "is_group": false,
+          "joined_text": "Solarunternehmen erhalten skalierbare Projektpotenziale",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Solarunternehmen erhalten skalierbare Projektpotenziale",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1850,6 +2368,15 @@
           "top_emu": 6076488,
           "width_emu": 3648313,
           "height_emu": 259080,
+          "is_group": false,
+          "joined_text": "Die Gesellschaft profitiert von mehr sauberer Energie und weniger CO₂-Emissionen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Die Gesellschaft profitiert von mehr sauberer Energie und weniger CO₂-Emissionen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1869,6 +2396,15 @@
           "top_emu": 6076487,
           "width_emu": 3519964,
           "height_emu": 259080,
+          "is_group": false,
+          "joined_text": "Die Investoren erhalten eine gute Kapitalrendite für die Investition, welche sie tätigen.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Die Investoren erhalten eine gute Kapitalrendite für die Investition, welche sie tätigen.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1888,6 +2424,15 @@
           "top_emu": 7342064,
           "width_emu": 8130956,
           "height_emu": 259080,
+          "is_group": false,
+          "joined_text": "Durch das Erneuerbare-Energien-Gesetz (EEG) ist die Sicherheit des Gesamtkonzeptes staatlich garantiert",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Durch das Erneuerbare-Energien-Gesetz (EEG) ist die Sicherheit des Gesamtkonzeptes staatlich garantiert",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1907,6 +2452,15 @@
           "top_emu": 1785195,
           "width_emu": 6043270,
           "height_emu": 284693,
+          "is_group": false,
+          "joined_text": "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1931,6 +2485,15 @@
           "top_emu": 907314,
           "width_emu": 6256258,
           "height_emu": 222052,
+          "is_group": false,
+          "joined_text": "Wir sind ihr strategischer Partner in der Energiewende",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wir sind ihr strategischer Partner in der Energiewende",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1959,6 +2522,15 @@
           "top_emu": 1317478,
           "width_emu": 8006953,
           "height_emu": 227409,
+          "is_group": false,
+          "joined_text": "Seit über zwei Jahrzehnten hat unser Management Erfahrung bei der Flächengewinnung, Entwicklung zu Projektrechten, sowie der Vermarktung der entwickelten Projektrechte. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Seit über zwei Jahrzehnten hat unser Management Erfahrung bei der Flächengewinnung, Entwicklung zu Projektrechten, sowie der Vermarktung der entwickelten Projektrechte. ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -1978,6 +2550,20 @@
           "top_emu": 2525322,
           "width_emu": 7243763,
           "height_emu": 222052,
+          "is_group": false,
+          "joined_text": "Durch Beauftragung des Auswertepaketes - Identifikation \ngeeigneter Flächen für 998 €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Durch Beauftragung des Auswertepaketes - Identifikation ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "geeigneter Flächen für 998 €",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2006,6 +2592,20 @@
           "top_emu": 3417730,
           "width_emu": 6668572,
           "height_emu": 222052,
+          "is_group": false,
+          "joined_text": "Phase I: Professionelle Erstbewertung und Machbarkeitsprüfung\n von Potentialflächen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Phase I: Professionelle Erstbewertung und Machbarkeitsprüfung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": " von Potentialflächen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2034,6 +2634,15 @@
           "top_emu": 5145726,
           "width_emu": 7012186,
           "height_emu": 444103,
+          "is_group": false,
+          "joined_text": "Aufbau tragfähiger Kontakte zwischen Flächenbesitzer*innen und Projektpartnern",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Aufbau tragfähiger Kontakte zwischen Flächenbesitzer*innen und Projektpartnern",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2053,6 +2662,20 @@
           "top_emu": 6061782,
           "width_emu": 4840367,
           "height_emu": 222052,
+          "is_group": false,
+          "joined_text": "Unterstützung bei Vertragsumsetzung bis zur Vermarkt-\nbarkeit der Ready to build“ Projektrechte.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Unterstützung bei Vertragsumsetzung bis zur Vermarkt-",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "barkeit der Ready to build“ Projektrechte.",
+              "run_count": 6
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2126,6 +2749,15 @@
           "top_emu": 6962072,
           "width_emu": 4944904,
           "height_emu": 222052,
+          "is_group": false,
+          "joined_text": "Förderung nachhaltiger Energieerzeugung in der Region",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Förderung nachhaltiger Energieerzeugung in der Region",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2145,6 +2777,15 @@
           "top_emu": 7524450,
           "width_emu": 8402055,
           "height_emu": 454819,
+          "is_group": false,
+          "joined_text": "Die Rolle von GreenScout e.V. ist es, Projekte planbar, skalierbar und wirtschaftlich attraktiv zu machen – ohne Risiko für Flächeneigentümer*innen. Der Verein agiert dabei unabhängig, transparent und mit klarem Fokus auf Wirkung für die Flächeneingentümer*innen und die Umwelt.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Die Rolle von GreenScout e.V. ist es, Projekte planbar, skalierbar und wirtschaftlich attraktiv zu machen – ohne Risiko für Flächeneigentümer*innen. Der Verein agiert dabei unabhängig, transparent und mit klarem Fokus auf Wirkung für die Flächeneingentümer*innen und die Umwelt.",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2200,6 +2841,15 @@
           "top_emu": 4280263,
           "width_emu": 6668572,
           "height_emu": 222052,
+          "is_group": false,
+          "joined_text": "Phase II: Entwicklung von Projektrechten",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Phase II: Entwicklung von Projektrechten",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2224,6 +2874,15 @@
           "top_emu": 654099,
           "width_emu": 5507474,
           "height_emu": 347901,
+          "is_group": false,
+          "joined_text": "Warum eine Zusammenarbeit sinnvoll ist",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Warum eine Zusammenarbeit sinnvoll ist",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2243,6 +2902,15 @@
           "top_emu": 1165865,
           "width_emu": 2736890,
           "height_emu": 173950,
+          "is_group": false,
+          "joined_text": "Greifbare Vorteile auf mehreren Ebenen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Greifbare Vorteile auf mehreren Ebenen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2262,6 +2930,15 @@
           "top_emu": 1522338,
           "width_emu": 133588,
           "height_emu": 166926,
+          "is_group": false,
+          "joined_text": "1",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "1",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2281,6 +2958,15 @@
           "top_emu": 1884169,
           "width_emu": 1446609,
           "height_emu": 173950,
+          "is_group": false,
+          "joined_text": "Pachteinnahmen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Pachteinnahmen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2300,6 +2986,15 @@
           "top_emu": 2230284,
           "width_emu": 3715703,
           "height_emu": 712470,
+          "is_group": false,
+          "joined_text": "Flächen, die bislang ungenutzt blieben, werden aktiviert und generieren stabile Pachteinnahmen für Eigentümer*innen. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Flächen, die bislang ungenutzt blieben, werden aktiviert und generieren stabile Pachteinnahmen für Eigentümer*innen. ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2319,6 +3014,15 @@
           "top_emu": 1522338,
           "width_emu": 133588,
           "height_emu": 166926,
+          "is_group": false,
+          "joined_text": "2",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "2",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2338,6 +3042,15 @@
           "top_emu": 1884169,
           "width_emu": 1391841,
           "height_emu": 173950,
+          "is_group": false,
+          "joined_text": "Günstigeren Strom",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Günstigeren Strom",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2357,6 +3070,15 @@
           "top_emu": 2185314,
           "width_emu": 3715822,
           "height_emu": 712470,
+          "is_group": false,
+          "joined_text": "Der Storm, welcher durch den Stromliefervertrag garantiert wird, ist meist bis zu 20% günstiger als jener  vom bisherigen Stromanbieter. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Der Storm, welcher durch den Stromliefervertrag garantiert wird, ist meist bis zu 20% günstiger als jener  vom bisherigen Stromanbieter. ",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2385,6 +3107,15 @@
           "top_emu": 3461957,
           "width_emu": 133588,
           "height_emu": 166926,
+          "is_group": false,
+          "joined_text": "3",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "3",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2404,6 +3135,15 @@
           "top_emu": 3851649,
           "width_emu": 2709743,
           "height_emu": 173950,
+          "is_group": false,
+          "joined_text": "Strompreisstabilität",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Strompreisstabilität",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2423,6 +3163,15 @@
           "top_emu": 4160973,
           "width_emu": 3715703,
           "height_emu": 712470,
+          "is_group": false,
+          "joined_text": "Über eine Laufzeit von 20 Jahren, mit zwei optionalen Verlängerungen um jeweils 5 Jahre, bleibt der Strompreis stabil und ist weder von Inflation noch von kurzfristigen Preiserhöhungen betroffen.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Über eine Laufzeit von 20 Jahren, mit zwei optionalen Verlängerungen um jeweils 5 Jahre, bleibt der Strompreis stabil und ist weder von Inflation noch von kurzfristigen Preiserhöhungen betroffen.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2442,6 +3191,15 @@
           "top_emu": 3482198,
           "width_emu": 133588,
           "height_emu": 166926,
+          "is_group": false,
+          "joined_text": "4",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "4",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2461,6 +3219,15 @@
           "top_emu": 3851649,
           "width_emu": 2011918,
           "height_emu": 173950,
+          "is_group": false,
+          "joined_text": "Sicherheit für Investoren",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Sicherheit für Investoren",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2480,6 +3247,15 @@
           "top_emu": 4130493,
           "width_emu": 3715822,
           "height_emu": 712470,
+          "is_group": false,
+          "joined_text": "GreenScout e.V. übernimmt die initiale Prüfung, bewertet Flächen neutral und fundiert – bevor es zu Investitionen oder langfristigen Bindungen kommt. Diese frühe Risikominimierung ist entscheidend für Investoren.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "GreenScout e.V. übernimmt die initiale Prüfung, bewertet Flächen neutral und fundiert – bevor es zu Investitionen oder langfristigen Bindungen kommt. Diese frühe Risikominimierung ist entscheidend für Investoren.",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2508,6 +3284,15 @@
           "top_emu": 6008977,
           "width_emu": 1708547,
           "height_emu": 208717,
+          "is_group": false,
+          "joined_text": "Warum gerade jetzt?",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Warum gerade jetzt?",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2527,6 +3312,15 @@
           "top_emu": 6411254,
           "width_emu": 8049101,
           "height_emu": 178118,
+          "is_group": false,
+          "joined_text": "Diese Machbarkeitsstudie bestätigt:",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Diese Machbarkeitsstudie bestätigt:",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2546,6 +3340,15 @@
           "top_emu": 6714626,
           "width_emu": 2474476,
           "height_emu": 356235,
+          "is_group": false,
+          "joined_text": "Ihre eingereichte  Fläche ist geeignet, um Sie an Investoren verpachtet zu werden.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ihre eingereichte  Fläche ist geeignet, um Sie an Investoren verpachtet zu werden.",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2583,6 +3386,15 @@
           "top_emu": 6714626,
           "width_emu": 2228374,
           "height_emu": 356235,
+          "is_group": false,
+          "joined_text": "Die wirtschaftlichen Rahmenbedingungen sind tragfähig. Vorbehaltlich der Prüfung in Phase II",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Die wirtschaftlichen Rahmenbedingungen sind tragfähig. Vorbehaltlich der Prüfung in Phase II",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2602,6 +3414,15 @@
           "top_emu": 6714626,
           "width_emu": 2228374,
           "height_emu": 534352,
+          "is_group": false,
+          "joined_text": "Wir gehen wie vertraglich vereinbart in Phase II  über.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wir gehen wie vertraglich vereinbart in Phase II  über.",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2635,6 +3456,15 @@
           "top_emu": 915828,
           "width_emu": 13537088,
           "height_emu": 620078,
+          "is_group": false,
+          "joined_text": "Ausgangssituation: Markt- und Kostenrisiken",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ausgangssituation: Markt- und Kostenrisiken",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2654,6 +3484,15 @@
           "top_emu": 1844577,
           "width_emu": 13243679,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "Planbarkeit und Nutzen der Absicherung durch Photovoltaik",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Planbarkeit und Nutzen der Absicherung durch Photovoltaik",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2673,6 +3512,15 @@
           "top_emu": 2452391,
           "width_emu": 198358,
           "height_emu": 248007,
+          "is_group": false,
+          "joined_text": "01",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "01",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2692,6 +3540,20 @@
           "top_emu": 2890540,
           "width_emu": 4215289,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Ihr aktueller Netzstrompreis \n{{versorger_preis_ct_kwh}} netto ct/kWh ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ihr aktueller Netzstrompreis ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "{{versorger_preis_ct_kwh}} netto ct/kWh ",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2729,6 +3591,15 @@
           "top_emu": 3596322,
           "width_emu": 4215289,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Laut Ihrer Unterlagen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Laut Ihrer Unterlagen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2748,6 +3619,15 @@
           "top_emu": 2452391,
           "width_emu": 198358,
           "height_emu": 248007,
+          "is_group": false,
+          "joined_text": "02",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "02",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2767,6 +3647,15 @@
           "top_emu": 2888634,
           "width_emu": 4071992,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Derzeitig volle Abhängigkeit von Ihrem aktuellen Stromversorger",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Derzeitig volle Abhängigkeit von Ihrem aktuellen Stromversorger",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2786,6 +3675,15 @@
           "top_emu": 3604797,
           "width_emu": 4215408,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Keine Preisgarantie, hohe Volatilität",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Keine Preisgarantie, hohe Volatilität",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2805,6 +3703,15 @@
           "top_emu": 2452391,
           "width_emu": 198358,
           "height_emu": 248007,
+          "is_group": false,
+          "joined_text": "03",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "03",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2824,6 +3731,15 @@
           "top_emu": 2906732,
           "width_emu": 4215289,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Steigende Energiepreise und unsichere Planung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Steigende Energiepreise und unsichere Planung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2843,6 +3759,15 @@
           "top_emu": 3614952,
           "width_emu": 4215289,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Belastung für Budget und Margen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Belastung für Budget und Margen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2862,6 +3787,15 @@
           "top_emu": 4315719,
           "width_emu": 198358,
           "height_emu": 248007,
+          "is_group": false,
+          "joined_text": "04",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "04",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2881,6 +3815,15 @@
           "top_emu": 4765757,
           "width_emu": 6422112,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Maßnahmenbedarf: Preisstabilisierung und Absicherung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Maßnahmenbedarf: Preisstabilisierung und Absicherung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2900,6 +3843,15 @@
           "top_emu": 5514321,
           "width_emu": 6422112,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Kurzfristig planbare Kostensicherheit schaffen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kurzfristig planbare Kostensicherheit schaffen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2919,6 +3871,15 @@
           "top_emu": 4315719,
           "width_emu": 198358,
           "height_emu": 248007,
+          "is_group": false,
+          "joined_text": "05",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "05",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2938,6 +3899,15 @@
           "top_emu": 4792262,
           "width_emu": 6172214,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Nutzen der PV-Lösung: Kostensenkung, Planbarkeit, Reduktion",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Nutzen der PV-Lösung: Kostensenkung, Planbarkeit, Reduktion",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -2957,6 +3927,15 @@
           "top_emu": 5514321,
           "width_emu": 6422231,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Kostenvorteil, Prognosesicherheit Pachteinnahmen: \t\t\tca. {{pacht_einnahme_einmalig_eur}} €Stromersparnis auf 20 Jahre:\t\tca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €CO2 Ersparnis auf 20 Jahre: \t\tca. {{co2_tonnen_gesamt_vertragslaufzeit}} t CO2",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kostenvorteil, Prognosesicherheit Pachteinnahmen: \t\t\tca. {{pacht_einnahme_einmalig_eur}} €Stromersparnis auf 20 Jahre:\t\tca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €CO2 Ersparnis auf 20 Jahre: \t\tca. {{co2_tonnen_gesamt_vertragslaufzeit}} t CO2",
+              "run_count": 10
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3062,6 +4041,15 @@
           "top_emu": 692578,
           "width_emu": 9062631,
           "height_emu": 1173956,
+          "is_group": false,
+          "joined_text": "PV-Anlagenkonzept: Dachbelegung und Eignung*",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "PV-Anlagenkonzept: Dachbelegung und Eignung*",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3081,6 +4069,15 @@
           "top_emu": 1505771,
           "width_emu": 7641193,
           "height_emu": 586978,
+          "is_group": false,
+          "joined_text": "Für {{customer_object_name}} – {{anlage_kwp}} kWp, technisch geeignet",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Für {{customer_object_name}} – {{anlage_kwp}} kWp, technisch geeignet",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3136,6 +4133,15 @@
           "top_emu": 2452565,
           "width_emu": 281702,
           "height_emu": 352187,
+          "is_group": false,
+          "joined_text": "1",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "1",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3155,6 +4161,15 @@
           "top_emu": 2275400,
           "width_emu": 5862876,
           "height_emu": 293489,
+          "is_group": false,
+          "joined_text": "Gesamtleistung: {{modul_info_phrase}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Gesamtleistung: {{modul_info_phrase}}",
+              "run_count": 7
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3228,6 +4243,15 @@
           "top_emu": 2681523,
           "width_emu": 6468547,
           "height_emu": 300514,
+          "is_group": false,
+          "joined_text": "Detaillierte Modul- und Wechselrichteraufteilung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Detaillierte Modul- und Wechselrichteraufteilung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3247,6 +4271,15 @@
           "top_emu": 3768206,
           "width_emu": 281702,
           "height_emu": 352187,
+          "is_group": false,
+          "joined_text": "2",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "2",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3266,6 +4299,15 @@
           "top_emu": 3591041,
           "width_emu": 3829407,
           "height_emu": 293489,
+          "is_group": false,
+          "joined_text": "Keine relevanten Verschattungen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Keine relevanten Verschattungen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3285,6 +4327,15 @@
           "top_emu": 3997163,
           "width_emu": 6468547,
           "height_emu": 300514,
+          "is_group": false,
+          "joined_text": "Dachflächen technisch sehr gut geeignet für PV",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Dachflächen technisch sehr gut geeignet für PV",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3304,6 +4355,15 @@
           "top_emu": 5083847,
           "width_emu": 281702,
           "height_emu": 352187,
+          "is_group": false,
+          "joined_text": "3",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "3",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3323,6 +4383,15 @@
           "top_emu": 4906682,
           "width_emu": 5463421,
           "height_emu": 293489,
+          "is_group": false,
+          "joined_text": "Hoher spezifischer Ertrag und stabile Prognose",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Hoher spezifischer Ertrag und stabile Prognose",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3342,6 +4411,15 @@
           "top_emu": 5312804,
           "width_emu": 6468547,
           "height_emu": 300514,
+          "is_group": false,
+          "joined_text": "Ergebnis basiert auf bisheriger Simulation und gelieferten Dokumenten",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ergebnis basiert auf bisheriger Simulation und gelieferten Dokumenten",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3361,6 +4439,15 @@
           "top_emu": 6399487,
           "width_emu": 281702,
           "height_emu": 352187,
+          "is_group": false,
+          "joined_text": "4",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "4",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3380,6 +4467,15 @@
           "top_emu": 6222322,
           "width_emu": 2734628,
           "height_emu": 293489,
+          "is_group": false,
+          "joined_text": "Wahlweise mit Speicher",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wahlweise mit Speicher",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3399,6 +4495,20 @@
           "top_emu": 6628445,
           "width_emu": 6468547,
           "height_emu": 300514,
+          "is_group": false,
+          "joined_text": "Sofern die Gesamtkalkulation dies rechenbar macht. Feststellung in\n Phase II. Mehr Eigenverbrauch, dadurch höhere Einsparung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Sofern die Gesamtkalkulation dies rechenbar macht. Feststellung in",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": " Phase II. Mehr Eigenverbrauch, dadurch höhere Einsparung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3427,6 +4537,15 @@
           "top_emu": 7515102,
           "width_emu": 1350223,
           "height_emu": 427200,
+          "is_group": false,
+          "joined_text": "*Geplant durch PV-Sol",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "*Geplant durch PV-Sol",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3451,6 +4570,15 @@
           "top_emu": 861358,
           "width_emu": 8174950,
           "height_emu": 1240155,
+          "is_group": false,
+          "joined_text": "Energiefluss und Eigenverbrauch",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Energiefluss und Eigenverbrauch",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3470,6 +4598,15 @@
           "top_emu": 2089071,
           "width_emu": 6733699,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "PV-Erzeugung {{pv_erzeugung_kwh_jahr}} kWh/Jahr – {{eigenverbrauchsquote_prozent}}% direkt genutzt",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "PV-Erzeugung {{pv_erzeugung_kwh_jahr}} kWh/Jahr – {{eigenverbrauchsquote_prozent}}% direkt genutzt",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3525,6 +4662,15 @@
           "top_emu": 2895243,
           "width_emu": 2480905,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "PV-Erzeugung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "PV-Erzeugung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3544,6 +4690,15 @@
           "top_emu": 3324463,
           "width_emu": 6365796,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Gesamtertrag: {{pv_erzeugung_kwh_jahr}} kWh pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Gesamtertrag: {{pv_erzeugung_kwh_jahr}} kWh pro Jahr",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3581,6 +4736,15 @@
           "top_emu": 4085987,
           "width_emu": 2480905,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "Eigenverbrauch",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Eigenverbrauch",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3600,6 +4764,15 @@
           "top_emu": 4515207,
           "width_emu": 6365796,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Direkter Verbrauch: {{pv_eigenverbrauch_kwh_jahr}} kWh pro Jahr ({{eigenverbrauchsquote_prozent}}% der PV-Menge) ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Direkter Verbrauch: {{pv_eigenverbrauch_kwh_jahr}} kWh pro Jahr ({{eigenverbrauchsquote_prozent}}% der PV-Menge) ",
+              "run_count": 7
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3673,6 +4846,15 @@
           "top_emu": 5276731,
           "width_emu": 2480905,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "Einspeisung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Einspeisung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3692,6 +4874,15 @@
           "top_emu": 5705951,
           "width_emu": 6365796,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Netzeinspeisung: {{netzeinspeisung_kwh_jahr}} kWh pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Netzeinspeisung: {{netzeinspeisung_kwh_jahr}} kWh pro Jahr",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3729,6 +4920,15 @@
           "top_emu": 6467475,
           "width_emu": 2480905,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "Wirkung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wirkung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3748,6 +4948,20 @@
           "top_emu": 6896695,
           "width_emu": 6365796,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Hoher direkter Verbrauch reduziert Netzbezug und Kosten – damit starke\nUnabhängigkeit vom bisherigen Netzbetreiber",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Hoher direkter Verbrauch reduziert Netzbezug und Kosten – damit starke",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Unabhängigkeit vom bisherigen Netzbetreiber",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3781,6 +4995,15 @@
           "top_emu": 782241,
           "width_emu": 8422362,
           "height_emu": 1127760,
+          "is_group": false,
+          "joined_text": "Wirtschaftlichkeit: Stromliefervertrag",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wirtschaftlichkeit: Stromliefervertrag",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3800,6 +5023,15 @@
           "top_emu": 1619544,
           "width_emu": 7700724,
           "height_emu": 563642,
+          "is_group": false,
+          "joined_text": "PV-Strom {{pv_verkauf_ct_kwh}} ct/kWh vs. Netzstrom {{versorger_preis_ct_kwh}} ct/kWh – Jährliche und 20-jährige Kundenvorteile",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "PV-Strom {{pv_verkauf_ct_kwh}} ct/kWh vs. Netzstrom {{versorger_preis_ct_kwh}} ct/kWh – Jährliche und 20-jährige Kundenvorteile",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3855,6 +5087,15 @@
           "top_emu": 2837077,
           "width_emu": 3233261,
           "height_emu": 281821,
+          "is_group": false,
+          "joined_text": "PV-Strompreis: {{pv_verkauf_ct_kwh}} ct/kWh fix",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "PV-Strompreis: {{pv_verkauf_ct_kwh}} ct/kWh fix",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3892,6 +5133,15 @@
           "top_emu": 3299277,
           "width_emu": 3269575,
           "height_emu": 577215,
+          "is_group": false,
+          "joined_text": "20 Jahre Stromliefervertrag ohne Investitionskosten abgesichert durch das EEG*",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "20 Jahre Stromliefervertrag ohne Investitionskosten abgesichert durch das EEG*",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3911,6 +5161,15 @@
           "top_emu": 4856965,
           "width_emu": 3269575,
           "height_emu": 563642,
+          "is_group": false,
+          "joined_text": "Netzstrompreis: {{versorger_preis_ct_kwh}} ct/kWh aktuell",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Netzstrompreis: {{versorger_preis_ct_kwh}} ct/kWh aktuell",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3948,6 +5207,15 @@
           "top_emu": 5600987,
           "width_emu": 3269575,
           "height_emu": 288608,
+          "is_group": false,
+          "joined_text": "Marktabhängiger Bezugspreis",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Marktabhängiger Bezugspreis",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -3967,6 +5235,15 @@
           "top_emu": 2837077,
           "width_emu": 3269575,
           "height_emu": 563642,
+          "is_group": false,
+          "joined_text": "Direkte jährliche Ersparnis: ca. {{ersparnis_pro_jahr_eur}} € 20 Jahre: ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Direkte jährliche Ersparnis: ca. {{ersparnis_pro_jahr_eur}} € 20 Jahre: ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+              "run_count": 6
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4031,6 +5308,15 @@
           "top_emu": 3743560,
           "width_emu": 3269575,
           "height_emu": 577215,
+          "is_group": false,
+          "joined_text": "Differenz bei Eigenverbrauch ({{pv_eigenverbrauch_kwh_jahr}} kWh/Jahr)",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Differenz bei Eigenverbrauch ({{pv_eigenverbrauch_kwh_jahr}} kWh/Jahr)",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4068,6 +5354,15 @@
           "top_emu": 4849226,
           "width_emu": 3269575,
           "height_emu": 563642,
+          "is_group": false,
+          "joined_text": "Kundenvorteile: keine Investitionskosten, planbar",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kundenvorteile: keine Investitionskosten, planbar",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4087,6 +5382,15 @@
           "top_emu": 5593248,
           "width_emu": 3269575,
           "height_emu": 288608,
+          "is_group": false,
+          "joined_text": "Fixer Preis sorgt für Kostenstabilität",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Fixer Preis sorgt für Kostenstabilität",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4106,6 +5410,20 @@
           "top_emu": 6543611,
           "width_emu": 6934081,
           "height_emu": 288608,
+          "is_group": false,
+          "joined_text": "Zusammengefasst: sofortige jährliche Entlastung der Energiekosten – \nSofortige Einsparung ab Jahr 1 – ein Stromliefervertrag wird dringend empfohlen. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Zusammengefasst: sofortige jährliche Entlastung der Energiekosten – ",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Sofortige Einsparung ab Jahr 1 – ein Stromliefervertrag wird dringend empfohlen. ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4143,6 +5461,15 @@
           "top_emu": 7583902,
           "width_emu": 8130956,
           "height_emu": 259080,
+          "is_group": false,
+          "joined_text": "*Durch das Erneuerbare-Energien-Gesetz (EEG) ist die Sicherheit des Gesamtkonzeptes staatlich garantiert",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "*Durch das Erneuerbare-Energien-Gesetz (EEG) ist die Sicherheit des Gesamtkonzeptes staatlich garantiert",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4167,6 +5494,15 @@
           "top_emu": 491133,
           "width_emu": 8648462,
           "height_emu": 558165,
+          "is_group": false,
+          "joined_text": "Langfristige Wirtschaftlichkeit: 20 Jahre",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Langfristige Wirtschaftlichkeit: 20 Jahre",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4186,6 +5522,15 @@
           "top_emu": 1120735,
           "width_emu": 7071003,
           "height_emu": 278963,
+          "is_group": false,
+          "joined_text": "Kumulative Einsparung und einmalige Dachpacht klar visualisiert",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kumulative Einsparung und einmalige Dachpacht klar visualisiert",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4205,6 +5550,15 @@
           "top_emu": 1846183,
           "width_emu": 5537835,
           "height_emu": 278963,
+          "is_group": false,
+          "joined_text": "Jährliche Einsparung durch PV-Strom: ca. {{ersparnis_pro_jahr_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jährliche Einsparung durch PV-Strom: ca. {{ersparnis_pro_jahr_eur}} €",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4242,6 +5596,15 @@
           "top_emu": 2233930,
           "width_emu": 12197715,
           "height_emu": 285750,
+          "is_group": false,
+          "joined_text": "Basisannahme für kumulierte Darstellung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Basisannahme für kumulierte Darstellung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4261,6 +5624,15 @@
           "top_emu": 3044098,
           "width_emu": 5725597,
           "height_emu": 278963,
+          "is_group": false,
+          "joined_text": "Kumulierte Einsparung über 20 Jahre: ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kumulierte Einsparung über 20 Jahre: ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4298,6 +5670,15 @@
           "top_emu": 3396554,
           "width_emu": 11929824,
           "height_emu": 285750,
+          "is_group": false,
+          "joined_text": "Keine Strompreissteigerung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Keine Strompreissteigerung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4317,6 +5698,15 @@
           "top_emu": 4242013,
           "width_emu": 6060877,
           "height_emu": 278963,
+          "is_group": false,
+          "joined_text": "Einmalige Dachpacht: {{pacht_einnahme_einmalig_eur}} € (positive Einmalzahlung)",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Einmalige Dachpacht: {{pacht_einnahme_einmalig_eur}} € (positive Einmalzahlung)",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4354,6 +5744,15 @@
           "top_emu": 4573148,
           "width_emu": 11661934,
           "height_emu": 285750,
+          "is_group": false,
+          "joined_text": "Separat hervorgehoben als zusätzlicher Vorteil",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Separat hervorgehoben als zusätzlicher Vorteil",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4373,6 +5772,15 @@
           "top_emu": 5479343,
           "width_emu": 6589038,
           "height_emu": 278963,
+          "is_group": false,
+          "joined_text": "Gesamter wirtschaftlicher Vorteil: > {{gesamtvorteil_eur}} € über 20 Jahre",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Gesamter wirtschaftlicher Vorteil: > {{gesamtvorteil_eur}} € über 20 Jahre",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4410,6 +5818,15 @@
           "top_emu": 5861158,
           "width_emu": 11393924,
           "height_emu": 285750,
+          "is_group": false,
+          "joined_text": "Kumulierte Ersparnis plus Dachpacht",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kumulierte Ersparnis plus Dachpacht",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4429,6 +5846,15 @@
           "top_emu": 6716673,
           "width_emu": 10312718,
           "height_emu": 278963,
+          "is_group": false,
+          "joined_text": "Kernaussage: Keine Investition für ihr Unternehmen erforderlich; langfristige Preisabsicherung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kernaussage: Keine Investition für ihr Unternehmen erforderlich; langfristige Preisabsicherung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4448,6 +5874,15 @@
           "top_emu": 7067635,
           "width_emu": 11661934,
           "height_emu": 285750,
+          "is_group": false,
+          "joined_text": "Einfache Entscheidung da risikolos und ohne eigenen Kaptaleinsatz große wirtschaftliche Vorteile zu generieren sind ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Einfache Entscheidung da risikolos und ohne eigenen Kaptaleinsatz große wirtschaftliche Vorteile zu generieren sind ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4472,6 +5907,15 @@
           "top_emu": 327820,
           "width_emu": 7042190,
           "height_emu": 602456,
+          "is_group": false,
+          "joined_text": "Vergleich: Mit PV vs. Ohne PV",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Vergleich: Mit PV vs. Ohne PV",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4491,6 +5935,15 @@
           "top_emu": 1051898,
           "width_emu": 5432227,
           "height_emu": 301228,
+          "is_group": false,
+          "joined_text": "Jährliche Stromkosten und direkte Einsparung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jährliche Stromkosten und direkte Einsparung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4510,6 +5963,15 @@
           "top_emu": 1834972,
           "width_emu": 5375910,
           "height_emu": 301228,
+          "is_group": false,
+          "joined_text": "Ohne PV: ca. {{stromkosten_ohne_pv_eur_jahr}} € Stromkosten pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ohne PV: ca. {{stromkosten_ohne_pv_eur_jahr}} € Stromkosten pro Jahr",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4547,6 +6009,15 @@
           "top_emu": 2251810,
           "width_emu": 7216378,
           "height_emu": 308372,
+          "is_group": false,
+          "joined_text": "Aktueller Bezug, volle Marktabhängigkeit",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Aktueller Bezug, volle Marktabhängigkeit",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4566,6 +6037,15 @@
           "top_emu": 3331230,
           "width_emu": 4996220,
           "height_emu": 301228,
+          "is_group": false,
+          "joined_text": "Mit PV: ca. {{stromkosten_mit_pv_eur_jahr}} € Stromkosten pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Mit PV: ca. {{stromkosten_mit_pv_eur_jahr}} € Stromkosten pro Jahr",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4603,6 +6083,15 @@
           "top_emu": 3748068,
           "width_emu": 7216378,
           "height_emu": 308372,
+          "is_group": false,
+          "joined_text": "Nach PV-Lieferung, fixer PV-Strompreis {{pv_verkauf_ct_kwh}} ct/kWh",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Nach PV-Lieferung, fixer PV-Strompreis {{pv_verkauf_ct_kwh}} ct/kWh",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4640,6 +6129,15 @@
           "top_emu": 4827489,
           "width_emu": 5936575,
           "height_emu": 301228,
+          "is_group": false,
+          "joined_text": "Jährliche Reduktion der Stromkosten: ca. {{ersparnis_pro_jahr_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jährliche Reduktion der Stromkosten: ca. {{ersparnis_pro_jahr_eur}} €",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4677,6 +6175,15 @@
           "top_emu": 5244327,
           "width_emu": 7216378,
           "height_emu": 308372,
+          "is_group": false,
+          "joined_text": "Direkte Einsparung durch PV-Stromlieferung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Direkte Einsparung durch PV-Stromlieferung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4696,6 +6203,15 @@
           "top_emu": 6323747,
           "width_emu": 7216378,
           "height_emu": 602456,
+          "is_group": false,
+          "joined_text": "Ihre Vorteile wenn Sie den Pachtvertrag inklusive eines Stromliefervertrags umsetzen. ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ihre Vorteile wenn Sie den Pachtvertrag inklusive eines Stromliefervertrags umsetzen. ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4715,6 +6231,15 @@
           "top_emu": 7041813,
           "width_emu": 7216378,
           "height_emu": 308372,
+          "is_group": false,
+          "joined_text": "Wirtschaftlicher und planbarer Energiebezug",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wirtschaftlicher und planbarer Energiebezug",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4739,6 +6264,15 @@
           "top_emu": 521807,
           "width_emu": 7556421,
           "height_emu": 1240155,
+          "is_group": false,
+          "joined_text": "Sensitivitätsanalyse: Strompreis-Szenarien",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Sensitivitätsanalyse: Strompreis-Szenarien",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4758,6 +6292,15 @@
           "top_emu": 1537584,
           "width_emu": 7556421,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Netzpreisvarianten und jährliche Einsparung bei PV-Strom {{pv_verkauf_ct_kwh}} ct/kWh",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Netzpreisvarianten und jährliche Einsparung bei PV-Strom {{pv_verkauf_ct_kwh}} ct/kWh",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4795,6 +6338,15 @@
           "top_emu": 2640930,
           "width_emu": 2169200,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "Basisszenario",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Basisszenario",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4814,6 +6366,15 @@
           "top_emu": 3459604,
           "width_emu": 2249565,
           "height_emu": 952619,
+          "is_group": false,
+          "joined_text": "Bei {{szenario_1_preis_ct_kwh}} ct/kWh Netzstrom: ca. {{szenario_1_ersparnis_eur}} € Einsparung pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Bei {{szenario_1_preis_ct_kwh}} ct/kWh Netzstrom: ca. {{szenario_1_ersparnis_eur}} € Einsparung pro Jahr",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4869,6 +6430,15 @@
           "top_emu": 2640930,
           "width_emu": 2169200,
           "height_emu": 620316,
+          "is_group": false,
+          "joined_text": "Moderates Szenario",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Moderates Szenario",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4888,6 +6458,15 @@
           "top_emu": 3459604,
           "width_emu": 2264567,
           "height_emu": 952619,
+          "is_group": false,
+          "joined_text": "Bei {{szenario_2_preis_ct_kwh}} ct/kWh Netzstrom: ca. {{szenario_2_ersparnis_eur}} € Einsparung pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Bei {{szenario_2_preis_ct_kwh}} ct/kWh Netzstrom: ca. {{szenario_2_ersparnis_eur}} € Einsparung pro Jahr",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4943,6 +6522,15 @@
           "top_emu": 2640930,
           "width_emu": 2249567,
           "height_emu": 310158,
+          "is_group": false,
+          "joined_text": "Hohes Szenario",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Hohes Szenario",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -4962,6 +6550,15 @@
           "top_emu": 3448068,
           "width_emu": 2249567,
           "height_emu": 952619,
+          "is_group": false,
+          "joined_text": "Bei {{szenario_3_preis_ct_kwh}} ct/kWh Netzstrom: ca. {{szenario_3_ersparnis_eur}} € Einsparung pro Jahr",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Bei {{szenario_3_preis_ct_kwh}} ct/kWh Netzstrom: ca. {{szenario_3_ersparnis_eur}} € Einsparung pro Jahr",
+              "run_count": 5
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5017,6 +6614,15 @@
           "top_emu": 5503382,
           "width_emu": 6713339,
           "height_emu": 635079,
+          "is_group": false,
+          "joined_text": "Je höher der Netzstrompreis steigt, desto größer wird der wirtschaftliche Vorteil der PV-Anlage. Studien zeigen dass der zukünftige Strombedarf von Unternehmen voraussichtlich steigen wird – getrieben durch KI-Anwendungen, fortschreitende Automatisierung sowie die Elektrifizierung von Fahrzeugflotten.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Je höher der Netzstrompreis steigt, desto größer wird der wirtschaftliche Vorteil der PV-Anlage. Studien zeigen dass der zukünftige Strombedarf von Unternehmen voraussichtlich steigen wird – getrieben durch KI-Anwendungen, fortschreitende Automatisierung sowie die Elektrifizierung von Fahrzeugflotten.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5041,6 +6647,15 @@
           "top_emu": 3049695,
           "width_emu": 13092034,
           "height_emu": 616744,
+          "is_group": false,
+          "joined_text": "Variantenvergleich und Empfehlung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Variantenvergleich und Empfehlung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5060,6 +6675,15 @@
           "top_emu": 3706773,
           "width_emu": 13142017,
           "height_emu": 308372,
+          "is_group": false,
+          "joined_text": "Klare Gegenüberstellung: Kosten, Nutzen, Risiko für das {{customer_object_name}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Klare Gegenüberstellung: Kosten, Nutzen, Risiko für das {{customer_object_name}}",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5088,6 +6712,15 @@
           "top_emu": 4528051,
           "width_emu": 3844052,
           "height_emu": 370046,
+          "is_group": false,
+          "joined_text": "Variante A: Nur Flächenpacht",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Variante A: Nur Flächenpacht",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5107,6 +6740,15 @@
           "top_emu": 5055989,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Einmalige Pacht: ca. {{pacht_einnahme_einmalig_eur}} €",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Einmalige Pacht: ca. {{pacht_einnahme_einmalig_eur}} €",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5144,6 +6786,15 @@
           "top_emu": 5440799,
           "width_emu": 6284952,
           "height_emu": 631507,
+          "is_group": false,
+          "joined_text": "Betreiber verkauft Strom anderweitig, kein direkter Stromnutzen für Mieter",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Betreiber verkauft Strom anderweitig, kein direkter Stromnutzen für Mieter",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5163,6 +6814,15 @@
           "top_emu": 6141363,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Kein Investitionsrisiko für Eigentümer",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kein Investitionsrisiko für Eigentümer",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5182,6 +6842,15 @@
           "top_emu": 6526173,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Kein planbarer Strompreis für Mieter",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kein planbarer Strompreis für Mieter",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5201,6 +6870,20 @@
           "top_emu": 6910983,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Geringerer Kundennutzen im Vergleich zu Variante B\nFazit: Projektrecht schwerer platzierbar bei Investoren.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Geringerer Kundennutzen im Vergleich zu Variante B",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Fazit: Projektrecht schwerer platzierbar bei Investoren.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5229,6 +6912,15 @@
           "top_emu": 4493538,
           "width_emu": 6556296,
           "height_emu": 740093,
+          "is_group": false,
+          "joined_text": "Variante B: Flächenpacht und Stromlieferung (empfohlen)",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Variante B: Flächenpacht und Stromlieferung (empfohlen)",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5248,6 +6940,15 @@
           "top_emu": 5445800,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Pachteinnahmen ca. {{pacht_einnahme_einmalig_eur}} € plus einen konstanten Strompreis {{pv_verkauf_ct_kwh}} ct/kWh fix",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Pachteinnahmen ca. {{pacht_einnahme_einmalig_eur}} € plus einen konstanten Strompreis {{pv_verkauf_ct_kwh}} ct/kWh fix",
+              "run_count": 7
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5321,6 +7022,15 @@
           "top_emu": 5830610,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Konstante jährliche Einsparung: ca. {{ersparnis_pro_jahr_eur}} €  und bei 20 Jahren ca.{{ersparnis_gesamt_vertragslaufzeit_eur}} € ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Konstante jährliche Einsparung: ca. {{ersparnis_pro_jahr_eur}} €  und bei 20 Jahren ca.{{ersparnis_gesamt_vertragslaufzeit_eur}} € ",
+              "run_count": 6
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5385,6 +7095,15 @@
           "top_emu": 6215420,
           "width_emu": 6704232,
           "height_emu": 631507,
+          "is_group": false,
+          "joined_text": "Kein Investitionsaufwand für Eigentümer, planbare Einnahmen und Ersparnisse",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Kein Investitionsaufwand für Eigentümer, planbare Einnahmen und Ersparnisse",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5404,6 +7123,15 @@
           "top_emu": 6915983,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Langfristige Planbarkeit ohne operatives Risiko für Eigentümer",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Langfristige Planbarkeit ohne operatives Risiko für Eigentümer",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5423,6 +7151,15 @@
           "top_emu": 7300793,
           "width_emu": 6284952,
           "height_emu": 315754,
+          "is_group": false,
+          "joined_text": "Höchster Kundennutzen: Ersparnis plus Pachteinnahmen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Höchster Kundennutzen: Ersparnis plus Pachteinnahmen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5447,6 +7184,75 @@
           "top_emu": 1796808,
           "width_emu": 1410228,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Zentrale Aspekte der Machbarkeitsstudie:\n• Technische Dachanalyse und Planbelegung (PV-Sol)\n• Verschattungs- und\nErtragsberechnung\n• Vorläufige Modul- und\nWechselrichterauslegung\n• Ermittlung der\nEigenverbrauchsquote\n• Aufnahme der Kundenanforderungen\n•Wirtschaftlichkeits-Bewertung\ninkl. Strompreisvergleich\n• Sensitivitätsanalyse\nStrompreisszenarien",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Zentrale Aspekte der Machbarkeitsstudie:",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "• Technische Dachanalyse und Planbelegung (PV-Sol)",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "• Verschattungs- und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Ertragsberechnung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "• Vorläufige Modul- und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "Wechselrichterauslegung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "• Ermittlung der",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "Eigenverbrauchsquote",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": "• Aufnahme der Kundenanforderungen",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 9,
+              "joined_text": "•Wirtschaftlichkeits-Bewertung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 10,
+              "joined_text": "inkl. Strompreisvergleich",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 11,
+              "joined_text": "• Sensitivitätsanalyse",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 12,
+              "joined_text": "Strompreisszenarien",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5583,6 +7389,45 @@
           "top_emu": 1796808,
           "width_emu": 1410228,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Vertragsbedingungen:\n• Regelung der Dachnutzung für die PV-Anlage \n• Laufzeit der Pacht - Eintragung einer beschränkt persönlichen Dienstbarkeit\n • Definition von Rechten und Pflichten des Betreibers \n• Regelung zu Versicherung und Haftung\n• Kostenübernahme für Planung, Errichtung, Betrieb und Rückbau der Anlage\n",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Vertragsbedingungen:",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "• Regelung der Dachnutzung für die PV-Anlage ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "• Laufzeit der Pacht - Eintragung einer beschränkt persönlichen Dienstbarkeit",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": " • Definition von Rechten und Pflichten des Betreibers ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "• Regelung zu Versicherung und Haftung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "• Kostenübernahme für Planung, Errichtung, Betrieb und Rückbau der Anlage",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "",
+              "run_count": 0
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5647,6 +7492,110 @@
           "top_emu": 1796808,
           "width_emu": 1410228,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Projektierung:\n• Prüfung der statischen\nUmsetzbarkeit (inkl. ggf.\nstatischem Nachweis)\n• Netzanschlussanfrage beim\nNetzbetreiber\n• Abstimmung\nNetzverknüpfungspunkt\n• Ausarbeitung Einspeise- und\nMesskonzept\n• Definition erforderlicher\nSchutztechnik (z.B.\nNA-Schutz)\n• Technische\nProjektdokumentation für\nInvestoren\nFinales Anlagenlayout\nsowie detaillierte String und\nWechselrichterauslegung\n",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Projektierung:",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "• Prüfung der statischen",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "Umsetzbarkeit (inkl. ggf.",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "statischem Nachweis)",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "• Netzanschlussanfrage beim",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "Netzbetreiber",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "• Abstimmung",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "Netzverknüpfungspunkt",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": "• Ausarbeitung Einspeise- und",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 9,
+              "joined_text": "Messkonzept",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 10,
+              "joined_text": "• Definition erforderlicher",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 11,
+              "joined_text": "Schutztechnik (z.B.",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 12,
+              "joined_text": "NA-Schutz)",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 13,
+              "joined_text": "• Technische",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 14,
+              "joined_text": "Projektdokumentation für",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 15,
+              "joined_text": "Investoren",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 16,
+              "joined_text": "Finales Anlagenlayout",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 17,
+              "joined_text": "sowie detaillierte String und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 18,
+              "joined_text": "Wechselrichterauslegung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 19,
+              "joined_text": "",
+              "run_count": 0
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -5891,6 +7840,130 @@
           "top_emu": 1796808,
           "width_emu": 1366216,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Bauausführung\n(AC/DC):\n• Detailplanung der AC und DC-Seite\n• Koordination mit\nNetzbetreiber und\nVersicherern\n• Materialdisposition und\nBaustellenorganisation – Der Tägl. Betrieb wird nicht eingeschränkt\n• Montage der\nUnterkonstruktion und\nPV-Module\n• DC-Verkabelung und\nWechselrichter-installation\n• AC-Anbindung und\nIntegration in die\nvorhandene\nElektroinfrastruktur\n• Umsetzung der\nerforderlichen Schutz und Sicherheitstechnik\n• Fertigmeldung und\nInbetriebsetzungs-anzeige\nbeim Netzbetreiber\n• Technische Abnahme\nund Inbetriebnahme",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Bauausführung",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "(AC/DC):",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "• Detailplanung der AC und DC-Seite",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "• Koordination mit",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "Netzbetreiber und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "Versicherern",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "• Materialdisposition und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "Baustellenorganisation – Der Tägl. Betrieb wird nicht eingeschränkt",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": "• Montage der",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 9,
+              "joined_text": "Unterkonstruktion und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 10,
+              "joined_text": "PV-Module",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 11,
+              "joined_text": "• DC-Verkabelung und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 12,
+              "joined_text": "Wechselrichter-installation",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 13,
+              "joined_text": "• AC-Anbindung und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 14,
+              "joined_text": "Integration in die",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 15,
+              "joined_text": "vorhandene",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 16,
+              "joined_text": "Elektroinfrastruktur",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 17,
+              "joined_text": "• Umsetzung der",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 18,
+              "joined_text": "erforderlichen Schutz und Sicherheitstechnik",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 19,
+              "joined_text": "• Fertigmeldung und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 20,
+              "joined_text": "Inbetriebsetzungs-anzeige",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 21,
+              "joined_text": "beim Netzbetreiber",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 22,
+              "joined_text": "• Technische Abnahme",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 23,
+              "joined_text": "und Inbetriebnahme",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6126,6 +8199,40 @@
           "top_emu": 1796808,
           "width_emu": 1477562,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Betrieb:\nMess-, Steuer- und Regelsysteme sowie Betriebskontrollen\n• Instandhaltung:\nDurchführung von Inspektionen, Wartungen und ähnlichen Maßnahmen\n• Instandsetzung:\nGegebenenfalls Reparaturarbeiten und Erneuerungen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Betrieb:",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Mess-, Steuer- und Regelsysteme sowie Betriebskontrollen",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "• Instandhaltung:",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Durchführung von Inspektionen, Wartungen und ähnlichen Maßnahmen",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "• Instandsetzung:",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "Gegebenenfalls Reparaturarbeiten und Erneuerungen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6199,6 +8306,65 @@
           "top_emu": 1796808,
           "width_emu": 1739438,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Sie beziehen Strom\ndirekt von Ihrem\neigenen Dach:\nca. {{ersparnis_pro_jahr_eur}} € pro Jahr Ersparnis \nca. {{ersparnis_gesamt_vertragslaufzeit_eur}} € in 20 Jahren\n\n\n• Kostengünstiger als\nbeim regionalen Anbieter\n• Unabhängig von\nStrompreisschwankungen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Sie beziehen Strom",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "direkt von Ihrem",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "eigenen Dach:",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "ca. {{ersparnis_pro_jahr_eur}} € pro Jahr Ersparnis ",
+              "run_count": 4
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} € in 20 Jahren",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "• Kostengünstiger als",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": "beim regionalen Anbieter",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 9,
+              "joined_text": "• Unabhängig von",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 10,
+              "joined_text": "Strompreisschwankungen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6344,6 +8510,35 @@
           "top_emu": 5419725,
           "width_emu": 1511466,
           "height_emu": 1169551,
+          "is_group": false,
+          "joined_text": "• Technisch und\nwirtschaftlich tragfähiges\nVorprojekt • Definition der optimalen\nAnlagengröße\n• Einsparpotential erkennen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Technisch und",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "wirtschaftlich tragfähiges",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "Vorprojekt • Definition der optimalen",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Anlagengröße",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "• Einsparpotential erkennen",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6435,6 +8630,40 @@
           "top_emu": 5419725,
           "width_emu": 1511466,
           "height_emu": 1015663,
+          "is_group": false,
+          "joined_text": " • Rechtliche Grundlage\nzur Einleitung der\nProjektentwicklung\n(Phase II)\n• Beginn Phase II nach\nVertragsunterzeichnung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": " • Rechtliche Grundlage",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "zur Einleitung der",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "Projektentwicklung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "(Phase II)",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "• Beginn Phase II nach",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "Vertragsunterzeichnung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6526,6 +8755,40 @@
           "top_emu": 5419725,
           "width_emu": 1590826,
           "height_emu": 1323439,
+          "is_group": false,
+          "joined_text": " • Baureifestatus PV-\nAnlage (RTB = Ready-\nTo-Build) \n • Netzanschlusszusage\nFinalem techn. Anlagen-konzept\n • Dokumentationspaket für Investoren",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": " • Baureifestatus PV-",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Anlage (RTB = Ready-",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "To-Build) ",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": " • Netzanschlusszusage",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "Finalem techn. Anlagen-konzept",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": " • Dokumentationspaket für Investoren",
+              "run_count": 3
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6653,6 +8916,20 @@
           "top_emu": 5419725,
           "width_emu": 1629102,
           "height_emu": 400110,
+          "is_group": false,
+          "joined_text": "Abschluss Installation\nPV-Anlage",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Abschluss Installation",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "PV-Anlage",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6681,6 +8958,20 @@
           "top_emu": 5419725,
           "width_emu": 1629102,
           "height_emu": 400110,
+          "is_group": false,
+          "joined_text": "Auszahlung Pacht und\nPV-Anlage im Betrieb",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Auszahlung Pacht und",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "PV-Anlage im Betrieb",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6709,6 +9000,15 @@
           "top_emu": 5419725,
           "width_emu": 1629102,
           "height_emu": 246221,
+          "is_group": false,
+          "joined_text": "Sie sparen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Sie sparen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6728,6 +9028,55 @@
           "top_emu": 1784068,
           "width_emu": 2053922,
           "height_emu": 3444643,
+          "is_group": false,
+          "joined_text": "Jetzt ist notwendig..\n\n …eine Telefon-\nKonferenz mit\nunseren\nProjektberatern,\num Ihre Fragen\nzu klären und das weitere\nVorgehen zu besprechen.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Jetzt ist notwendig..",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": " …eine Telefon-",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "Konferenz mit",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "unseren",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "Projektberatern,",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "um Ihre Fragen",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "zu klären und das weitere",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": "Vorgehen zu besprechen.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6810,6 +9159,15 @@
           "top_emu": 3339338,
           "width_emu": 3431903,
           "height_emu": 346842,
+          "is_group": false,
+          "joined_text": "Inhalte",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Inhalte",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6829,6 +9187,15 @@
           "top_emu": 5862243,
           "width_emu": 1347425,
           "height_emu": 346842,
+          "is_group": false,
+          "joined_text": "Ergebnisse",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Ergebnisse",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6848,6 +9215,15 @@
           "top_emu": 7317476,
           "width_emu": 6364243,
           "height_emu": 253916,
+          "is_group": false,
+          "joined_text": "Unverbindliche Projektentwicklung insbesondere wegen der Abhängigkeit der „Stadtwerke“ (des Netzbetreibers)",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Unverbindliche Projektentwicklung insbesondere wegen der Abhängigkeit der „Stadtwerke“ (des Netzbetreibers)",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6867,6 +9243,15 @@
           "top_emu": 286324,
           "width_emu": 13698577,
           "height_emu": 574000,
+          "is_group": false,
+          "joined_text": "Der Weg zur Inbetriebnahme",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Der Weg zur Inbetriebnahme",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -6886,6 +9271,55 @@
           "top_emu": 1796808,
           "width_emu": 1300674,
           "height_emu": 4238625,
+          "is_group": false,
+          "joined_text": "• Projektrechteentwick-lung ist abgeschlossen:\n• Vermarktungsphase beginnt. \n•  Nach Vermarktung Zahlung Dachpacht ca. {{pacht_einnahme_einmalig_eur}} €\n• Investorensuche:\nFür das Projekt kann jetzt ein geeigneter Investor gesucht werden, entsprechendes Netzwerk vorhanden \n• Über den Investor steht entsprechendes GU für die Bauplanung zur Verfügung\n• GreenScout e.V. kann hier beratend unterstützen\n\n",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "• Projektrechteentwick-lung ist abgeschlossen:",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "• Vermarktungsphase beginnt. ",
+              "run_count": 2
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "•  Nach Vermarktung Zahlung Dachpacht ca. {{pacht_einnahme_einmalig_eur}} €",
+              "run_count": 4
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "• Investorensuche:",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "Für das Projekt kann jetzt ein geeigneter Investor gesucht werden, entsprechendes Netzwerk vorhanden ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 5,
+              "joined_text": "• Über den Investor steht entsprechendes GU für die Bauplanung zur Verfügung",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 6,
+              "joined_text": "• GreenScout e.V. kann hier beratend unterstützen",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 7,
+              "joined_text": "",
+              "run_count": 0
+            },
+            {
+              "paragraph_index": 8,
+              "joined_text": "",
+              "run_count": 0
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7013,6 +9447,15 @@
           "top_emu": 5419725,
           "width_emu": 1373762,
           "height_emu": 553998,
+          "is_group": false,
+          "joined_text": "Projektrechte Vermarktung und -Verkauf",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Projektrechte Vermarktung und -Verkauf",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7032,6 +9475,15 @@
           "top_emu": 7708007,
           "width_emu": 11631640,
           "height_emu": 308372,
+          "is_group": false,
+          "joined_text": "* Ob ein Projektrecht für Investoren attraktiv ist, hängt maßgeblich von der Strommenge, welche ihr Unternehmen aus der Anlage über den Stromliefervertrag bezieht, ab.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "* Ob ein Projektrecht für Investoren attraktiv ist, hängt maßgeblich von der Strommenge, welche ihr Unternehmen aus der Anlage über den Stromliefervertrag bezieht, ab.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7051,6 +9503,15 @@
           "top_emu": 6809916,
           "width_emu": 4495141,
           "height_emu": 253916,
+          "is_group": false,
+          "joined_text": "Für weitere Besprechungen ist unser Projektberater zuständig (siehe Seite 19 ) ",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Für weitere Besprechungen ist unser Projektberater zuständig (siehe Seite 19 ) ",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7075,6 +9536,15 @@
           "top_emu": 543387,
           "width_emu": 13464325,
           "height_emu": 348020,
+          "is_group": false,
+          "joined_text": "Das Erneuerbare-Energien-Gesetz (EEG) -Vorteile für Flächenverpächter",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Das Erneuerbare-Energien-Gesetz (EEG) -Vorteile für Flächenverpächter",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7094,6 +9564,15 @@
           "top_emu": 1059984,
           "width_emu": 13536645,
           "height_emu": 208955,
+          "is_group": false,
+          "joined_text": "20 Jahre Planungssicherheit durch staatlich garantierten Rahmen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "20 Jahre Planungssicherheit durch staatlich garantierten Rahmen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7113,6 +9592,15 @@
           "top_emu": 2567581,
           "width_emu": 2024182,
           "height_emu": 174069,
+          "is_group": false,
+          "joined_text": "Staatlich garantierter Rahmen",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Staatlich garantierter Rahmen",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7132,6 +9620,15 @@
           "top_emu": 2870719,
           "width_emu": 7754422,
           "height_emu": 178237,
+          "is_group": false,
+          "joined_text": "Das EEG schafft einen gesetzlich geregelten Markt für Solarstrom. Die Rahmenbedingungen sind politisch und rechtlich abgesichert.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Das EEG schafft einen gesetzlich geregelten Markt für Solarstrom. Die Rahmenbedingungen sind politisch und rechtlich abgesichert.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7151,6 +9648,15 @@
           "top_emu": 3351131,
           "width_emu": 1915001,
           "height_emu": 174069,
+          "is_group": false,
+          "joined_text": "20 Jahre Planungssicherheit",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "20 Jahre Planungssicherheit",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7170,6 +9676,15 @@
           "top_emu": 3638767,
           "width_emu": 7754422,
           "height_emu": 178237,
+          "is_group": false,
+          "joined_text": "Vergütung und Abnahme sind auf langfristige Stabilität ausgelegt. Projekte sind über 20 Jahre verlässlich kalkulierbar.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Vergütung und Abnahme sind auf langfristige Stabilität ausgelegt. Projekte sind über 20 Jahre verlässlich kalkulierbar.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7189,6 +9704,15 @@
           "top_emu": 4134682,
           "width_emu": 1684496,
           "height_emu": 174069,
+          "is_group": false,
+          "joined_text": "Hohe Zahlungssicherheit",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Hohe Zahlungssicherheit",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7208,6 +9732,15 @@
           "top_emu": 4414960,
           "width_emu": 7754422,
           "height_emu": 178237,
+          "is_group": false,
+          "joined_text": "Betreiber können ihre Einnahmen belastbar prognostizieren. Das sichert stabile und fristgerechte Pachtzahlungen.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Betreiber können ihre Einnahmen belastbar prognostizieren. Das sichert stabile und fristgerechte Pachtzahlungen.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7227,6 +9760,15 @@
           "top_emu": 4918232,
           "width_emu": 2316599,
           "height_emu": 174069,
+          "is_group": false,
+          "joined_text": "Netzanschluss & Einspeisevorrang",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Netzanschluss & Einspeisevorrang",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7246,6 +9788,15 @@
           "top_emu": 5198510,
           "width_emu": 7754422,
           "height_emu": 178237,
+          "is_group": false,
+          "joined_text": "EEG-Strom wird bevorzugt ins öffentliche Netz eingespeist. Das reduziert das Risiko von Ertragsausfällen.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "EEG-Strom wird bevorzugt ins öffentliche Netz eingespeist. Das reduziert das Risiko von Ertragsausfällen.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7265,6 +9816,15 @@
           "top_emu": 5701782,
           "width_emu": 2774275,
           "height_emu": 174069,
+          "is_group": false,
+          "joined_text": "Starker Investoren- und Bankenstandard",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Starker Investoren- und Bankenstandard",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7284,6 +9844,15 @@
           "top_emu": 5973126,
           "width_emu": 7754422,
           "height_emu": 178237,
+          "is_group": false,
+          "joined_text": "Das EEG ist ein etabliertes, finanzierungsfähiges Regelwerk. Banken finanzieren solche Projekte regelmäßig.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Das EEG ist ein etabliertes, finanzierungsfähiges Regelwerk. Banken finanzieren solche Projekte regelmäßig.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7303,6 +9872,15 @@
           "top_emu": 6485333,
           "width_emu": 2501741,
           "height_emu": 174069,
+          "is_group": false,
+          "joined_text": "Wertsteigerung & Risikominimierung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wertsteigerung & Risikominimierung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7322,6 +9900,15 @@
           "top_emu": 6756676,
           "width_emu": 7754422,
           "height_emu": 178237,
+          "is_group": false,
+          "joined_text": "Sie nutzen Ihre Fläche ohne eigenes Investitionsrisiko. Sie erzielen zusätzliche Einnahmen und stärken den Wert Ihrer Immobilie.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Sie nutzen Ihre Fläche ohne eigenes Investitionsrisiko. Sie erzielen zusätzliche Einnahmen und stärken den Wert Ihrer Immobilie.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7341,6 +9928,15 @@
           "top_emu": 7345440,
           "width_emu": 13123397,
           "height_emu": 356473,
+          "is_group": false,
+          "joined_text": "Das EEG stellt sicher, dass Solarprojekte über 20 Jahre verlässliche Einnahmen erzielen. Diese Stabilität bildet die Grundlage für eine sichere, langfristige Flächenpacht und unterstützt zugleich die Erreichung der Klimaziele in Deutschland und Europa.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Das EEG stellt sicher, dass Solarprojekte über 20 Jahre verlässliche Einnahmen erzielen. Diese Stabilität bildet die Grundlage für eine sichere, langfristige Flächenpacht und unterstützt zugleich die Erreichung der Klimaziele in Deutschland und Europa.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7360,6 +9956,15 @@
           "top_emu": 1434794,
           "width_emu": 12644914,
           "height_emu": 356473,
+          "is_group": false,
+          "joined_text": "Das Erneuerbare-Energien-Gesetz (EEG) regelt die Förderung von Strom aus erneuerbaren Energien und schafft Investitionssicherheit durch garantierte Vergütungsmechanismen sowie einen gesetzlich verankerten Einspeisevorrang.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Das Erneuerbare-Energien-Gesetz (EEG) regelt die Förderung von Strom aus erneuerbaren Energien und schafft Investitionssicherheit durch garantierte Vergütungsmechanismen sowie einen gesetzlich verankerten Einspeisevorrang.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7384,6 +9989,15 @@
           "top_emu": 1554421,
           "width_emu": 2977039,
           "height_emu": 372070,
+          "is_group": false,
+          "joined_text": "Fachstelle Flächenprüfung",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Fachstelle Flächenprüfung",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7403,6 +10017,35 @@
           "top_emu": 2975848,
           "width_emu": 7632025,
           "height_emu": 635079,
+          "is_group": false,
+          "joined_text": "Zur weiteren Planung und Vorbereitung, sowie Abstimmung Ihrer Fragen zu dieser Machbarkeitsstudie, vereinbaren wir einen Termin. \nWir hätten folgenden zwei Vorschläge für Sie: \n{{termin_1_phrase}}\n{{termin_oder_phrase}}\n{{termin_2_phrase}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Zur weiteren Planung und Vorbereitung, sowie Abstimmung Ihrer Fragen zu dieser Machbarkeitsstudie, vereinbaren wir einen Termin. ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 1,
+              "joined_text": "Wir hätten folgenden zwei Vorschläge für Sie: ",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 2,
+              "joined_text": "{{termin_1_phrase}}",
+              "run_count": 3
+            },
+            {
+              "paragraph_index": 3,
+              "joined_text": "{{termin_oder_phrase}}",
+              "run_count": 1
+            },
+            {
+              "paragraph_index": 4,
+              "joined_text": "{{termin_2_phrase}}",
+              "run_count": 4
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7503,6 +10146,15 @@
           "top_emu": 5814269,
           "width_emu": 2926080,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Telefon: +49 172 3794240",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Telefon: +49 172 3794240",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7531,6 +10183,15 @@
           "top_emu": 6298615,
           "width_emu": 3648669,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "E-Mail: projektberatung@greenscout-ev.de",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "E-Mail: projektberatung@greenscout-ev.de",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7550,6 +10211,15 @@
           "top_emu": 6765935,
           "width_emu": 4433529,
           "height_emu": 317540,
+          "is_group": false,
+          "joined_text": "Adresse: GreenScout eV - Utechter Str. 5 - 19217 Utecht",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Adresse: GreenScout eV - Utechter Str. 5 - 19217 Utecht",
+              "run_count": 4
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7596,6 +10266,15 @@
           "top_emu": 5145763,
           "width_emu": 7632025,
           "height_emu": 396954,
+          "is_group": false,
+          "joined_text": "Wir melden uns bei Ihnen!",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Wir melden uns bei Ihnen!",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7615,6 +10294,15 @@
           "top_emu": 649367,
           "width_emu": 8528566,
           "height_emu": 620078,
+          "is_group": false,
+          "joined_text": "So geht es weiter!",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "So geht es weiter!",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7634,6 +10322,15 @@
           "top_emu": 1926491,
           "width_emu": 2977039,
           "height_emu": 372070,
+          "is_group": false,
+          "joined_text": "{{consultant_full_name}}",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "{{consultant_full_name}}",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7653,6 +10350,15 @@
           "top_emu": 5795816,
           "width_emu": 2977039,
           "height_emu": 372070,
+          "is_group": false,
+          "joined_text": "Unsere Kontaktdaten:",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Unsere Kontaktdaten:",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7672,6 +10378,15 @@
           "top_emu": 7563950,
           "width_emu": 11794450,
           "height_emu": 430887,
+          "is_group": false,
+          "joined_text": "Zusätzlich zu dieser Machbarkeitsstudie erhalten Sie von uns: die PV-Sol, den Pacht- und den Stromliefervertrag",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "Zusätzlich zu dieser Machbarkeitsstudie erhalten Sie von uns: die PV-Sol, den Pacht- und den Stromliefervertrag",
+              "run_count": 2
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
@@ -7700,6 +10415,15 @@
           "top_emu": 2283732,
           "width_emu": 7315200,
           "height_emu": 464230,
+          "is_group": false,
+          "joined_text": "GreenScout e.V.",
+          "paragraphs": [
+            {
+              "paragraph_index": 0,
+              "joined_text": "GreenScout e.V.",
+              "run_count": 1
+            }
+          ],
           "runs": [
             {
               "paragraph_index": 0,
