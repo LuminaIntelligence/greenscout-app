@@ -197,6 +197,39 @@ describe("middleware routing", () => {
     expectAllHeaders(response);
   });
 
+  it("returns pass-through for /dev/slides in development (Pivot-2b visual verification)", async () => {
+    // The /dev/slides preview route is gated by NODE_ENV=development at the
+    // page-component level (returns notFound() in production). The middleware
+    // bypass mirrors that condition so screenshot-slides.mjs can reach the
+    // route without an auth session. Production-equivalence is verified by
+    // the next test (assigns NODE_ENV=production explicitly).
+    vi.stubEnv("NODE_ENV", "development");
+    try {
+      const response = (await middleware(
+        buildRequest("/dev/slides", null),
+        {} as never,
+      )) as NextResponse;
+      expect(response.status).toBe(200);
+      expectAllHeaders(response);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("does NOT bypass /dev/slides in production — redirects to /login", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      const response = (await middleware(
+        buildRequest("/dev/slides", null),
+        {} as never,
+      )) as NextResponse;
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe("http://localhost:3000/login");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("redirects to /login when an unauthenticated user hits a protected route", async () => {
     const response = (await middleware(buildRequest("/", null), {} as never)) as NextResponse;
     expect(response.status).toBe(307);
