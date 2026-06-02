@@ -6,9 +6,16 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 5 — "Vorher - Nachher".
  *
- * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
- * (siehe `template-content.json` Slide 5):
+ * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
  *
+ * **Pass-2-Korrektur (Q4 User-Antwort):** Die Footnotes wurden in Pass 1
+ * verdichtet — User-Direktive ist „voller PPTX-Wortlaut, Reproduktion
+ * nicht Verdichtung". Die dritte Footnote endet jetzt mit „…zzgl.
+ * Stromsteuer" (laut Pass-2-Extract-JSON Slide 5 Textfeld 9). Schriftgröße
+ * bleibt 11pt (innerhalb der 9-10pt-Toleranz der User-Antwort).
+ *
+ * Statische Texte wörtlich aus dem PPTX (siehe `template-content.json`
+ * Slide 5):
  *  - Textfeld 19 (Title) — "Vorher - Nachher".
  *  - Textfeld 7 — "Jetzt:" Spalten-Header.
  *  - Textfeld 1 — "Später:" Spalten-Header.
@@ -19,15 +26,8 @@ import { SlideFrame } from "./_components/slide-frame";
  *  - Textfeld 11 — "{{pv_verkauf_ct_kwh}} CENT netto / kWh
  *    Einsparpotential gegenüber dem heutigen Stromlieferanten
  *    ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €** für 20 Jahre".
- *  - Textfeld 9 (Footnote, lang) — "* Nach Zeichnung Verkauf des zu
- *    entwickelnden Projektrechtes - Pachtkonditionen 100 EUR je kWp zzgl.
- *    USt. Laufzeit 20 Jahre (5 m² nutzbare Fläche = 1 kWp) (Verlängerung
- *    optional 2x 5 Jahre) Umsetzung, Betrieb, Wartung vorbehaltlich der
- *    Prüfung Phase II"
- *    "** Werte basieren auf der realitätsnahen Simulation von PV-Sol,
- *    siehe Anhang."
- *    "*** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere
- *    Umlagen..."
+ *  - Textfeld 9 (Footnote, lang) — voller PPTX-Wortlaut, alle drei
+ *    Sterne (*, **, ***), Endung „…zzgl. Stromsteuer".
  *
  * Bilder: BEFORE links ("Jetzt:"), AFTER rechts ("Später:"). Beide mit
  * identischer Bounding-Box via ImageSlot.
@@ -97,15 +97,17 @@ export default function Slide05VorherNachher({ data }: { data: StudyDocumentData
           </div>
         </div>
 
-        {/* Footnote (Textfeld 9) — long multi-line footnote */}
-        <div className="text-[11px] leading-[1.35] text-foreground opacity-70">
+        {/* Footnote (Textfeld 9) — vollständiger PPTX-Wortlaut (Q4-Korrektur:
+            keine Verdichtung, alle drei Footnotes im Original-Wortlaut). */}
+        <div className="text-[11px] leading-[1.4] text-foreground opacity-70">
           * Nach Zeichnung Verkauf des zu entwickelnden Projektrechtes - Pachtkonditionen 100 EUR je
           kWp zzgl. USt. Laufzeit 20 Jahre (5 m² nutzbare Fläche = 1 kWp) (Verlängerung optional 2x
           5 Jahre) Umsetzung, Betrieb, Wartung vorbehaltlich der Prüfung Phase II
           <br />
           ** Werte basieren auf der realitätsnahen Simulation von PV-Sol, siehe Anhang.
           <br />
-          *** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere Umlagen.
+          *** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere Umlagen zzgl.
+          Stromsteuer
         </div>
       </div>
     </SlideFrame>

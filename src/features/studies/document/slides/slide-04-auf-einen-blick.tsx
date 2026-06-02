@@ -12,40 +12,51 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 4 — "Auf einen Blick" (KPI-Dashboard).
  *
- * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
- * (siehe `template-content.json` Slide 4):
+ * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
  *
+ * **Pass-2-Korrekturen (Q2 + Q3 User-Antworten):**
+ *  - **Kein 3×2-Grid** — freies Layout wie im Original-PDF:
+ *    - CO2-Absatz oben als breiter Fließtext + zentrierter "VIELEN DANK"-
+ *      Bold-Satz (gehört zum CO2-Absatz, kein eigenes 6. Tile).
+ *    - kWp-Hero zentriert oben-mitte (großer Wert + Caption).
+ *    - Eigenverbrauch-Kreis-Block links daneben, mit Text rechts.
+ *    - Drei Geld-Tiles als Reihe am unteren Rand: Pachteinnahmen /
+ *      Jahresertrag / Stromersparnis.
+ *    - Objektstandort unten links.
+ *  - **CO2-Schlusssatz endet mit "Fußballfelder!"** (Q3) — die früher
+ *    in der Repro erfundene Endung "über die gesamte Vertragslaufzeit."
+ *    war falsch; die Pass-2-Extract-JSON enthält jetzt den
+ *    vollständigen Satz mit `!` als Endung.
+ *
+ * Statische Texte wörtlich aus dem PPTX (siehe `template-content.json`
+ * Slide 4, Pass-2-Regenerierung):
  *  - Headline (Text 2, 24pt) — "Auf einen Blick".
- *  - KPI-Tile 1: {{anlage_kwp}} + "kWp" / Caption "Installierende Leistung"
- *    / Note "Gesamtleistung der geplanten Anlage".
- *  - KPI-Tile 2: {{pv_erzeugung_kwh_jahr}} + "kWh" / Caption "Jahresertrag"
- *    / Note "ca. {{gesamterzeugung_vertragslaufzeit_kwh}} kWh auf 20 Jahre"
- *    + "Jahresproduktion ca. {{pv_erzeugung_kwh_jahr}} kWh".
- *  - KPI-Tile 3: {{eigenverbrauchsquote_prozent}}% / Caption "Eigenverbrauch"
- *    / Note "Eigenverbrauch des Bedarfs: ca. {{pv_eigenverbrauch_kwh_jahr}}
- *    kWh (41 %)" + "Überschuss Produktion:- Wird ins öffentliche Netz
- *    eingespeist Oder z.T. in einem zu errichteten Speicher
- *    zwischengespeichert".
- *  - KPI-Tile 4: "ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €" / Caption
- *    "Mögliche Stromersparnis für 20 Jahre" / Note "Jährlich ca.
+ *  - Hero-kWp-Tile: {{anlage_kwp}} + "kWp" / Caption "Installierende
+ *    Leistung" / Note "Gesamtleistung der geplanten Anlage".
+ *  - Jahresertrag-Tile (Text 7+8+9): {{pv_erzeugung_kwh_jahr}} + "kWh" /
+ *    "Jahresertrag" / "ca. {{gesamterzeugung_vertragslaufzeit_kwh}} kWh
+ *    auf 20 Jahre Jahresproduktion ca. {{pv_erzeugung_kwh_jahr}} kWh".
+ *  - Eigenverbrauch-Block (Text 13+14+15): {{eigenverbrauchsquote_prozent}}%
+ *    / "Eigenverbrauch" / "Eigenverbrauch des Bedarfs: ca.
+ *    {{pv_eigenverbrauch_kwh_jahr}} kWh (41 %) Überschuss Produktion:-
+ *    Wird ins öffentliche Netz eingespeist Oder z.T. in einem zu
+ *    errichteten Speicher zwischengespeichert".
+ *  - 20-Jahre-Stromersparnis-Tile (Text 16+17+18): "ca.
+ *    {{ersparnis_gesamt_vertragslaufzeit_eur}} €" / "Mögliche
+ *    Stromersparnis für 20 Jahre" / "Jährlich ca.
  *    {{ersparnis_pro_jahr_eur}} €".
- *  - KPI-Tile 5: "{{pacht_einnahme_einmalig_eur}} €" / Caption
- *    "Pachteinnahmen" / Note "Einmalig gleich zu Beginn".
- *  - Footnote (Textfeld 26): "Vorläufige Kernergebnisse auf Basis der von
- *    Ihnen gelieferten Dokumente."
- *  - CO2-Block (Textfeld 27): "Ihre Fläche erspart rund
- *    {{co2_tonnen_pro_jahr}} Tonnen CO2 pro Jahr. Dieser Wert entspricht
- *    einer jährlichen CO2-Bindung von bis zu {{co2_hektar_mischwald}}
- *    Hektar nachhaltig bewirtschafteten deutschen Mischwald, das
- *    entspricht ca. {{co2_fussballfelder_pro_jahr}} Fußballfelder pro
- *    Jahr. Bei 20 Jahren Nutzungsdauer sind das
- *    {{co2_tonnen_gesamt_vertragslaufzeit}} Tonnen CO2, das sind ca.
- *    {{co2_fussballfelder_gesamt_vertragslaufzeit}}..." (vollständiger
- *    PPTX-Text).
+ *  - Pachteinnahmen-Tile (Text 16+17+18 duplikat-shape-id):
+ *    "{{pacht_einnahme_einmalig_eur}} €" / "Pachteinnahmen" /
+ *    "Einmalig gleich zu Beginn".
+ *  - Footnote (Textfeld 26): "Vorläufige Kernergebnisse auf Basis der
+ *    von Ihnen gelieferten Dokumente."
+ *  - CO2-Block (Textfeld 27, voller Satz mit "Fußballfelder!"-Endung).
  *  - Objektstandort (Textfeld 34): "Objektstandort:
- *    {{customer_object_short_name_and_city}}. {{flurstueck_label_phrase}}".
+ *    {{customer_object_short_name_and_city}}.
+ *    {{flurstueck_label_phrase}}".
  *  - Thanks (Textfeld 4): "VIELEN DANK für Ihren Einsatz zu einer
- *    besseren CO2 Bilanz !"
+ *    besseren CO2 Bilanz !" (gehört in den CO2-Absatz, kein eigenes
+ *    Tile — Q2).
  */
 export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData }) {
   const customerName = customerDisplayName(data.customer);
@@ -65,11 +76,8 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
   const co2Jahr = formatTonnes(data.derived.co2TonnenProJahr);
   const co2Mischwald = formatHectares(data.derived.co2HektarMischwald);
   const co2Fussballfelder = formatFootballFields(data.derived.co2FussballfelderProJahr);
-  const co2Gesamt = data.derived.co2TonnenProJahr * data.study.vertragslaufzeitJahre;
-  const co2GesamtFmt = formatIntegerDe(co2Gesamt);
-  const co2FussballfelderGesamt = formatIntegerDe(
-    data.derived.co2FussballfelderProJahr * data.study.vertragslaufzeitJahre,
-  );
+  const co2GesamtFmt = formatIntegerDe(data.derived.co2TonnenProJahr * 20);
+  const co2FussballfelderGesamt = formatIntegerDe(data.derived.co2FussballfelderProJahr * 20);
 
   const objectShortNameAndCity = `${data.study.objectName}, ${data.study.objectCity}`;
   const flurstueckLabel =
@@ -80,114 +88,125 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
   return (
     <SlideFrame slideNumber={4} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-6">
-        {/* Headline (Text 2, 24pt) */}
-        <h2 className="text-[24px] font-normal text-forest-green">Auf einen Blick</h2>
+        {/* Headline */}
+        <h2 className="text-center text-[28px] font-bold text-forest-green">Auf einen Blick</h2>
 
-        {/* Five KPI tiles in a 3x2 grid (5 used, 6th slot for CO2 thanks) */}
-        <div className="grid grid-cols-3 gap-6">
-          {/* Tile 1 — Installierte Leistung */}
-          <KpiTile
-            value={anlageKwp}
-            unit="kWp"
-            caption="Installierende Leistung"
-            note="Gesamtleistung der geplanten Anlage"
-          />
+        {/* CO2-Fließtext über volle Breite — Q3-Korrektur: voller Satz inkl.
+            "Fußballfelder!"-Endung, plus "VIELEN DANK"-Satz als integraler
+            Bestandteil (Q2). */}
+        <div className="space-y-2 text-[15px] leading-[1.5] text-forest-green">
+          <p>
+            Ihre Fläche erspart rund <span className="font-bold tabular-nums">{co2Jahr}</span> CO
+            <sub>2</sub> pro Jahr. Dieser Wert entspricht einer jährlichen CO
+            <sub>2</sub>-Bindung von bis zu{" "}
+            <span className="font-bold tabular-nums">{co2Mischwald}</span> Hektar nachhaltig
+            bewirtschafteten deutschen Mischwald, das entspricht ca.{" "}
+            <span className="font-bold tabular-nums">{co2Fussballfelder}</span> Fußballfelder pro
+            Jahr. Bei 20 Jahren Nutzungsdauer sind das{" "}
+            <span className="font-bold tabular-nums">{co2GesamtFmt}</span> Tonnen CO
+            <sub>2</sub>, das sind ca.{" "}
+            <span className="font-bold tabular-nums">{co2FussballfelderGesamt}</span> Fußballfelder!
+          </p>
+          <p className="text-center text-[18px] font-bold">
+            VIELEN DANK für Ihren Einsatz zu einer besseren CO<sub>2</sub> Bilanz !
+          </p>
+        </div>
 
-          {/* Tile 2 — Jahresertrag */}
-          <KpiTile
-            value={pvErzeugung}
-            unit="kWh"
-            caption="Jahresertrag"
-            note={
-              <>
-                ca. {gesamterzeugung20} kWh auf 20 Jahre
-                <br />
-                Jahresproduktion ca. {pvErzeugung} kWh
-              </>
-            }
-          />
-
-          {/* Tile 3 — Eigenverbrauch */}
-          <KpiTile
-            value={eigenverbrauchsquote}
-            unit="%"
-            caption="Eigenverbrauch"
-            note={
-              <>
-                Eigenverbrauch des Bedarfs: ca. {pvEigenverbrauch} kWh ({eigenverbrauchsquote} %)
-                <br />
-                Überschuss Produktion:
-                <br />- Wird ins öffentliche Netz eingespeist Oder z.T. in einem zu errichteten
-                Speicher zwischengespeichert
-              </>
-            }
-          />
-
-          {/* Tile 4 — 20-Jahre Stromersparnis */}
-          <KpiTile
-            value={`ca. ${ersparnis20} €`}
-            caption="Mögliche Stromersparnis für 20 Jahre"
-            note={`Jährlich ca. ${ersparnisJahr} €`}
-          />
-
-          {/* Tile 5 — Pachteinnahmen */}
-          <KpiTile
-            value={`${pachtEinmalig} €`}
-            caption="Pachteinnahmen"
-            note="Einmalig gleich zu Beginn"
-          />
-
-          {/* Tile 6 — CO2 Thanks */}
-          <div className="rounded-2xl bg-muted-lime-100 p-6 text-[18px] font-bold leading-[1.3] text-forest-green">
-            VIELEN DANK für Ihren Einsatz zu einer besseren CO2 Bilanz !
+        {/* Hero-kWp-Block zentriert — der visuelle Anker des Slides */}
+        <div className="flex flex-col items-center">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[80px] font-bold tabular-nums leading-none text-plant-green">
+              {anlageKwp}
+            </span>
+            <span className="text-[40px] font-normal text-forest-green">kWp</span>
+          </div>
+          <div className="mt-1 text-[20px] font-semibold text-forest-green">
+            Installierende Leistung
+          </div>
+          <div className="text-[14px] text-foreground opacity-70">
+            Gesamtleistung der geplanten Anlage
           </div>
         </div>
 
-        {/* Footnote (Textfeld 26) */}
-        <p className="text-[14px] italic text-forest-green opacity-70">
-          Vorläufige Kernergebnisse auf Basis der von Ihnen gelieferten Dokumente.
-        </p>
+        {/* Mittelblock: Objektstandort links, Eigenverbrauchskreis mittig,
+            Hinweistext rechts. */}
+        <div className="grid grid-cols-3 items-center gap-4">
+          {/* Left — Objektstandort */}
+          <div className="text-[14px] text-forest-green">
+            <div className="font-bold">Objektstandort:</div>
+            <div>{objectShortNameAndCity}.</div>
+            {flurstueckLabel ? <div>{flurstueckLabel}</div> : null}
+          </div>
 
-        {/* CO2 long-text block (Textfeld 27) */}
-        <div className="rounded-2xl border-2 border-plant-green bg-plant-green-50 p-6 text-[16px] leading-[1.4] text-forest-green">
-          Ihre Fläche erspart rund <span className="font-bold">{co2Jahr}</span> CO2 pro Jahr. Dieser
-          Wert entspricht einer jährlichen CO2-Bindung von bis zu{" "}
-          <span className="font-bold">{co2Mischwald}</span> Hektar nachhaltig bewirtschafteten
-          deutschen Mischwald, das entspricht ca.{" "}
-          <span className="font-bold">{co2Fussballfelder}</span> Fußballfelder pro Jahr. Bei{" "}
-          {data.study.vertragslaufzeitJahre} Jahren Nutzungsdauer sind das{" "}
-          <span className="font-bold">{co2GesamtFmt}</span> Tonnen CO2, das sind ca.{" "}
-          <span className="font-bold">{co2FussballfelderGesamt}</span> Fußballfelder über die
-          gesamte Vertragslaufzeit.
+          {/* Middle — Eigenverbrauchs-Kreis */}
+          <div className="flex justify-center">
+            <div className="flex h-[160px] w-[160px] flex-col items-center justify-center rounded-full border-4 border-plant-green">
+              <div className="text-[36px] font-bold tabular-nums leading-none text-plant-green">
+                {eigenverbrauchsquote}%
+              </div>
+              <div className="mt-1 text-[14px] font-semibold text-forest-green">Eigenverbrauch</div>
+            </div>
+          </div>
+
+          {/* Right — Eigenverbrauchs-Erklärung */}
+          <div className="text-[13px] leading-[1.4] text-foreground">
+            <div>
+              Eigenverbrauch des Bedarfs: ca.{" "}
+              <span className="font-bold tabular-nums">{pvEigenverbrauch}</span> kWh (
+              {eigenverbrauchsquote} %)
+            </div>
+            <div className="mt-1">Überschuss Produktion:</div>
+            <div>
+              - Wird ins öffentliche Netz eingespeist Oder z.T. in einem zu errichteten Speicher
+              zwischengespeichert
+            </div>
+          </div>
         </div>
 
-        {/* Object location (Textfeld 34) */}
-        <p className="mt-auto text-[14px] text-forest-green opacity-70">
-          Objektstandort: {objectShortNameAndCity}. {flurstueckLabel}
+        {/* Drei Geld-Tiles als Reihe unten */}
+        <div className="mt-auto grid grid-cols-3 gap-6">
+          {/* Pachteinnahmen */}
+          <div className="flex flex-col items-center text-center">
+            <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
+              {pachtEinmalig} €
+            </div>
+            <div className="mt-2 text-[18px] font-semibold text-forest-green">Pachteinnahmen</div>
+            <div className="text-[13px] text-foreground opacity-70">Einmalig gleich zu Beginn</div>
+          </div>
+
+          {/* Jahresertrag */}
+          <div className="flex flex-col items-center text-center">
+            <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
+              {pvErzeugung} kWh
+            </div>
+            <div className="mt-2 text-[18px] font-semibold text-forest-green">Jahresertrag</div>
+            <div className="text-[13px] text-foreground opacity-70">
+              ca. <span className="tabular-nums">{gesamterzeugung20}</span> kWh auf 20 Jahre
+            </div>
+            <div className="text-[13px] text-foreground opacity-70">
+              Jahresproduktion ca. <span className="tabular-nums">{pvErzeugung}</span> kWh
+            </div>
+          </div>
+
+          {/* Stromersparnis 20 Jahre */}
+          <div className="flex flex-col items-center text-center">
+            <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
+              ca. {ersparnis20} €
+            </div>
+            <div className="mt-2 text-[18px] font-semibold text-forest-green">
+              Mögliche Stromersparnis für 20 Jahre
+            </div>
+            <div className="text-[13px] text-foreground opacity-70">
+              Jährlich ca. <span className="tabular-nums">{ersparnisJahr}</span> €
+            </div>
+          </div>
+        </div>
+
+        {/* Footnote */}
+        <p className="text-[11px] italic text-forest-green opacity-60">
+          Vorläufige Kernergebnisse auf Basis der von Ihnen gelieferten Dokumente.
         </p>
       </div>
     </SlideFrame>
-  );
-}
-
-interface KpiTileProps {
-  value: string;
-  unit?: string;
-  caption: string;
-  note: React.ReactNode;
-}
-
-function KpiTile({ value, unit, caption, note }: KpiTileProps) {
-  return (
-    <div className="rounded-2xl border border-muted-lime-300 bg-white p-6">
-      <div className="flex items-baseline gap-2">
-        <span className="text-[37px] font-normal tabular-nums leading-none text-plant-green">
-          {value}
-        </span>
-        {unit ? <span className="text-[20px] text-forest-green">{unit}</span> : null}
-      </div>
-      <div className="mt-3 text-[20px] font-normal leading-[1.2] text-forest-green">{caption}</div>
-      <p className="mt-2 text-[14px] leading-[1.4] text-foreground">{note}</p>
-    </div>
   );
 }

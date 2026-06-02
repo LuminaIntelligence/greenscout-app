@@ -5,8 +5,14 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 8 — "Warum eine Zusammenarbeit sinnvoll ist".
  *
- * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
- * (siehe `template-content.json` Slide 8):
+ * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
+ *
+ * **Pass-2-Korrektur (Q6 User-Antwort):** Karten weiß statt
+ * `bg-muted-lime-50`. SPEC §8.4 verlangt „sparing use of muted-lime for
+ * accents" — die Nummerierung selbst ist Akzent genug.
+ *
+ * Statische Texte wörtlich aus dem PPTX (siehe `template-content.json`
+ * Slide 8):
  *
  *  - Text 0 — "Warum eine Zusammenarbeit sinnvoll ist".
  *  - Text 1 — "Greifbare Vorteile auf mehreren Ebenen".
@@ -68,7 +74,7 @@ export default function Slide08Zusammenarbeit({ data }: { data: StudyDocumentDat
           {cards.map((c) => (
             <div
               key={c.no}
-              className="rounded-xl bg-muted-lime-50 p-5 text-[15px] leading-[1.4] text-foreground"
+              className="rounded-xl border border-muted-lime-300 bg-white p-5 text-[15px] leading-[1.4] text-foreground"
             >
               <div className="flex items-start gap-3">
                 <div className="text-[40px] font-bold tabular-nums leading-none text-plant-green">

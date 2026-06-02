@@ -5,8 +5,15 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 10 — "PV-Anlagenkonzept: Dachbelegung und Eignung".
  *
- * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
- * (siehe `template-content.json` Slide 10):
+ * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
+ *
+ * **Pass-2-Korrektur (Q8 User-Antwort):** Modul-Info-Phrase folgt dem
+ * Original-PDF-Format: `{{anlage_kwp}} kWp, {{modul_anzahl}} Module,
+ * {{modul_flaeche_m2}} m²` — Komma-Trennung, kein „Modulfläche"-Wort.
+ * Auch Karten weiß statt `bg-muted-lime-50` (analog Q6 für Slide 8).
+ *
+ * Statische Texte wörtlich aus dem PPTX (siehe `template-content.json`
+ * Slide 10):
  *
  *  - Text 0 — "PV-Anlagenkonzept: Dachbelegung und Eignung*".
  *  - Text 1 — "Für {{customer_object_name}} – {{anlage_kwp}} kWp,
@@ -31,15 +38,18 @@ export default function Slide10PVAnlagenkonzept({ data }: { data: StudyDocumentD
   const objectName = data.study.objectName;
   const anlageKwp = formatIntegerDe(Number(data.study.anlageKwp));
 
-  // Modul-Info-Phrase: Anlagengröße + Module + Fläche, soweit gesetzt.
+  // Modul-Info-Phrase (Q8): Format „X kWp, Y Module, Z m²" mit
+  // Komma-Trennung und ohne das Wort „Modulfläche". Fehlende Felder
+  // werden weggelassen (Defekt-D-Pattern: nie Lücken-Komma stehen
+  // lassen).
   const phraseParts: string[] = [`${anlageKwp} kWp`];
   if (data.study.modulAnzahl !== null) {
-    phraseParts.push(`${formatIntegerDe(data.study.modulAnzahl)} Module,`);
+    phraseParts.push(`${formatIntegerDe(data.study.modulAnzahl)} Module`);
   }
   if (data.study.modulFlaecheM2 !== null) {
-    phraseParts.push(`${formatIntegerDe(Number(data.study.modulFlaecheM2))} m² Modulfläche`);
+    phraseParts.push(`${formatIntegerDe(Number(data.study.modulFlaecheM2))} m²`);
   }
-  const modulInfoPhrase = phraseParts.join(" ");
+  const modulInfoPhrase = phraseParts.join(", ");
 
   const tiles = [
     {
@@ -81,7 +91,10 @@ export default function Slide10PVAnlagenkonzept({ data }: { data: StudyDocumentD
         {/* 4 tiles 2x2 */}
         <div className="grid flex-1 grid-cols-2 gap-5">
           {tiles.map((t) => (
-            <div key={t.no} className="rounded-xl bg-muted-lime-50 p-5 text-[16px] leading-[1.4]">
+            <div
+              key={t.no}
+              className="rounded-xl border border-muted-lime-300 bg-white p-5 text-[16px] leading-[1.4]"
+            >
               <div className="flex items-start gap-3">
                 <div className="text-[36px] font-bold tabular-nums leading-none text-plant-green">
                   {t.no}

@@ -5,48 +5,77 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 1 — Deckblatt "Ihr Ergebnis".
  *
- * Treue Reproduktion (Pivot-2b, siehe DECISIONS 2026-06-02). Statische
- * Texte wörtlich aus dem PPTX (siehe `template-content.json` Slide 1):
+ * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
  *
- * - Textfeld 6 (24pt) — Tagline-Zeile.
- * - Textfeld 7 (80pt bold) — Hero "Ihr Ergebnis".
- * - Textfeld 3 (16pt bold) — "Eingereicht über {{consultant_full_name}}
- *   / direkt vom Unternehmen". Der `{{consultant_full_name}}`-Marker
- *   wird durch den realen Berater-Namen ersetzt.
+ * **Pass-2-Korrektur (Q1 User-Antwort):** Die Tagline „Flächen bewerten,
+ * Entscheidung treffen, Einnahmen ohne eigene Investitionen" gehört
+ * **direkt unter den GreenScout-Schriftzug als Subtitle der Marken-
+ * Einheit** — nicht oben links, nicht unter „Ihr Ergebnis", sondern als
+ * gebundene Subtitle der Brand-Lockup-Einheit. Die PPTX-Mittenkoordinate
+ * für das Tagline-Textfeld ist irreführend gegenüber dem visuellen
+ * Original-PDF.
  *
- * Customer-Display-Name + Berater-Name kommen aus den Props.
- * `showFooter={false}`: das Deckblatt hat keinen Slide-Footer (im
- * Original-PPTX trägt es nur das eigene Layout).
+ * **Weitere Pass-2-Korrekturen aus visueller Verifikation gegen
+ * original-slide-01.png:**
+ *  - Background: forest-green (statt weiß).
+ *  - Hero-Lockup zentriert: "GreenScout e.V." Schriftzug in weiß +
+ *    Tagline darunter in weiß.
+ *  - "Ihr Ergebnis" zentriert weiß bold.
+ *  - "Eingereicht über..." unten rechts in weiß; "Berater"-Name in
+ *    Akzent-Rot (#CC3366 = SPEC §8.1 link-Farbe).
+ *
+ * Statische Texte wörtlich aus dem PPTX (siehe `template-content.json`
+ * Slide 1):
+ *  - Textfeld 6 (24pt) — Tagline-Zeile.
+ *  - Textfeld 7 (80pt bold) — Hero "Ihr Ergebnis".
+ *  - Textfeld 3 (16pt bold) — "Eingereicht über {{consultant_full_name}}
+ *    / direkt vom Unternehmen".
+ *
+ * `showFooter={false}`: das Deckblatt hat keinen Slide-Footer — im
+ * Original-PPTX trägt es nur das eigene Layout.
  */
 export default function Slide01Cover({ data }: { data: StudyDocumentData }) {
   const customerName = customerDisplayName(data.customer);
   const consultant = consultantFullName(data.consultant);
 
   return (
-    <SlideFrame slideNumber={1} customerLabel={customerName} showFooter={false}>
-      <div className="flex h-full flex-col justify-between py-8">
-        {/* Top — Tagline */}
-        <div>
-          <div className="text-[24px] font-normal text-foreground">
+    <SlideFrame
+      slideNumber={1}
+      customerLabel={customerName}
+      showFooter={false}
+      frameClassName="bg-forest-green text-white"
+      contentClassName="text-white"
+    >
+      <div className="flex h-full flex-col items-center justify-between py-12">
+        {/* Hero brand lockup — GreenScout-Schriftzug + Tagline als visuelle Einheit */}
+        <div className="mt-12 flex flex-col items-center gap-3">
+          {/* Brand wordmark (Logo-Asset fehlt im Asset-Pool — Text-Lockup als
+              treuer Stand-in für den visuellen "GreenScout e.V."-Schriftzug
+              aus dem PPTX). */}
+          <div className="font-[var(--font-gabarito-heading),system-ui,sans-serif] text-[72px] font-semibold leading-none text-white">
+            GreenScout e.V.
+            <span className="ml-1 align-top text-[20px]">®</span>
+          </div>
+          {/* Tagline als direkte Subtitle der Marken-Einheit (Q1-Korrektur) */}
+          <div className="text-[24px] font-normal text-white">
             Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen
           </div>
         </div>
 
         {/* Center — Hero "Ihr Ergebnis" + Customer/Object identification */}
-        <div className="space-y-10">
-          <h1 className="font-[var(--font-gabarito-heading),system-ui,sans-serif] text-[80px] font-semibold leading-[1.05] text-forest-green">
+        <div className="flex flex-col items-center gap-8">
+          <h1 className="font-[var(--font-gabarito-heading),system-ui,sans-serif] text-[120px] font-semibold leading-none text-white">
             Ihr Ergebnis
           </h1>
-          <div className="space-y-3">
-            <div className="slide-h3">{customerName}</div>
-            <div className="slide-body-lg text-forest-green-700">{data.study.objectName}</div>
+          <div className="space-y-1 text-center">
+            <div className="text-[28px] font-semibold text-white">{customerName}</div>
+            <div className="text-[20px] text-white opacity-90">{data.study.objectName}</div>
           </div>
         </div>
 
         {/* Bottom — "Eingereicht über <consultant> / direkt vom Unternehmen" */}
-        <div className="text-[16px] font-bold text-foreground">
-          Eingereicht über <span className="text-forest-green">{consultant}</span> / direkt vom
-          Unternehmen
+        <div className="self-end text-[16px] font-bold text-white">
+          Eingereicht über <span className="text-link">{consultant}</span> / direkt vom Unternehmen
         </div>
       </div>
     </SlideFrame>

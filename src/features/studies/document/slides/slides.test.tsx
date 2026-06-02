@@ -269,22 +269,38 @@ describe("Slide16Variantenvergleich", () => {
 });
 
 describe("Slide17Timeline", () => {
-  it("renders the 6 phases in a 6-column grid with grid-auto-rows: 1fr", () => {
+  it("renders the 7 phases in a 7-column grid (Q10 PASS 2)", () => {
     const { container } = render(<Slide17Timeline data={data} />);
     expect(container.textContent).toContain("Der Weg zur Inbetriebnahme");
     expect(container.textContent).toContain("Jetzt ist notwendig");
+    // User-verified 7-Spalten-Reihenfolge mit Phasen-Headers.
+    expect(container.textContent).toContain("Phase I");
     expect(container.textContent).toContain("Machbarkeitsstudie");
+    expect(container.textContent).toContain("Vor-Phase II");
     expect(container.textContent).toContain("Vertragsbedingungen");
+    expect(container.textContent).toContain("Phase II");
     expect(container.textContent).toContain("Projektierung");
-    expect(container.textContent).toContain("Bauausführung (AC/DC)");
-    expect(container.textContent).toContain("Betrieb");
+    expect(container.textContent).toContain("Phase III");
+    expect(container.textContent).toContain("Investorensuche");
+    expect(container.textContent).toContain("Projektumsetzung");
+    expect(container.textContent).toContain("Inbetriebnahme");
+    expect(container.textContent).toContain("Bis 20 Jahre");
+    // Ergebnis-Texte aller 7 Spalten (User-verifizierte Liste).
+    expect(container.textContent).toContain("Technisch und wirtschaftlich tragfähiges Vorprojekt");
+    expect(container.textContent).toContain(
+      "Rechtliche Grundlage zur Einleitung der Projektentwicklung",
+    );
+    expect(container.textContent).toContain("Baureifestatus PV-Anlage");
     expect(container.textContent).toContain("Projektrechte Vermarktung und -Verkauf");
-    const grid = container.querySelector('[style*="repeat(6"]');
+    expect(container.textContent).toContain("Abschluss Installation PV-Anlage");
+    expect(container.textContent).toContain("Auszahlung Pacht und PV-Anlage im Betrieb");
+    expect(container.textContent).toContain("Sie sparen");
+    // 7-Spalten-Grid.
+    const grid = container.querySelector('[style*="repeat(7"]');
     expect(grid).not.toBeNull();
-    expect((grid as HTMLElement | null)?.style.gridAutoRows).toBe("1fr");
-    // 6 phase titles as <h4>.
+    // 7 phase titles as <h4>.
     const headings = container.querySelectorAll("h4");
-    expect(headings.length).toBeGreaterThanOrEqual(6);
+    expect(headings.length).toBeGreaterThanOrEqual(7);
   });
 });
 
