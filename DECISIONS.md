@@ -4105,3 +4105,74 @@ Plus: die Studien-Detail-Page (`src/app/(app)/studies/[id]/page.tsx`) importiert
 
 ---
 
+## 2026-06-02 — Pivot-2b PASS 2: Sign-off-Korrekturen + Extract-Skript-Bugfix
+
+**Context:** PR #66 PASS 1 hatte 12 Klärungsfragen offen + zwei aus Slide 4 / Slide 17 sichtbare Anzeichen für Bugs im `extract-template-text.py`-Skript (verlorene Runs / abgeschnittene Sätze). User-Sign-off-Pass am 2026-06-02 mit allen 12 Antworten + Direktion „Skript-Fix first, dann Slides".
+
+**Decisions:**
+
+- **Extract-Skript reviewed und korrigiert** (`scripts/extract-template-text.py`):
+  - Pro Paragraph wird jetzt ein `joined_text`-Feld geschrieben — alle Runs in Reihenfolge konkateniert. Bugursache: Pass-1-Konsumenten (Slide-Komponenten) hatten Run-Verlust beim manuellen Konkatenieren, dadurch Mid-Sentence-Abbruch in Slide 4 (CO₂-Schluss) und falsche Annahme „Phase-6 hat keine Ergebnisse" in Slide 17.
+  - Rekursion in Group-Shapes (`MSO_SHAPE_TYPE.GROUP → shape.shapes`) als Defense-in-Depth gegen spätere Template-Updates. Im aktuellen PPTX-State keine Group-Shapes vorhanden.
+  - `template-content.json` regeneriert (19 Slides / 221 Shapes / 601 Runs — gleich wie Pass 1, also keine Shape/Run-Drift; nur strukturelle JSON-Erweiterung um `joined_text` + `paragraphs[]`).
+  - Slide 4 Textfeld 27: voller CO₂-Satz inkl. „Fußballfelder!"-Endung bestätigt.
+  - Slide 17: alle 7 Spalten-Ergebnis-Shapes (Textfeld 8/9/10/11/12/13/21) bestätigt.
+
+- **Slide 1 (Q1):** Tagline ist jetzt direkter Subtitle der „GreenScout e.V."-Marken-Einheit (Hero-Komposition zentriert auf forest-green-Background). Pass-2-Frage offen: kein Brand-Logo-Asset im Repo, Text-Stand-in genutzt — siehe `docs/pivot/clarifications-pass2.md`.
+
+- **Slide 4 (Q2 + Q3):** Freies Layout statt 3×2-Grid:
+  - CO₂-Fließtext oben über volle Breite + „VIELEN DANK"-Schlusssatz als integraler Absatz-Bestandteil (kein eigenes 6. Tile).
+  - kWp-Hero zentriert (44pt+).
+  - Eigenverbrauchs-Kreis + Erklärung als 3-Spalten-Mittelblock.
+  - 3 Geld-Tiles als Reihe unten (Pachteinnahmen / Jahresertrag / Stromersparnis).
+  - Objektstandort links neben Kreis.
+  - CO₂-Satz endet mit „Fußballfelder!" (Q3-Korrektur).
+
+- **Slide 5 (Q4):** Volle Footnote-Wortlaute aus PPTX, endet mit „…zzgl. Stromsteuer".
+
+- **Slide 7 (Q5):** Single-Liste mit Icon-Bullets statt 2-Karten-Layout. Reihenfolge:
+  1. „Durch Beauftragung des Auswertepaketes... 998 €"
+  2. **Phase I:** Header (bold)
+  3. **Phase II:** Header (bold)
+  4. „Aufbau tragfähiger Kontakte..."
+  5. „Unterstützung bei Vertragsumsetzung..."
+  6. „Förderung nachhaltiger Energieerzeugung..."
+
+- **Slide 8 (Q6):** Karten weiß mit muted-lime-300-Border statt `bg-muted-lime-50`. „Warum gerade jetzt?"-Block bleibt forest-green — nicht in Q6 adressiert; siehe `clarifications-pass2.md` für Folge-Frage.
+
+- **Slide 10 (Q8):** Modul-Info-Phrase Format: `X kWp, Y Module, Z m²` (Komma-Trennung, kein „Modulfläche"-Wort). Tiles weiß analog Q6.
+
+- **Slide 17 (Q9 + Q10):** 7-Spalten-Timeline statt 6-Spalten:
+  - Spalten-Reihenfolge: Phase I → Vor-Phase II → Phase II → **Phase III (Projektrechte Vermarktung)** → Projektumsetzung → Inbetriebnahme → **Bis 20 Jahre**.
+  - „Projektrechte Vermarktung und -Verkauf" gehört in Spalte 4 (Phase III), nicht als letzte Spalte.
+  - „Sie sparen" ist Ergebnis-Label der 7. Spalte (Q9), kein Mitten-Box.
+  - „Jetzt ist notwendig"-Block als 180px-breite linke Spalte vor dem 7er-Grid (matcht Original-PDF-Layout).
+  - Inhalt + Ergebnisse in zwei eigenen Grid-Rows mit `min-content 1fr min-content` für saubere Spaltenhöhen.
+
+- **Slides 9, 11, 12 (Q7, Q11, Q12) Default approved:** Bold-Marker-Stil, Termin-Block mit „oder"-Separator, kein Marker-Rot im Output. Keine Code-Änderungen nötig.
+
+- **Cross-Check Befunde out-of-scope für PASS 2:** Slide 1 Logo-Asset, Slide 4 CO₂-Subscript-Stil, Slide 8 „Warum gerade jetzt?"-Layout, Slide 11 4-Step-Layout, Slide 14 Vergleich-Layout — alle in `docs/pivot/clarifications-pass2.md` festgehalten; PR-Body referenziert.
+
+**Affected:**
+- `scripts/extract-template-text.py` (joined_text + group recursion)
+- `src/features/studies/document/template-content.json` (regeneriert, +2743 Zeilen wegen joined_text-Felder)
+- `src/features/studies/document/slides/_components/template-content.ts` (Type-Erweiterung)
+- `src/features/studies/document/slides/_components/slide-frame.tsx` (frameClassName-Prop für Slide 1)
+- `src/features/studies/document/slides/slide-01-cover.tsx` (Hero-Komposition, forest-green-bg)
+- `src/features/studies/document/slides/slide-04-auf-einen-blick.tsx` (freies Layout)
+- `src/features/studies/document/slides/slide-05-vorher-nachher.tsx` (volle Footnote)
+- `src/features/studies/document/slides/slide-07-partner.tsx` (Single-Liste)
+- `src/features/studies/document/slides/slide-08-zusammenarbeit.tsx` (weiße Karten)
+- `src/features/studies/document/slides/slide-10-pv-anlagenkonzept.tsx` (Modul-Phrase, weiße Karten)
+- `src/features/studies/document/slides/slide-17-timeline.tsx` (7 Spalten korrekte Reihenfolge)
+- `src/features/studies/document/slides/slides.test.tsx` (Slide-17-Test auf 7 Spalten angepasst)
+- `docs/pivot/clarifications.md` (User-Antworten als Audit-Trail eingearbeitet)
+- `docs/pivot/clarifications-pass2.md` (neue Klärungsfragen aus Cross-Check)
+- `docs/pivot/visual-verification/rendered-slide-NN.png` × 19 (regeneriert)
+
+**Pause-Trigger-Check (§7):** keine. Pivot-Architektur, Layout-Anpassung innerhalb autorisierter SPEC §8.1-Tokens, kein neuer Dep, kein Auth, kein Schema. User-Direktion vom 2026-06-02 erteilt die Slide-Layout-Änderungen explizit.
+
+**Open question for the user:** siehe `docs/pivot/clarifications-pass2.md` (5 neue Cross-Check-Befunde, alle out-of-scope für PASS 2). PR-Body referenziert.
+
+---
+

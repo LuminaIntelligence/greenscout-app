@@ -1,8 +1,9 @@
-# Pivot-2b — Offene Klärungsfragen an den User
+# Pivot-2b — Klärungsfragen (Audit-Trail)
 
-> Diese Liste ist im PR-Body referenziert. Implementer hat für diese Punkte
+> Diese Liste war im PR-Body referenziert. Implementer hat für diese Punkte
 > bewusst **nicht eigeninterpretiert** sondern eine sicht-bare Annahme im
-> Code gewählt + hier dokumentiert. User-Sign-off vor Ready-for-Review.
+> Code gewählt + hier dokumentiert. User-Sign-off-Antworten am 2026-06-02.
+> Implementiert in PASS 2 — siehe DECISIONS.md 2026-06-02.
 
 ---
 
@@ -17,6 +18,11 @@ Headline?
 **Kontext:** Layout-Position aus PPTX EMU (top=3677524 ≈ Mitte) vs.
 Reproduktion (top oben).
 
+✅ **Beantwortet vom User 2026-06-02:** Weder oben links noch unter „Ihr
+Ergebnis". Sie gehört **direkt unter den GreenScout-Schriftzug als
+Subtitle der Marken-Einheit** (so wie im Original-PDF). Die PPTX-
+Mittenkoordinate ist irreführend.
+
 ---
 
 ## Slide 4 — KPI-Tile-Reihenfolge & 6er-Slot
@@ -29,6 +35,17 @@ liegen die Tiles flexibler verteilt.
 
 **Kontext:** PPTX gibt keine klare Grid-Struktur vor — die KPI-Shapes
 liegen auf der Slide absolut positioniert.
+
+✅ **Beantwortet vom User 2026-06-02:** **Kein 3×2-Grid.** Das ist
+Neuinterpretation. Reproduziere die ursprüngliche freie Anordnung:
+- kWp-Headline groß zentriert oben
+- drei Geld-Tiles (Pachteinnahmen / Jahresertrag / Stromersparnis) als
+  Reihe am unteren Rand
+- Eigenverbrauchsquote mit dazugehörigem Textblock seitlich
+- CO₂-Absatz inkl. „VIELEN DANK"-Schlusssatz als Fließtext oben
+- „Objektstandort"-Block unten links
+
+„VIELEN DANK" ist Bestandteil des CO₂-Absatzes, kein eigenes 6. Tile.
 
 ---
 
@@ -44,6 +61,18 @@ nachgereicht werden?
 **Kontext:** Original-Text aus `template-content.json` Slide 4
 Textfeld 27 endet mid-sentence.
 
+✅ **Beantwortet vom User 2026-06-02:** Die Reproduktions-Erfindung „über
+die gesamte Vertragslaufzeit." ist **falsch**. Das Original endet mit
+„Fußballfelder!" (Ausrufezeichen, kein Nachsatz). Vollständiger Satz:
+
+> „Bei 20 Jahren Nutzungsdauer sind das `{{co2_tonnen_gesamt_vertragslaufzeit}}`
+> Tonnen CO2, das sind ca.
+> `{{co2_fussballfelder_gesamt_vertragslaufzeit}}` Fußballfelder!"
+
+Folge: Extract-Skript-Bug-Verdacht bestätigt → PASS 2 fixt das Skript
+(joined_text per Paragraph), regeneriert die JSON, danach übernimmt die
+Slide-Komponente den vollständigen Satz 1:1.
+
 ---
 
 ## Slide 5 — Footnote vs. PPTX-Sterne
@@ -54,6 +83,10 @@ kompakte Zeilen reduziert (11pt-Schriftgröße). Ist die Reduktion OK
 oder soll der volle PPTX-Wortlaut beibehalten werden?
 
 **Kontext:** Slide-5 Textfeld 9 hat im PPTX 400+ Zeichen Footnote-Text.
+
+✅ **Beantwortet vom User 2026-06-02:** **Vollen PPTX-Wortlaut behalten.**
+Reproduktion, nicht Verdichtung. Schriftgröße darf 9-10pt sein, aber
+Wortlaut 1:1.
 
 ---
 
@@ -68,6 +101,11 @@ genaue PPTX-Bullet-Struktur (auch wenn redundant) 1:1 erhalten bleiben?
 bei Vertragsumsetzung..." + „Förderung nachhaltiger Energieerzeugung
 in der Region" — die Repro hat beide drin, korrekt.
 
+✅ **Beantwortet vom User 2026-06-02:** **Originale Bullet-Anzahl strikt
+einhalten.** Wenn das PPTX drei Phase-II-Bullets hat (Aufbau /
+Unterstützung / Förderung), kommen drei in die React-Komponente. Keine
+Konsolidierung.
+
 ---
 
 ## Slide 8 — Kartenfarben
@@ -79,6 +117,11 @@ auf `bg-muted-lime-50` gesetzt. Ist das OK oder sollen sie weiß sein?
 **Kontext:** SPEC §8.1 + §8.4 fordert „white-canvas SaaS, restrained
 accent". Aktuelle muted-lime-Wahl ist defensible aber nicht garantiert.
 
+✅ **Beantwortet vom User 2026-06-02:** **Weiß, wie im Original.** SPEC
+§8.4 verlangt „sparing use of muted-lime for accents" — die Karten
+brauchen keinen Hintergrund, die Nummerierung selbst ist Akzent genug.
+`bg-muted-lime-50` herausnehmen.
+
 ---
 
 ## Slide 9 — Versorgerpreis-Tile Hervorhebung
@@ -89,6 +132,10 @@ Werte in den Tiles bold sein (KPI-Stil) oder nur die Marker-Werte?
 
 **Kontext:** Im PPTX ist nur der `{{versorger_preis_ct_kwh}}`-Marker
 rot — die Reproduktion macht ihn bold. Default-Annahme.
+
+✅ **Beantwortet vom User 2026-06-02:** Nur die **Marker-Werte** (also
+die ehemaligen `{{...}}`-Stellen) bekommen den Bold+tabular-nums-Stil.
+**Default approved.**
 
 ---
 
@@ -103,6 +150,11 @@ Slash). Im Original-PDF erkennbar wie?
 `"Gesamtleistung: {{modul_info_phrase}}"` — keine Hinweise auf die
 intendierte Trennung.
 
+✅ **Beantwortet vom User 2026-06-02:** Format nach Original-PDF:
+`{{anlage_kwp}} kWp, {{modul_anzahl}} Module, {{modul_flaeche_m2}} m²` —
+**Trennzeichen sind Kommata**, das Wort „Modulfläche" ist im Original
+**nicht** dabei. Aktuelle Repro raus.
+
 ---
 
 ## Slide 17 — Footnote „Sie sparen" Position
@@ -115,6 +167,11 @@ Mitten-Box) gerendert werden?
 **Kontext:** PPTX-Shape „Textfeld 13" steht offenbar als Standalone-
 Label, nicht in der Spalten-Bullet-Logik.
 
+✅ **Beantwortet vom User 2026-06-02:** Nicht als Mitten-Box, sondern
+als **Ergebnisse-Eintrag der rechtesten Spalte („Bis 20 Jahre")**. Im
+PPTX sitzt Textfeld 13 auf L=1223 — das ist klar Spalten-zugeordnet.
+Belass es dort als kurzes Ergebnis-Label.
+
 ---
 
 ## Slide 17 — Phase-6 „Ergebnisse"-Liste
@@ -125,6 +182,26 @@ Ergebnisse-Block für Phase 6 weg. Bestätigt?
 
 **Kontext:** `template-content.json` Slide 17 hat für die Phase-6-Spalte
 nur den Inhalt-Block (Textfeld 20), keine Ergebnis-Shape.
+
+✅ **Beantwortet vom User 2026-06-02:** **Nicht bestätigt — alle Spalten
+haben Ergebnis-Texte im Original-PPTX.** Direkt-Inspektion zeigte 7
+Spalten in dieser Reihenfolge:
+
+- Spalte 1 (Phase I): „Technisch und wirtschaftlich tragfähiges Vorprojekt..."
+- Spalte 2 (Vor-Phase II): „Rechtliche Grundlage zur Einleitung..."
+- Spalte 3 (Phase II): „Baureifestatus PV-Anlage..."
+- Spalte 4 (Phase III): „Projektrechte Vermarktung und -Verkauf"
+- Spalte 5 (Projektumsetzung): „Abschluss Installation PV-Anlage"
+- Spalte 6 (Inbetriebnahme): „Auszahlung Pacht und PV-Anlage im Betrieb"
+- Spalte 7 (Bis 20 Jahre): „Sie sparen"
+
+Wenn `template-content.json` in einer Spalte keinen Ergebnis-Text hat,
+ist das **Extract-Skript fehlerhaft** — es muss korrigiert und neu
+ausgeführt werden. Keine Spalte darf ohne Ergebnis bleiben.
+
+Folge: PASS 2 ändert Layout auf 7-Spalten-Grid mit korrekter
+Phasen-Reihenfolge. „Projektrechte Vermarktung" wird Spalte 4 (Phase III)
+statt Spalte 6.
 
 ---
 
@@ -139,6 +216,10 @@ formatiert sie als visuell getrennten Block mit „oder"-Separator. OK?
 — die Phrase-Konstruktion ist im SPEC §4.5 datetime-`am DD.MM.YYYY um
 HH:mm Uhr`-Format.
 
+✅ **Beantwortet vom User 2026-06-02:** Visuell getrennter Block mit
+„oder"-Separator passt — entspricht dem Original-PDF. **Default
+approved.**
+
 ---
 
 ## Cross-Slide — Marker-Rot ↔ React-Bold
@@ -152,3 +233,8 @@ werden?
 
 **Kontext:** Die PPTX-Rot-Färbung war ein Authoring-Marker für den
 PPTX-Pivot-Workflow (vor §7.10), nicht End-User-Optik.
+
+✅ **Beantwortet vom User 2026-06-02:** Bestätigt: kein Rot im Output.
+Das Rot war reiner Authoring-Marker für die PPTX-Bauphase, nicht
+End-User-Optik. Aktuelle React-Styling-Wahl (Bold + tabular-nums in
+plant-green oder forest-green) ist **genau richtig. Approved.**
