@@ -491,6 +491,31 @@
 
 ---
 
+### T-060b Slide-Reproduktion (replaces freie Interpretation aus T-060)
+- **Status:** 🟦 IN PROGRESS (PR `feat/pivot-2b-faithful-reproduction`; Draft-PR mit User-Sign-off auf Side-by-Sides; carry-forward Status-Flip auf ✅ im nächsten PR nach Merge)
+- **Feature:** studies (document renderer)
+- **Type:** feat
+- **Effort:** L (alle 19 Slides als ein PR)
+- **Blocks:** —
+- **Blocked by:** T-060 (✅ ⇒ PR #61 gemerged)
+- **Description:**
+  User-Auftrag 2026-06-02: die 19 React-Slide-Komponenten aus T-060 / PR #61 sind „eigenständige Neuinterpretationen" — sollen durch **wörtliche PPTX-Reproduktionen** ersetzt werden. Statische Texte (Headlines, Body, Bullets, Fußnoten) wörtlich aus dem PPTX-Original; nur dynamische Werte (KPIs, Geldbeträge, Customer-Daten, Termine, Bilder) aus Props. Architektur unverändert. Details siehe `DECISIONS.md` 2026-06-02.
+- **Acceptance criteria:**
+  - [x] PPTX-Original aus git-history (Pre-Pivot-Commit `e54dd35`) restored unter `templates/`.
+  - [x] `scripts/extract-template-text.py` (lokal-only, python-pptx) generiert `src/features/studies/document/template-content.json` (19 Slides, 221 Shapes, 601 Runs).
+  - [x] Alle 19 Slide-Komponenten rewriten mit wörtlichen PPTX-Texten.
+  - [x] Vitest-Smoke-Tests (`slides.test.tsx`) prüfen wörtliche PPTX-Strings, nicht Neuinterpretations-Strings.
+  - [x] `/dev/slides` um `?only=N` (1..19) Query erweitert.
+  - [x] `scripts/screenshot-slides.mjs` für Playwright-Screenshots pro Slide.
+  - [x] 19 `original-slide-NN.png` aus dem PDF unter `docs/pivot/visual-verification/`.
+  - [ ] 19 `rendered-slide-NN.png` aus `screenshot-slides.mjs` (Follow-up-Commit nach lokalem `next dev` + Playwright-Run).
+  - [ ] User-Sign-off auf alle 19 Side-by-Side-Vergleiche.
+  - [ ] 11 Klärungsfragen aus `docs/pivot/clarifications.md` vom User beantwortet.
+- **Files likely touched:** `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` (restored), `scripts/extract-template-text.py` + README + `screenshot-slides.mjs` (neu), `src/features/studies/document/template-content.json` (neu, generiert), `src/features/studies/document/slides/slide-*.tsx` (alle 19 rewriten) + `_components/template-content.ts` + `slides.test.tsx`, `src/app/(dev)/dev/slides/page.tsx` (`?only=N`), `docs/pivot/visual-verification/*.png` (38 Side-by-Sides), `docs/pivot/clarifications.md`, `DECISIONS.md`, `TASKS.md`.
+- **Pause-triggers anticipated:** §7.4 (visuelle Layout-Änderungen — innerhalb der bereits gültigen Brand-Tokens, daher minimal-feuernd). §7.12 (PPTX-Restore vom User explizit per Default-OK 2026-06-02 gelöst).
+
+---
+
 ### T-061 Playwright-PDF-Endpoint
 *(T-061 carried forward to Recently completed — gemerged via PR #62 als der §7.10-Pivot-PR-3/4-Vertical.)*
 

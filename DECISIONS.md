@@ -4040,3 +4040,68 @@ Plus: die Studien-Detail-Page (`src/app/(app)/studies/[id]/page.tsx`) importiert
 
 **Open question for the user:** Keine. Erster Deploy nach Merge sollte sauber durchlaufen — Detail-Seite muss 200 zurückgeben, „Dokument generieren" muss funktionieren.
 
+
+
+---
+
+## 2026-06-02 — Pivot-2b: Slide-Reproduktion statt Slide-Neudesign (user-confirmed)
+
+**Context:** Der §7.10-Pivot (PRs #60–#63) hat die 19 React-Slide-Komponenten als „eigenständige Neuinterpretation" gebaut — Implementer hat per CLAUDE.md §14.2 Decide-and-document im Zweifel modernisiert (eigene Headlines wie „Ihre Anlage in Zahlen", „Strategischer Partner", „Klimabilanz") statt den PPTX-Wortlaut 1:1 zu reproduzieren. User-Auftrag 2026-06-02: alle 19 Slide-Komponenten ersetzen durch **wörtliche PPTX-Reproduktionen**. Architektonisch bleibt alles erhalten (React-Komponenten-pro-Slide, Playwright-PDF, HMAC-Token-Link). Nur Slide-Inhalt wird neu gebaut.
+
+**Decisions:**
+
+- **PPTX-File aus git-history restored.** `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` wurde im §7.10-Pivot PR #60 (Commit `15de1b1`) entfernt. Pivot-2b restored es aus dem Pre-Pivot-Parent-Commit `e54dd35` als Source of Truth für die mechanische Text-Extraktion. Additiv, nicht destruktiv. Bleibt im Repo. CLAUDE.md §7.12 (Spec-Conflict — PPTX im Repo) vom User explizit per „Default-OK" 2026-06-02 gelöst.
+
+- **`python-pptx` lokal-only.** NICHT zurück in `services/python/requirements.txt` — die Production-Service-Dep-Bereinigung aus §7.10-Pivot bleibt erhalten. Stattdessen lokales Mini-Venv unter `scripts/.venv-pptx-extract/` (in `.gitignore` via `.venv-*/`-Pattern), Setup-Anleitung in `scripts/README-extract-template.md`. Generiertes JSON wird im Repo versioniert.
+
+- **Text-Extraktion mechanisch.** `scripts/extract-template-text.py` läuft mit python-pptx durch das PPTX und schreibt `src/features/studies/document/template-content.json` (19 slides, 221 shapes, 601 runs, jeweils mit Marker-Rot-Heuristik, Schriftgröße, Bold/Italic, EMU-Geometrie). Verhindert Drift durch manuelles Abtippen. `.prettierignore` ergänzt um das JSON, damit prettier es nicht reformattiert (Source of Truth ist python json.dump).
+
+- **19 Slide-Komponenten rewriten.** Alle `src/features/studies/document/slides/slide-NN-*.tsx` neu geschrieben:
+  - Statische Texte (Headlines, Body-Sätze, Bullets, Fußnoten) **wörtlich aus dem PPTX-JSON** übernommen — keine Eigenformulierung.
+  - Dynamische Werte (Anlagen-KPIs, Geldbeträge, CO₂-Werte, Customer-Daten, Berater-Namen, Termine, Bilder) über `StudyDocumentData`-Props.
+  - Layout nahe am PPTX (Spaltenanordnung, Farbflächen, Bildpositionen), aber kein pixel-perfektes Matching — die Reproduktion wird im Side-by-Side-Verify gegen das Original-PDF abgenommen, nicht über Auto-Position-Mapping.
+
+- **Slide 15 bleibt pure SVG** (User-Bestätigung 2026-06-02). Kein neuer Dependency-Layer (Recharts wäre §7.1-Pause-Trigger). Drei Bars + Achsen sind trivial in SVG.
+
+- **Slide 5 Bilder mit `object-cover` + identischer Bounding-Box** (User-Bestätigung). „Jetzt:" / „Später:" als Spalten-Header laut PPTX.
+
+- **`?only=N`-Query-Erweiterung in `/dev/slides`.** `searchParams.only` (1..19) rendert nur eine isolierte Slide ohne Header. Wird vom `scripts/screenshot-slides.mjs`-Playwright-Skript konsumiert um die `rendered-slide-NN.png`-Side-by-Side-Artifacts zu erzeugen.
+
+- **Side-by-Side-Verifikation als persistente Artifacts.** 19 `original-slide-NN.png` (aus dem Original-PDF via PyMuPDF gerendert, 2304×1296) sind committed unter `docs/pivot/visual-verification/`. Die 19 korrespondierenden `rendered-slide-NN.png` (aus `screenshot-slides.mjs`) kommen als Follow-up-Commit lokal nachgereicht — in der Agent-Sandbox scheitert next dev Boot (siehe Skript-Header-Caveat).
+
+- **PR als DRAFT geöffnet.** User-Sign-off auf die Side-by-Sides ist explizit verlangt vor Ready-for-Review + Auto-Merge.
+
+- **Klärungsfragen in `docs/pivot/clarifications.md`.** 11 wörtliche Fragen an den User pro Slide festgehalten (kein Eigeninterpretation). Im PR-Body referenziert.
+
+**Affected:**
+
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` (restored aus git-history)
+- `.gitignore` (`.venv-*/` Pattern für lokales pptx-Venv)
+- `.prettierignore` (`template-content.json`)
+- `scripts/extract-template-text.py` (neu)
+- `scripts/README-extract-template.md` (neu)
+- `scripts/screenshot-slides.mjs` (neu)
+- `src/features/studies/document/template-content.json` (neu, generiert: 19 slides, 221 shapes, 601 runs)
+- `src/features/studies/document/slides/slide-01-cover.tsx` bis `slide-19-kontakt.tsx` (alle 19 rewriten)
+- `src/features/studies/document/slides/_components/template-content.ts` (neu, JSON-Loader + EMU-Helper)
+- `src/features/studies/document/slides/slides.test.tsx` (Smoke-Tests neu, prüfen wörtliche PPTX-Strings)
+- `src/app/(dev)/dev/slides/page.tsx` (`?only=N`-Support)
+- `docs/pivot/visual-verification/original-slide-NN.png` × 19 (committed, 2304×1296)
+- `docs/pivot/clarifications.md` (11 Klärungsfragen)
+- `DECISIONS.md` — dieser Eintrag
+- `TASKS.md` — neue Sub-Task „T-060b Slide-Reproduktion" Status `🟦 IN PROGRESS`
+
+**Tests:** 112/112 Vitest-document-tests grün. 982/982 Vitest-Gesamtsuite grün. 168/168 pytest grün. TypeScript, ESLint, Prettier clean.
+
+**Pause-Trigger-Check (§7):**
+
+- **§7.1** (neue Top-Level-Dep) — keine. `python-pptx` ist lokal-only via Pip-User-Install / Mini-Venv; bleibt nicht in `services/python/requirements.txt`. `PyMuPDF` (für PDF→PNG) genauso lokal-only. Keine `package.json`-Änderungen.
+- **§7.3** (Auth/Security) — nicht berührt.
+- **§7.4** (UI-/UX-Layout-Änderungen) — die Slide-Layouts ändern sich gegenüber PR #61 substanziell. Aber: das ist der **explizite User-Auftrag** vom 2026-06-02. Die Reproduktion bleibt innerhalb der SPEC §8.1-Tokens (forest-green / plant-green / muted-lime / forest / link) und SPEC §8.2-Typografie (Gabarito Semibold / Regular). Kein neuer Token.
+- **§7.10** (Architektur-Pivot) — bereits autorisiert; dies ist Korrektur innerhalb der Pivot-Architektur, nicht ein neuer Pivot.
+- **§7.12** (Spec-Conflict — PPTX im Repo) — User-Default-OK 2026-06-02.
+
+**Open questions for the user:** siehe `docs/pivot/clarifications.md` (11 Slide-spezifische Fragen). PR-Body listet sie batched auf.
+
+---
+
