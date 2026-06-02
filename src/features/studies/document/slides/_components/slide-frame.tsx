@@ -30,6 +30,13 @@ interface SlideFrameProps {
   children: ReactNode;
   /** Extra Tailwind classes applied to the inner content wrapper. */
   contentClassName?: string;
+  /**
+   * Optional override for the outer `.slide-frame` background. Slide 1
+   * (Cover) sets this to `bg-forest-green` so the full 1920×1080 canvas
+   * is dark-green instead of the default white. Pass `text-white` here as
+   * well if the foreground colour needs to flip for the whole frame.
+   */
+  frameClassName?: string;
 }
 
 const DEFAULT_TOTAL_SLIDES = 19;
@@ -41,10 +48,11 @@ export function SlideFrame({
   showFooter = true,
   children,
   contentClassName,
+  frameClassName,
 }: SlideFrameProps) {
   return (
     <section
-      className="slide-frame"
+      className={`slide-frame ${frameClassName ?? ""}`}
       data-slide-number={slideNumber}
       data-slide-total={totalSlides}
       aria-label={`Slide ${slideNumber} von ${totalSlides}`}

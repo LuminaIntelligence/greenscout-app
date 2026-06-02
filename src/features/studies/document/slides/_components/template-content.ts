@@ -29,6 +29,12 @@ export interface TemplateRun {
   italic: boolean;
 }
 
+export interface TemplateParagraph {
+  paragraph_index: number;
+  joined_text: string;
+  run_count: number;
+}
+
 export interface TemplateShape {
   shape_name: string;
   shape_id: number;
@@ -36,7 +42,21 @@ export interface TemplateShape {
   top_emu: number;
   width_emu: number;
   height_emu: number;
-  runs: TemplateRun[];
+  /**
+   * Pass-2 Extract-Schema (2026-06-02): `is_group` unterscheidet
+   * normale Shapes von rekursiv extrahierten Group-Shapes. Bei
+   * `is_group=true` haben die Shapes keine eigenen Runs / Paragraphen,
+   * sondern eine `nested_shapes`-Collection.
+   */
+  is_group: boolean;
+  /** Optional bei Group-Shapes. */
+  joined_text?: string;
+  /** Optional bei Group-Shapes. */
+  paragraphs?: TemplateParagraph[];
+  /** Optional bei Group-Shapes. */
+  runs?: TemplateRun[];
+  /** Nur für Group-Shapes. */
+  nested_shapes?: TemplateShape[];
 }
 
 export interface TemplateSlide {
@@ -80,9 +100,16 @@ export function getTemplateSlide(slideNumber: number): TemplateSlide {
  * dem PPTX, alle Runs in Paragraph-Reihenfolge konkateniert.
  * Marker-Rot-Platzhalter ({{snake_case}}) bleiben im Output erhalten;
  * Aufrufer entscheiden ob sie diese ersetzen wollen.
+ *
+ * Pass-2 (2026-06-02): Bevorzugt das vom Extract-Skript vorberechnete
+ * `joined_text` (Source of Truth), fallback auf Run-Konkatenierung für
+ * Group-Shapes oder den Edge-Case dass die JSON aus einem alten
+ * Extract-Lauf stammt.
  */
 export function shapeFullText(shape: TemplateShape): string {
-  return shape.runs.map((r) => r.text).join("");
+  if (typeof shape.joined_text === "string") return shape.joined_text;
+  if (shape.runs) return shape.runs.map((r) => r.text).join("");
+  return "";
 }
 
 /**
