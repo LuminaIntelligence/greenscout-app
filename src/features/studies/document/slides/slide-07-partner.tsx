@@ -3,55 +3,90 @@ import type { StudyDocumentData } from "../types";
 import { SlideFrame } from "./_components/slide-frame";
 
 /**
- * Slide 7 — Wir sind Ihr strategischer Partner.
+ * Slide 7 — "Wir sind ihr strategischer Partner in der Energiewende".
  *
- * Original-PDF: Static slide.
+ * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
+ * (siehe `template-content.json` Slide 7):
+ *
+ *  - Text 1 (Headline) — "Wir sind ihr strategischer Partner in der
+ *    Energiewende".
+ *  - Text 2 (Subtitle) — "Seit über zwei Jahrzehnten hat unser Management
+ *    Erfahrung bei der Flächengewinnung, Entwicklung zu Projektrechten,
+ *    sowie der Vermarktung der entwickelten Projektrechte."
+ *  - Text 5 — "Durch Beauftragung des Auswertepaketes - Identifikation
+ *    geeigneter Flächen für 998 €".
+ *  - Text 8 (Phase-I Headline) — "Phase I: Professionelle Erstbewertung
+ *    und Machbarkeitsprüfung von Potentialflächen".
+ *  - Text 11 — "Aufbau tragfähiger Kontakte zwischen Flächenbesitzer*innen
+ *    und Projektpartnern".
+ *  - Text 14 — 'Unterstützung bei Vertragsumsetzung bis zur Vermarkt-
+ *    barkeit der "Ready to build" Projektrechte.'
+ *  - Text 17 — "Förderung nachhaltiger Energieerzeugung in der Region".
+ *  - Text 18 (Outro) — "Die Rolle von GreenScout e.V. ist es, Projekte
+ *    planbar, skalierbar und wirtschaftlich attraktiv zu machen – ohne
+ *    Risiko für Flächeneigentümer*innen. Der Verein agiert dabei
+ *    unabhängig, transparent und mit klarem Fokus auf Wirkung für die
+ *    Flächeneingentümer*innen und die Umwelt."
+ *  - Text 8 (Phase-II Headline) — "Phase II: Entwicklung von
+ *    Projektrechten".
  */
 export default function Slide07Partner({ data }: { data: StudyDocumentData }) {
+  const customerName = customerDisplayName(data.customer);
+
   return (
-    <SlideFrame slideNumber={7} customerLabel={customerDisplayName(data.customer)}>
-      <div className="flex h-full flex-col space-y-12">
+    <SlideFrame slideNumber={7} customerLabel={customerName}>
+      <div className="flex h-full flex-col gap-5">
+        {/* Headline + Subtitle */}
         <div className="space-y-2">
-          <div className="slide-caption uppercase tracking-widest text-plant-green">
-            Strategischer Partner
-          </div>
-          <h2 className="slide-h2">Eine Beratung. Eine Verantwortung.</h2>
+          <h2 className="text-[32px] font-bold leading-[1.1] text-forest-green">
+            Wir sind ihr strategischer Partner in der Energiewende
+          </h2>
+          <p className="text-[18px] leading-[1.4] text-foreground">
+            Seit über zwei Jahrzehnten hat unser Management Erfahrung bei der Flächengewinnung,
+            Entwicklung zu Projektrechten, sowie der Vermarktung der entwickelten Projektrechte.
+          </p>
         </div>
-        <div className="grid flex-1 grid-cols-2 gap-10">
-          <div className="space-y-6">
-            <PartnerRow
-              label="Bedarf erfassen"
-              body="Wir erheben Verbrauch, Dachfläche und individuelle Ziele in einem Vor-Ort-Termin."
-            />
-            <PartnerRow
-              label="Wirtschaftlichkeit prüfen"
-              body="Diese Machbarkeitsstudie quantifiziert Ertrag, Ersparnis, Pacht und CO₂ – belastbar gerechnet."
-            />
-            <PartnerRow
-              label="Umsetzen"
-              body="Anlagenplanung, Förderanträge, Installation und Inbetriebnahme aus einer Hand."
-            />
+
+        {/* Two phases — side by side */}
+        <div className="grid flex-1 grid-cols-2 gap-8">
+          {/* Phase I */}
+          <div className="rounded-xl border-2 border-plant-green p-6">
+            <div className="mb-3 text-[20px] font-bold text-plant-green">
+              Phase I: Professionelle Erstbewertung und Machbarkeitsprüfung von Potentialflächen
+            </div>
+            <ul className="space-y-3 text-[16px] leading-[1.4] text-foreground">
+              <li>
+                Durch Beauftragung des Auswertepaketes - Identifikation geeigneter Flächen für 998 €
+              </li>
+              <li>
+                Aufbau tragfähiger Kontakte zwischen Flächenbesitzer*innen und Projektpartnern
+              </li>
+            </ul>
           </div>
-          <div className="rounded-2xl border-2 border-plant-green bg-plant-green-50 p-10">
-            <h3 className="slide-h3 text-plant-green-700">Ihr Vorteil bei der Zusammenarbeit</h3>
-            <ul className="mt-6 space-y-4 text-forest-green-700">
-              <li className="slide-body">— Kein technisches Risiko auf Eigentümer-Seite</li>
-              <li className="slide-body">— Pacht-Einnahmen und Ersparnis kombiniert</li>
-              <li className="slide-body">— Voller Zugriff auf Berater während Laufzeit</li>
-              <li className="slide-body">— Transparente Reporting-Strukturen</li>
+
+          {/* Phase II */}
+          <div className="rounded-xl border-2 border-forest-green p-6">
+            <div className="mb-3 text-[20px] font-bold text-forest-green">
+              Phase II: Entwicklung von Projektrechten
+            </div>
+            <ul className="space-y-3 text-[16px] leading-[1.4] text-foreground">
+              <li>
+                Unterstützung bei Vertragsumsetzung bis zur Vermarkt-barkeit der „Ready to
+                build&ldquo; Projektrechte.
+              </li>
+              <li>Förderung nachhaltiger Energieerzeugung in der Region</li>
             </ul>
           </div>
         </div>
+
+        {/* Outro */}
+        <p className="text-[16px] leading-[1.4] text-foreground">
+          Die Rolle von GreenScout e.V. ist es, Projekte planbar, skalierbar und wirtschaftlich
+          attraktiv zu machen – ohne Risiko für Flächeneigentümer*innen. Der Verein agiert dabei
+          unabhängig, transparent und mit klarem Fokus auf Wirkung für die Flächeneingentümer*innen
+          und die Umwelt.
+        </p>
       </div>
     </SlideFrame>
-  );
-}
-
-function PartnerRow({ label, body }: { label: string; body: string }) {
-  return (
-    <div className="border-l-4 border-plant-green pl-6">
-      <div className="slide-caption uppercase tracking-widest text-plant-green">{label}</div>
-      <p className="slide-body mt-2 text-forest-green-700">{body}</p>
-    </div>
   );
 }

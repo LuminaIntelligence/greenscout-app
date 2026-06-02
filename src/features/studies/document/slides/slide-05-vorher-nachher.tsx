@@ -1,67 +1,111 @@
-import { customerDisplayName, formatCentPerKwh, formatEur, formatEurNumber } from "../format";
+import { customerDisplayName, formatCentPerKwh, formatEurNumber, formatIntegerDe } from "../format";
 import type { StudyDocumentData } from "../types";
 import { ImageSlot } from "./_components/image-slot";
 import { SlideFrame } from "./_components/slide-frame";
 
 /**
- * Slide 5 — Jetzt / Später Wirtschaftlichkeit (VORHER / NACHHER).
+ * Slide 5 — "Vorher - Nachher".
  *
- * Original-PDF: Linke Spalte „Vorher"-Foto, rechte Spalte „Nachher"-
- * Foto (BEFORE/AFTER). Unter den Fotos je eine Kennzahlen-Karte. Defekt
- * R2-3-konform: beide Fotos in identischer Bounding-Box.
+ * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
+ * (siehe `template-content.json` Slide 5):
+ *
+ *  - Textfeld 19 (Title) — "Vorher - Nachher".
+ *  - Textfeld 7 — "Jetzt:" Spalten-Header.
+ *  - Textfeld 1 — "Später:" Spalten-Header.
+ *  - Textfeld 13 — "Pachtzahlung vorab*  ca. {{pacht_einnahme_einmalig_eur}}
+ *    EUR netto**  einmalige Pachtzahlung für 20 Jahre".
+ *  - Textfeld 15 — "Stromliefervertrag***: Direkter Bezug aus der PV-Anlage
+ *    ca. {{pv_eigenverbrauch_kwh_gesamt_vertragslaufzeit}} kWh** laut PV-SOL".
+ *  - Textfeld 11 — "{{pv_verkauf_ct_kwh}} CENT netto / kWh
+ *    Einsparpotential gegenüber dem heutigen Stromlieferanten
+ *    ca. {{ersparnis_gesamt_vertragslaufzeit_eur}} €** für 20 Jahre".
+ *  - Textfeld 9 (Footnote, lang) — "* Nach Zeichnung Verkauf des zu
+ *    entwickelnden Projektrechtes - Pachtkonditionen 100 EUR je kWp zzgl.
+ *    USt. Laufzeit 20 Jahre (5 m² nutzbare Fläche = 1 kWp) (Verlängerung
+ *    optional 2x 5 Jahre) Umsetzung, Betrieb, Wartung vorbehaltlich der
+ *    Prüfung Phase II"
+ *    "** Werte basieren auf der realitätsnahen Simulation von PV-Sol,
+ *    siehe Anhang."
+ *    "*** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere
+ *    Umlagen..."
+ *
+ * Bilder: BEFORE links ("Jetzt:"), AFTER rechts ("Später:"). Beide mit
+ * identischer Bounding-Box via ImageSlot.
  */
 export default function Slide05VorherNachher({ data }: { data: StudyDocumentData }) {
   const customerName = customerDisplayName(data.customer);
-  const pvVerkaufCt = Number(data.study.pvVerkaufEurKwh) * 100;
+  const pacht = formatEurNumber(data.derived.pachtEinnahmeEinmalig);
+  const eigenverbrauchGesamt = formatIntegerDe(
+    data.derived.pvEigenverbrauchKwhGesamtVertragslaufzeit,
+  );
+  const pvVerkaufCt = formatCentPerKwh(Number(data.study.pvVerkaufEurKwh) * 100).replace(
+    " ct/kWh",
+    "",
+  );
+  const ersparnis20 = formatEurNumber(data.derived.ersparnis20Jahre);
 
   return (
     <SlideFrame slideNumber={5} customerLabel={customerName}>
-      <div className="flex h-full flex-col space-y-8">
-        <div className="space-y-2">
-          <div className="slide-caption uppercase tracking-widest text-plant-green">
-            Vorher · Nachher
-          </div>
-          <h2 className="slide-h2">Ihr Dach vor und nach der Installation</h2>
-        </div>
+      <div className="flex h-full flex-col gap-4">
+        {/* Headline (Textfeld 19) */}
+        <h2 className="text-[28px] font-bold text-forest-green">Vorher - Nachher</h2>
 
+        {/* Two-column layout: Jetzt / Später */}
         <div className="grid flex-1 grid-cols-2 gap-12">
-          <div className="space-y-4">
-            <div className="slide-caption uppercase tracking-widest">Vorher</div>
+          {/* Left — Jetzt */}
+          <div className="flex flex-col gap-4">
+            <div className="text-[24px] font-bold text-forest-green">Jetzt:</div>
             <ImageSlot
               src={data.images.beforeUrl}
               alt="Dach vor PV-Installation"
               emptyLabel="Vorher-Bild fehlt"
+              aspectClassName="aspect-[16/9]"
             />
-            <div className="rounded-xl border border-muted-lime-300 bg-muted-lime-50 p-6">
-              <div className="slide-caption uppercase">Status quo</div>
-              <p className="slide-body mt-2">
-                Ungenutzte Dachfläche. Stromkosten weiterhin am Versorgermarkt.
-              </p>
+            <div className="rounded-xl bg-muted-lime-50 p-6 text-[18px] leading-[1.4] text-foreground">
+              <div className="font-bold">Pachtzahlung vorab*</div>
+              <div className="mt-1 text-[24px] font-bold tabular-nums text-plant-green">
+                ca. {pacht} EUR netto**
+              </div>
+              <div className="mt-1">einmalige Pachtzahlung für 20 Jahre</div>
             </div>
           </div>
-          <div className="space-y-4">
-            <div className="slide-caption uppercase tracking-widest">Nachher</div>
+
+          {/* Right — Später */}
+          <div className="flex flex-col gap-4">
+            <div className="text-[24px] font-bold text-forest-green">Später:</div>
             <ImageSlot
               src={data.images.afterUrl}
               alt="Dach mit installierter PV-Anlage"
               emptyLabel="Nachher-Bild fehlt"
+              aspectClassName="aspect-[16/9]"
             />
-            <div className="rounded-xl border border-plant-green bg-plant-green-50 p-6">
-              <div className="slide-caption uppercase text-plant-green">Mit PV-Eigenverbrauch</div>
-              <p className="slide-body mt-2">
-                PV-Strom für {formatCentPerKwh(pvVerkaufCt)} —{" "}
-                {formatEurNumber(data.derived.ersparnis20Jahre)} € Einsparpotential gegenüber dem
-                heutigen Stromlieferanten.
-              </p>
+            <div className="rounded-xl bg-plant-green-50 p-6 text-[18px] leading-[1.4] text-foreground">
+              <div className="font-bold">
+                Stromliefervertrag***: Direkter Bezug aus der PV-Anlage
+              </div>
+              <div className="mt-1 text-[20px] tabular-nums">
+                ca. {eigenverbrauchGesamt} kWh** laut PV-SOL
+              </div>
+              <div className="mt-3 text-[24px] font-bold tabular-nums text-plant-green">
+                {pvVerkaufCt} CENT netto / kWh
+              </div>
+              <div className="mt-1">Einsparpotential gegenüber dem heutigen Stromlieferanten</div>
+              <div className="mt-1 text-[20px] font-bold tabular-nums">
+                ca. {ersparnis20} €** für 20 Jahre
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-muted-lime-300 bg-white p-8">
-          <div className="slide-caption uppercase tracking-widest">Einmal-Dachpacht</div>
-          <div className="slide-h2 mt-2 tabular-nums text-plant-green">
-            {formatEur(data.derived.pachtEinnahmeEinmalig)}
-          </div>
+        {/* Footnote (Textfeld 9) — long multi-line footnote */}
+        <div className="text-[11px] leading-[1.35] text-foreground opacity-70">
+          * Nach Zeichnung Verkauf des zu entwickelnden Projektrechtes - Pachtkonditionen 100 EUR je
+          kWp zzgl. USt. Laufzeit 20 Jahre (5 m² nutzbare Fläche = 1 kWp) (Verlängerung optional 2x
+          5 Jahre) Umsetzung, Betrieb, Wartung vorbehaltlich der Prüfung Phase II
+          <br />
+          ** Werte basieren auf der realitätsnahen Simulation von PV-Sol, siehe Anhang.
+          <br />
+          *** Abnahme PV-Strom fester Strompreis über 20 Jahre ohne weitere Umlagen.
         </div>
       </div>
     </SlideFrame>

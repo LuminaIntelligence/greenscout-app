@@ -1,63 +1,102 @@
-import { customerDisplayName, formatIntegerDe, formatKwp } from "../format";
+import { customerDisplayName, formatIntegerDe } from "../format";
 import type { StudyDocumentData } from "../types";
 import { SlideFrame } from "./_components/slide-frame";
 
 /**
- * Slide 10 — PV-Anlagenkonzept: Dachbelegung.
+ * Slide 10 — "PV-Anlagenkonzept: Dachbelegung und Eignung".
  *
- * Original-PDF: Objektname-Headline + Modul-Info-Phrase: `kWp, Module,
- * m²`. Defekt D3-konform: optionale Segmente entfallen bei leeren
- * Werten.
+ * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
+ * (siehe `template-content.json` Slide 10):
+ *
+ *  - Text 0 — "PV-Anlagenkonzept: Dachbelegung und Eignung*".
+ *  - Text 1 — "Für {{customer_object_name}} – {{anlage_kwp}} kWp,
+ *    technisch geeignet".
+ *  - 4 nummerierte Tiles:
+ *     1. "Gesamtleistung: {{modul_info_phrase}}" / "Detaillierte Modul-
+ *        und Wechselrichteraufteilung"
+ *     2. "Keine relevanten Verschattungen" / "Dachflächen technisch sehr
+ *        gut geeignet für PV"
+ *     3. "Hoher spezifischer Ertrag und stabile Prognose" / "Ergebnis
+ *        basiert auf bisheriger Simulation und gelieferten Dokumenten"
+ *     4. "Wahlweise mit Speicher" / "Sofern die Gesamtkalkulation dies
+ *        rechenbar macht. Feststellung in Phase II. Mehr Eigenverbrauch,
+ *        dadurch höhere Einsparung"
+ *  - Footnote (Text 18) — "*Geplant durch PV-Sol".
+ *
+ * `{{modul_info_phrase}}` wird aus Anlagengröße + Modulanzahl + Modulfläche
+ * zusammengesetzt; fehlende Felder werden weggelassen (Defekt-D-Pattern).
  */
 export default function Slide10PVAnlagenkonzept({ data }: { data: StudyDocumentData }) {
   const customerName = customerDisplayName(data.customer);
-  const anlageKwp = Number(data.study.anlageKwp);
+  const objectName = data.study.objectName;
+  const anlageKwp = formatIntegerDe(Number(data.study.anlageKwp));
 
-  const segments: string[] = [formatKwp(anlageKwp)];
-  if (data.study.modulAnzahl !== null && data.study.modulAnzahl !== undefined) {
-    segments.push(`${formatIntegerDe(data.study.modulAnzahl)} Module`);
+  // Modul-Info-Phrase: Anlagengröße + Module + Fläche, soweit gesetzt.
+  const phraseParts: string[] = [`${anlageKwp} kWp`];
+  if (data.study.modulAnzahl !== null) {
+    phraseParts.push(`${formatIntegerDe(data.study.modulAnzahl)} Module,`);
   }
-  if (data.study.modulFlaecheM2 !== null && data.study.modulFlaecheM2 !== undefined) {
-    segments.push(`${formatIntegerDe(Number(data.study.modulFlaecheM2))} m²`);
+  if (data.study.modulFlaecheM2 !== null) {
+    phraseParts.push(`${formatIntegerDe(Number(data.study.modulFlaecheM2))} m² Modulfläche`);
   }
-  const modulInfoPhrase = segments.join(", ");
+  const modulInfoPhrase = phraseParts.join(" ");
+
+  const tiles = [
+    {
+      no: "1",
+      head: <>Gesamtleistung: {modulInfoPhrase}</>,
+      body: "Detaillierte Modul- und Wechselrichteraufteilung",
+    },
+    {
+      no: "2",
+      head: "Keine relevanten Verschattungen",
+      body: "Dachflächen technisch sehr gut geeignet für PV",
+    },
+    {
+      no: "3",
+      head: "Hoher spezifischer Ertrag und stabile Prognose",
+      body: "Ergebnis basiert auf bisheriger Simulation und gelieferten Dokumenten",
+    },
+    {
+      no: "4",
+      head: "Wahlweise mit Speicher",
+      body: "Sofern die Gesamtkalkulation dies rechenbar macht. Feststellung in Phase II. Mehr Eigenverbrauch, dadurch höhere Einsparung",
+    },
+  ];
 
   return (
     <SlideFrame slideNumber={10} customerLabel={customerName}>
-      <div className="flex h-full flex-col space-y-12">
-        <div className="space-y-2">
-          <div className="slide-caption uppercase tracking-widest text-plant-green">
-            PV-Anlagenkonzept
-          </div>
-          <h2 className="slide-h2">
-            Dachbelegung für <span className="text-plant-green">{data.study.objectName}</span>
+      <div className="flex h-full flex-col gap-5">
+        {/* Headline + Subtitle */}
+        <div className="space-y-1">
+          <h2 className="text-[28px] font-bold text-forest-green">
+            PV-Anlagenkonzept: Dachbelegung und Eignung*
           </h2>
+          <p className="text-[18px] text-foreground">
+            Für <span className="font-bold">{objectName}</span> –{" "}
+            <span className="font-bold tabular-nums">{anlageKwp} kWp</span>, technisch geeignet
+          </p>
         </div>
-        <div className="rounded-2xl border-2 border-plant-green bg-plant-green-50 p-12">
-          <div className="slide-caption uppercase tracking-widest text-plant-green">
-            Konfiguration
-          </div>
-          <div className="slide-h2 mt-4 tabular-nums">{modulInfoPhrase}</div>
+
+        {/* 4 tiles 2x2 */}
+        <div className="grid flex-1 grid-cols-2 gap-5">
+          {tiles.map((t) => (
+            <div key={t.no} className="rounded-xl bg-muted-lime-50 p-5 text-[16px] leading-[1.4]">
+              <div className="flex items-start gap-3">
+                <div className="text-[36px] font-bold tabular-nums leading-none text-plant-green">
+                  {t.no}
+                </div>
+                <div>
+                  <div className="text-[18px] font-bold text-forest-green">{t.head}</div>
+                  <p className="mt-1 text-foreground">{t.body}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="grid grid-cols-2 gap-10">
-          <div className="space-y-4">
-            <div className="slide-caption uppercase tracking-widest">Auslegungsannahmen</div>
-            <ul className="slide-body space-y-2 text-forest-green-700">
-              <li>— Süd-Ausrichtung mit moderater Dachneigung (15–25°)</li>
-              <li>— Standard-Module 400+ Wp, monokristallin</li>
-              <li>— Wechselrichter mit Netz-Stabilisierungsfunktion</li>
-              <li>— Brandlast-konforme Verkabelung</li>
-            </ul>
-          </div>
-          <div className="space-y-4">
-            <div className="slide-caption uppercase tracking-widest">Nicht im Lieferumfang</div>
-            <ul className="slide-body space-y-2 text-forest-green-700">
-              <li>— Dachsanierung (separate Bewertung möglich)</li>
-              <li>— Speichersysteme (auf Anfrage)</li>
-              <li>— Wallbox-Infrastruktur (Phase 2)</li>
-            </ul>
-          </div>
-        </div>
+
+        {/* Footnote */}
+        <p className="text-[12px] italic text-forest-green opacity-70">*Geplant durch PV-Sol</p>
       </div>
     </SlideFrame>
   );

@@ -1,13 +1,26 @@
-import { buildObjectAddress, customerDisplayName, formatEur, formatEurNumber } from "../format";
+import { buildObjectAddress, customerDisplayName, formatEurNumber } from "../format";
 import type { StudyDocumentData } from "../types";
 import { SlideFrame } from "./_components/slide-frame";
 
 /**
- * Slide 3 — Drei zentrale Vorteile.
+ * Slide 3 — "Für ihr Unternehmen hat sich die Beauftragung unserer
+ *           Auswertung gelohnt." — Drei zentrale Vorteile.
  *
- * Original-PDF: Headline mit der vollen Objektadresse + Flurstück
- * inline, dann drei Vorteile als Karten: Pacht-Einmalzahlung,
- * monatliche Ersparnis, 20-Jahre-Ersparnis.
+ * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
+ * (siehe `template-content.json` Slide 3):
+ *
+ * - Text 0 (24pt) — Headline.
+ * - Text 1 (20pt) — Einleitung "In der Prüfung haben wir..." +
+ *   "Für die Liegenschaft: {{customer_object_address_with_flurstueck}}."
+ *   + "Öffnen sich drei zentrale Vorteile:".
+ * - Text 2 (20pt, mehrere Absätze) — Erstens / Zweitens / Drittens
+ *   mit gefetteten Detail-Sätzen und drei {{}}-Markern.
+ *
+ * Marker:
+ *  - {{customer_object_address_with_flurstueck}} → address + Flurstück.
+ *  - {{pacht_einnahme_einmalig_eur}} → derived.pachtEinnahmeEinmalig.
+ *  - {{ersparnis_pro_monat_eur}} → derived.ersparnisProMonat.
+ *  - {{ersparnis_gesamt_vertragslaufzeit_eur}} → derived.ersparnis20Jahre.
  */
 export default function Slide03DreiVorteile({ data }: { data: StudyDocumentData }) {
   const customerName = customerDisplayName(data.customer);
@@ -17,60 +30,66 @@ export default function Slide03DreiVorteile({ data }: { data: StudyDocumentData 
     data.study.objectZipCode,
     data.study.objectCity,
   );
-  const flurstueckSuffix =
+  const addressWithFlurstueck =
     data.study.flurstueck && data.study.flurstueck.trim().length > 0
-      ? ` in Flurstück ${data.study.flurstueck}`
-      : "";
+      ? `${address}, Flurstück ${data.study.flurstueck}`
+      : address;
+
+  const pacht = formatEurNumber(data.derived.pachtEinnahmeEinmalig);
+  const ersparnisMonat = formatEurNumber(data.derived.ersparnisProMonat);
+  const ersparnis20 = formatEurNumber(data.derived.ersparnis20Jahre);
 
   return (
     <SlideFrame slideNumber={3} customerLabel={customerName}>
-      <div className="flex h-full flex-col space-y-12">
-        <div className="space-y-3">
-          <div className="slide-caption uppercase tracking-widest text-plant-green">
-            Drei zentrale Vorteile
-          </div>
-          <h2 className="slide-h2">Für Ihr Dach am Standort</h2>
-          <p className="slide-body-lg text-forest-green-700">
-            {address}
-            {flurstueckSuffix}
+      <div className="flex h-full flex-col gap-6">
+        {/* Text 0 — Headline */}
+        <h2 className="text-[24px] font-normal text-forest-green">
+          Für ihr Unternehmen hat sich die Beauftragung unserer Auswertung gelohnt.
+        </h2>
+
+        {/* Text 1 — Einleitung */}
+        <div className="text-[20px] leading-[1.45] text-foreground">
+          <p>
+            In der Prüfung haben wir die grundsätzliche Eignung Ihrer Fläche und deren potenzielle
+            Weiterentwicklung dieser zu einem handelbaren Projektrecht beleuchtet.
           </p>
+          <p className="mt-2">
+            Für die Liegenschaft: <span className="font-bold">{addressWithFlurstueck}</span>.
+          </p>
+          <p className="mt-2">Öffnen sich drei zentrale Vorteile:</p>
         </div>
-        <div className="grid flex-1 grid-cols-3 gap-10">
-          <VorteilCard
-            label="Einmal-Dachpacht"
-            value={formatEur(data.derived.pachtEinnahmeEinmalig)}
-            description="bei Vertragsabschluss"
-          />
-          <VorteilCard
-            label="Monatliche Ersparnis"
-            value={`${formatEurNumber(data.derived.ersparnisProMonat)} €`}
-            description="durch günstigeren PV-Strom"
-          />
-          <VorteilCard
-            label="20-Jahre-Ersparnis"
-            value={formatEur(data.derived.ersparnis20Jahre)}
-            description="kumulierter Vorteil über die Laufzeit"
-          />
+
+        {/* Text 2 — Drei Vorteile */}
+        <div className="space-y-4 text-[20px] leading-[1.45] text-foreground">
+          <div>
+            <span className="font-normal">Erstens:</span>{" "}
+            <span>
+              Ihre Fläche kann für ihr Unternehmen{" "}
+              <span className="font-bold">
+                einmalige Pachteinnahmen, von bis zu {pacht} € erwirtschaften.
+              </span>
+            </span>
+          </div>
+          <div>
+            <span className="font-normal">Zweitens:</span>{" "}
+            <span>
+              Grundsätzlich besteht die Möglichkeit, über einen Stromliefervertrag Ihr Unternehmen
+              mit Strom aus der auf Ihrer Fläche zu errichtender Anlage zu versorgen, damit
+              monatlich bis zu <span className="font-bold">{ersparnisMonat} €</span> gegenüber ihren
+              heutigen Stromlieferanten einzusparen.{" "}
+              <span className="font-bold">Das sind bei 20 Jahren Laufzeit ca. {ersparnis20} €</span>
+            </span>
+          </div>
+          <div>
+            <span className="font-normal">Drittens:</span>{" "}
+            <span>
+              Diese Vorteile könnten Sie{" "}
+              <span className="font-bold">ohne weitere Investitionen</span> durch ihr Unternehmen
+              erzielen.
+            </span>
+          </div>
         </div>
       </div>
     </SlideFrame>
-  );
-}
-
-function VorteilCard({
-  label,
-  value,
-  description,
-}: {
-  label: string;
-  value: string;
-  description: string;
-}) {
-  return (
-    <div className="flex flex-col justify-between rounded-2xl border border-muted-lime-300 bg-muted-lime-50 p-10">
-      <div className="slide-caption uppercase tracking-widest">{label}</div>
-      <div className="slide-data-headline mt-6 break-words leading-none">{value}</div>
-      <p className="slide-body mt-6 text-forest-green-700">{description}</p>
-    </div>
   );
 }

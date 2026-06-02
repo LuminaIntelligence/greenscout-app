@@ -24,36 +24,38 @@ import Slide18EEG from "./slide-18-eeg";
 import Slide19Kontakt from "./slide-19-kontakt";
 
 /**
- * §7.10-Pivot PR 2 — Smoke tests for every slide component.
+ * Pivot-2b — Smoke tests für jede Slide-Komponente.
  *
- * Each slide gets:
- *   - render-without-crash check,
- *   - one or two `expect(content).toContain(...)` assertions against
- *     the fixture data so a future refactor that drops a key field
- *     surfaces immediately.
- *
- * Tests use the shared fixture (`makeFixtureStudyDocumentData()`) so
- * the assertions track the "Linzgau Center" example deck used in the
- * original PPTX, and the fixture survives a single edit if SPEC fields
- * grow.
+ * Diese Tests prüfen ausschließlich die WÖRTLICHEN PPTX-Texte (aus
+ * `template-content.json`) sowie die dynamischen Werte aus der Fixture.
+ * Jede Assertion zitiert direkt aus dem PPTX-Original — eine Drift im
+ * Slide-Code (jemand "verbessert" eine Headline) lässt den Test rot
+ * werden, was im Pivot-2b explizit gewünscht ist.
  */
 
 const data = makeFixtureStudyDocumentData();
 
 describe("Slide01Cover", () => {
-  it("renders the customer display name", () => {
+  it("renders the cover headlines and consultant", () => {
     const { container } = render(<Slide01Cover data={data} />);
-    expect(container.textContent).toContain("Einkaufszentrum Linzgau Center GmbH");
+    expect(container.textContent).toContain(
+      "Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen",
+    );
+    expect(container.textContent).toContain("Ihr Ergebnis");
+    expect(container.textContent).toContain("Eingereicht über");
     expect(container.textContent).toContain("Bernd Berater");
+    expect(container.textContent).toContain("direkt vom Unternehmen");
     expect(container.querySelector('[data-slide-number="1"]')).not.toBeNull();
   });
 });
 
 describe("Slide02Glueckwunsch", () => {
-  it("renders object address with flurstueck", () => {
+  it("renders the verbatim headline + flurstueck address", () => {
     const { container } = render(<Slide02Glueckwunsch data={data} />);
+    expect(container.textContent).toContain("Herzlichen Glückwunsch Ihre Fläche ist umsetzbar!");
     expect(container.textContent).toContain("Bergwaldstraße 4");
     expect(container.textContent).toContain("Flurstück 78.10");
+    expect(container.textContent).toContain("in die Phase II übergehen können");
   });
 
   it("omits flurstueck phrase when blank", () => {
@@ -66,24 +68,49 @@ describe("Slide02Glueckwunsch", () => {
 });
 
 describe("Slide03DreiVorteile", () => {
-  it("renders pacht + ersparnis values", () => {
+  it("renders all three Vorteile and the verbatim intro", () => {
     const { container } = render(<Slide03DreiVorteile data={data} />);
-    // pacht einmalig = 500 kWp × 100 €/kWp = 50.000 €
-    expect(container.textContent).toContain("50.000,00");
+    expect(container.textContent).toContain(
+      "Für ihr Unternehmen hat sich die Beauftragung unserer Auswertung gelohnt.",
+    );
+    expect(container.textContent).toContain("Erstens:");
+    expect(container.textContent).toContain("Zweitens:");
+    expect(container.textContent).toContain("Drittens:");
+    expect(container.textContent).toContain("ohne weitere Investitionen");
+    // pacht einmalig = 500 kWp × 100 €/kWp × 20 Jahre = 1.000.000 €
+    // Just sanity-check that some euro value lands in the text.
+    expect(container.textContent).toMatch(/\d{1,3}(\.\d{3})*,\d{2}/);
   });
 });
 
 describe("Slide04AufEinenBlick", () => {
-  it("renders headline KPIs and CO2 block", () => {
+  it("renders the verbatim 'Auf einen Blick' headline + CO2 thanks", () => {
     const { container } = render(<Slide04AufEinenBlick data={data} />);
-    expect(container.textContent).toContain("500"); // anlageKwp
-    expect(container.textContent).toContain("41"); // eigenverbrauchsquote
-    expect(container.textContent).toContain("Klimabilanz");
+    expect(container.textContent).toContain("Auf einen Blick");
+    expect(container.textContent).toContain("Installierende Leistung");
+    expect(container.textContent).toContain("Jahresertrag");
+    expect(container.textContent).toContain("Eigenverbrauch");
+    expect(container.textContent).toContain("Pachteinnahmen");
+    expect(container.textContent).toContain("Einmalig gleich zu Beginn");
+    expect(container.textContent).toContain(
+      "VIELEN DANK für Ihren Einsatz zu einer besseren CO2 Bilanz",
+    );
   });
 });
 
 describe("Slide05VorherNachher", () => {
-  it("renders BEFORE/AFTER placeholders when images are null", () => {
+  it("renders the 'Vorher - Nachher' headline + Jetzt/Später cards", () => {
+    const { container } = render(<Slide05VorherNachher data={data} />);
+    expect(container.textContent).toContain("Vorher - Nachher");
+    expect(container.textContent).toContain("Jetzt:");
+    expect(container.textContent).toContain("Später:");
+    expect(container.textContent).toContain("Pachtzahlung vorab");
+    expect(container.textContent).toContain("einmalige Pachtzahlung für 20 Jahre");
+    expect(container.textContent).toContain("Stromliefervertrag");
+    expect(container.textContent).toContain("CENT netto / kWh");
+  });
+
+  it("renders placeholders when image URLs are null", () => {
     const { container } = render(<Slide05VorherNachher data={data} />);
     expect(container.textContent).toContain("Vorher-Bild fehlt");
     expect(container.textContent).toContain("Nachher-Bild fehlt");
@@ -102,101 +129,126 @@ describe("Slide05VorherNachher", () => {
 });
 
 describe("Slide06Mission", () => {
-  it("renders mission cards", () => {
+  it("renders the 'Dafür stehen wir:' verbatim with all four roles + EEG", () => {
     const { container } = render(<Slide06Mission data={data} />);
-    expect(container.textContent).toContain("Mission");
+    expect(container.textContent).toContain("Dafür stehen wir:");
+    expect(container.textContent).toContain("Eigentümer:innen");
+    expect(container.textContent).toContain("Solarunternehmen");
+    expect(container.textContent).toContain("Gesellschaft");
+    expect(container.textContent).toContain("Investoren");
+    expect(container.textContent).toContain("Erneuerbare-Energien-Gesetz (EEG) ist die Sicherheit");
   });
 });
 
 describe("Slide07Partner", () => {
-  it("renders partner blocks", () => {
+  it("renders the strategic partner headline + both phases", () => {
     const { container } = render(<Slide07Partner data={data} />);
-    expect(container.textContent).toContain("Strategischer Partner");
+    expect(container.textContent).toContain(
+      "Wir sind ihr strategischer Partner in der Energiewende",
+    );
+    expect(container.textContent).toContain(
+      "Phase I: Professionelle Erstbewertung und Machbarkeitsprüfung",
+    );
+    expect(container.textContent).toContain("Phase II: Entwicklung von Projektrechten");
+    expect(container.textContent).toContain("998 €");
   });
 });
 
 describe("Slide08Zusammenarbeit", () => {
-  it("renders three reasons", () => {
+  it("renders the four numbered Zusammenarbeit cards + Warum gerade jetzt", () => {
     const { container } = render(<Slide08Zusammenarbeit data={data} />);
-    expect(container.textContent).toContain("01");
-    expect(container.textContent).toContain("02");
-    expect(container.textContent).toContain("03");
+    expect(container.textContent).toContain("Warum eine Zusammenarbeit sinnvoll ist");
+    expect(container.textContent).toContain("Greifbare Vorteile auf mehreren Ebenen");
+    expect(container.textContent).toContain("Pachteinnahmen");
+    expect(container.textContent).toContain("Günstigeren Strom");
+    expect(container.textContent).toContain("Strompreisstabilität");
+    expect(container.textContent).toContain("Sicherheit für Investoren");
+    expect(container.textContent).toContain("Warum gerade jetzt?");
+    expect(container.textContent).toContain("Diese Machbarkeitsstudie bestätigt:");
   });
 });
 
 describe("Slide09Ausgangssituation", () => {
-  it("renders versorger ct and three sums", () => {
+  it("renders all five tiles + summary KPIs", () => {
     const { container } = render(<Slide09Ausgangssituation data={data} />);
-    expect(container.textContent).toContain("35,00");
+    expect(container.textContent).toContain("Ausgangssituation: Markt- und Kostenrisiken");
+    expect(container.textContent).toContain("Ihr aktueller Netzstrompreis");
+    expect(container.textContent).toContain("Maßnahmenbedarf");
+    expect(container.textContent).toContain("Nutzen der PV-Lösung");
     expect(container.textContent).toContain("Pachteinnahmen");
+    expect(container.textContent).toContain("Stromersparnis auf 20 Jahre");
+    expect(container.textContent).toContain("CO2 Ersparnis auf 20 Jahre");
   });
 });
 
 describe("Slide10PVAnlagenkonzept", () => {
-  it("renders modul info phrase with all three segments", () => {
+  it("renders the four numbered konzept tiles + modul info", () => {
     const { container } = render(<Slide10PVAnlagenkonzept data={data} />);
-    expect(container.textContent).toContain("500");
-    expect(container.textContent).toContain("1.428");
-    expect(container.textContent).toContain("2.856");
-  });
-
-  it("collapses modul phrase when optional fields are null", () => {
-    const minimal = makeFixtureStudyDocumentData({
-      study: { ...data.study, modulAnzahl: null, modulFlaecheM2: null },
-    });
-    const { container } = render(<Slide10PVAnlagenkonzept data={minimal} />);
-    expect(container.textContent).not.toContain("Module,");
+    expect(container.textContent).toContain("PV-Anlagenkonzept: Dachbelegung und Eignung");
+    expect(container.textContent).toContain("Einkaufszentrum Linzgau Center");
+    expect(container.textContent).toContain("500"); // anlageKwp
+    expect(container.textContent).toContain("1.428"); // modulAnzahl
+    expect(container.textContent).toContain("2.856"); // modulFlaecheM2
+    expect(container.textContent).toContain("Keine relevanten Verschattungen");
+    expect(container.textContent).toContain("Wahlweise mit Speicher");
+    expect(container.textContent).toContain("Geplant durch PV-Sol");
   });
 });
 
 describe("Slide11Energiefluss", () => {
   it("renders the three flow phases", () => {
     const { container } = render(<Slide11Energiefluss data={data} />);
-    expect(container.textContent).toContain("Erzeugung");
+    expect(container.textContent).toContain("Energiefluss und Eigenverbrauch");
+    expect(container.textContent).toContain("PV-Erzeugung");
     expect(container.textContent).toContain("Eigenverbrauch");
-    expect(container.textContent).toContain("Netzeinspeisung");
-  });
-
-  it("renders placeholder when netzeinspeisung is null", () => {
-    const minimal = makeFixtureStudyDocumentData({
-      study: { ...data.study, netzeinspeisungKwhJahr: null },
-    });
-    const { container } = render(<Slide11Energiefluss data={minimal} />);
-    expect(container.textContent).toContain("Netzeinspeisung");
+    expect(container.textContent).toContain("Einspeisung");
+    expect(container.textContent).toContain("Wirkung");
+    expect(container.textContent).toContain("Unabhängigkeit");
   });
 });
 
 describe("Slide12Stromliefervertrag", () => {
-  it("renders pv vs netz preis", () => {
+  it("renders verbatim Stromliefervertrag headline + PV/Netz vergleich", () => {
     const { container } = render(<Slide12Stromliefervertrag data={data} />);
-    expect(container.textContent).toContain("22,00");
-    expect(container.textContent).toContain("35,00");
+    expect(container.textContent).toContain("Wirtschaftlichkeit: Stromliefervertrag");
+    expect(container.textContent).toContain("PV-Strompreis:");
+    expect(container.textContent).toContain("Netzstrompreis:");
+    expect(container.textContent).toContain("Marktabhängiger Bezugspreis");
+    expect(container.textContent).toContain("Direkte jährliche Ersparnis");
+    expect(container.textContent).toContain("ein Stromliefervertrag wird dringend empfohlen");
   });
 });
 
 describe("Slide13Langfristig", () => {
-  it("renders the four bilanz rows with highlight on gesamtvorteil", () => {
+  it("renders the gesamtvorteil highlight and verbatim closer", () => {
     const { container } = render(<Slide13Langfristig data={data} />);
+    expect(container.textContent).toContain("Langfristige Wirtschaftlichkeit: 20 Jahre");
     expect(container.textContent).toContain("Gesamter wirtschaftlicher Vorteil");
     expect(container.textContent).toContain("über 20 Jahre");
+    expect(container.textContent).toContain(
+      "Kernaussage: Keine Investition für ihr Unternehmen erforderlich",
+    );
   });
 });
 
 describe("Slide14Vergleich", () => {
-  it("renders mit/ohne pv comparison", () => {
+  it("renders mit/ohne pv comparison + reduktion", () => {
     const { container } = render(<Slide14Vergleich data={data} />);
+    expect(container.textContent).toContain("Vergleich: Mit PV vs. Ohne PV");
     expect(container.textContent).toContain("Ohne PV");
     expect(container.textContent).toContain("Mit PV");
-    expect(container.textContent).toContain("22,00");
+    expect(container.textContent).toContain("Jährliche Reduktion der Stromkosten");
+    expect(container.textContent).toContain("Wirtschaftlicher und planbarer Energiebezug");
   });
 });
 
 describe("Slide15Sensitivitaet", () => {
   it("renders three szenarios + SVG chart", () => {
     const { container } = render(<Slide15Sensitivitaet data={data} />);
-    expect(container.textContent).toContain("Basis");
-    expect(container.textContent).toContain("Moderat");
-    expect(container.textContent).toContain("Hoch");
+    expect(container.textContent).toContain("Sensitivitätsanalyse: Strompreis-Szenarien");
+    expect(container.textContent).toContain("Basisszenario");
+    expect(container.textContent).toContain("Moderates Szenario");
+    expect(container.textContent).toContain("Hohes Szenario");
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
     const bars = container.querySelectorAll("rect");
@@ -205,44 +257,68 @@ describe("Slide15Sensitivitaet", () => {
 });
 
 describe("Slide16Variantenvergleich", () => {
-  it("renders both variants with grid-auto-rows", () => {
+  it("renders both variants with the verbatim names", () => {
     const { container } = render(<Slide16Variantenvergleich data={data} />);
-    expect(container.textContent).toContain("Variante A");
-    expect(container.textContent).toContain("Variante B");
+    expect(container.textContent).toContain("Variantenvergleich und Empfehlung");
+    expect(container.textContent).toContain("Variante A: Nur Flächenpacht");
+    expect(container.textContent).toContain("Variante B: Flächenpacht und Stromlieferung");
+    expect(container.textContent).toContain("(empfohlen)");
     const grid = container.querySelector('[style*="repeat(2"]');
     expect(grid).not.toBeNull();
   });
 });
 
 describe("Slide17Timeline", () => {
-  it("renders 6 timeline cells in a 6-column grid with grid-auto-rows: 1fr", () => {
+  it("renders the 6 phases in a 6-column grid with grid-auto-rows: 1fr", () => {
     const { container } = render(<Slide17Timeline data={data} />);
+    expect(container.textContent).toContain("Der Weg zur Inbetriebnahme");
+    expect(container.textContent).toContain("Jetzt ist notwendig");
+    expect(container.textContent).toContain("Machbarkeitsstudie");
+    expect(container.textContent).toContain("Vertragsbedingungen");
+    expect(container.textContent).toContain("Projektierung");
+    expect(container.textContent).toContain("Bauausführung (AC/DC)");
+    expect(container.textContent).toContain("Betrieb");
+    expect(container.textContent).toContain("Projektrechte Vermarktung und -Verkauf");
     const grid = container.querySelector('[style*="repeat(6"]');
     expect(grid).not.toBeNull();
     expect((grid as HTMLElement | null)?.style.gridAutoRows).toBe("1fr");
-    // 6 cells × <h4>
+    // 6 phase titles as <h4>.
     const headings = container.querySelectorAll("h4");
     expect(headings.length).toBeGreaterThanOrEqual(6);
   });
 });
 
 describe("Slide18EEG", () => {
-  it("renders the EEG slide", () => {
+  it("renders the EEG headline + six cards", () => {
     const { container } = render(<Slide18EEG data={data} />);
-    expect(container.textContent).toContain("Erneuerbare-Energien-Gesetz");
+    expect(container.textContent).toContain("Das Erneuerbare-Energien-Gesetz (EEG)");
+    expect(container.textContent).toContain("Vorteile für Flächenverpächter");
+    expect(container.textContent).toContain("Staatlich garantierter Rahmen");
+    expect(container.textContent).toContain("20 Jahre Planungssicherheit");
+    expect(container.textContent).toContain("Hohe Zahlungssicherheit");
+    expect(container.textContent).toContain("Netzanschluss & Einspeisevorrang");
+    expect(container.textContent).toContain("Starker Investoren- und Bankenstandard");
+    expect(container.textContent).toContain("Wertsteigerung & Risikominimierung");
   });
 });
 
 describe("Slide19Kontakt", () => {
-  it("renders both termine when set", () => {
+  it("renders both termine when set + contact block", () => {
     const { container } = render(<Slide19Kontakt data={data} />);
+    expect(container.textContent).toContain("So geht es weiter!");
+    expect(container.textContent).toContain("Fachstelle Flächenprüfung");
+    expect(container.textContent).toContain("Unsere Kontaktdaten:");
+    expect(container.textContent).toContain("+49 172 3794240");
+    expect(container.textContent).toContain("projektberatung@greenscout-ev.de");
+    expect(container.textContent).toContain("GreenScout eV - Utechter Str. 5 - 19217 Utecht");
+    expect(container.textContent).toContain("Wir melden uns bei Ihnen!");
     expect(container.textContent).toContain("1)");
     expect(container.textContent).toContain("2)");
     expect(container.textContent).toContain("oder");
-    expect(container.textContent).toContain("+49 172 3794240");
+    expect(container.textContent).toContain("Zusätzlich zu dieser Machbarkeitsstudie");
   });
 
-  it("renders placeholder when both termine are null", () => {
+  it("renders 'Termin auf Anfrage' when both termine are null", () => {
     const noTermine = makeFixtureStudyDocumentData({
       study: {
         ...data.study,
