@@ -1,15 +1,38 @@
-# `extract-template-text.py` — PPTX-Original → `template-content.json`
+# Pivot-2b Extraktion-Skripte — PPTX-Original → JSON + Bilder
 
 > **Wer das liest:** Implementer-Agent oder Mensch, der das PPTX-Template
-> aktualisiert hat und die statischen Slide-Texte neu generieren möchte.
+> aktualisiert hat und Texte oder eingebettete Bilder neu generieren
+> möchte.
 
-## Was tut das Skript?
+Zwei Skripte teilen sich dieselbe Python-Umgebung:
+
+| Skript | Output | Beschreibung |
+| --- | --- | --- |
+| `extract-template-text.py` | `src/features/studies/document/template-content.json` | Statische Slide-Texte (Shape-Geometrie, Schriftgröße, Bold/Italic, Marker-Rot). |
+| `extract-template-images.py` | `public/assets/pptx-slide{NN}-image{I}.{ext}` + `public/assets/pptx-images-manifest.json` | Eingebettete Bilder pro Slide. Linked-only Pictures (keine Blobs) werden im Manifest unter `skipped_linked_pictures` aufgeführt. |
+
+## Was tun die Skripte?
 
 `scripts/extract-template-text.py` läuft mit `python-pptx` durch
 `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` und schreibt für jede
 Slide alle Text-Runs (samt Shape-Geometrie, Schriftgröße, Bold/Italic und
 einer Marker-Rot-Heuristik) nach
 `src/features/studies/document/template-content.json`.
+
+`scripts/extract-template-images.py` iteriert die selben Slides und
+schreibt die eingebetteten Bild-Blobs (Picture-Shapes inkl. verschachtelte
+Group-Shapes) nach `public/assets/`. Pivot-2b PASS 3 nutzt aus diesem Pool
+folgende kanonische Aliase (manuell-kopiert aus den extrahierten Dateien
+im selben Verzeichnis):
+
+- `greenscout-logo-hero.png` — Wide Wordmark für Slide 1 (Deckblatt).
+- `greenscout-brand-mark.png` — Kleines Brand-Mark (oben rechts ab Slide 2).
+- `slide11-foto.png` — Großes Foto rechts auf Slide 11.
+- `slide11-step{1..4}.png` — Vier nummerierte Pfeil-Shape-Icons für die
+  4-Schritt-Liste auf Slide 11.
+
+Diese Aliase werden im Build referenziert; die `pptx-slide…`-Originaldateien
+sind die Source of Truth (mit-eingecheckt für Reproduzierbarkeit).
 
 Das JSON ist die **Source of Truth** für die statischen Slide-Texte der
 treuen React-Reproduktion (Pivot-2b, siehe `DECISIONS.md` 2026-06-02).
@@ -42,6 +65,7 @@ python -m venv .venv-pptx-extract
 ```bash
 # Im Repo-Root
 scripts/.venv-pptx-extract/Scripts/python scripts/extract-template-text.py
+scripts/.venv-pptx-extract/Scripts/python scripts/extract-template-images.py
 # (auf Linux/macOS: scripts/.venv-pptx-extract/bin/python ...)
 ```
 
@@ -49,12 +73,16 @@ Output:
 
 ```
 Wrote src/features/studies/document/template-content.json (19 slides, NN shapes, NNN runs)
+Wrote N images to public/assets (manifest: public/assets/pptx-images-manifest.json).
+  slide 01: 1 embedded image(s)
+  …
 ```
 
 ## Wann erneut laufen?
 
 - Nach jedem PPTX-Template-Update (`templates/Machbarkeitsstudie-PV-Template_v1_6.pptx`).
-- Der entstehende JSON-Diff zeigt im PR was sich textuell geändert hat.
+- Der entstehende JSON-Diff und der `public/assets/`-Diff zeigen im PR was
+  sich textuell bzw. bildlich geändert hat.
 
 ## Fallback-Setup (System-Python ohne Venv)
 
