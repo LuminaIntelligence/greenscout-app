@@ -17,7 +17,7 @@ import { SlideFrame } from "./_components/slide-frame";
  *  - Text 9 (Quadrant 2) — "Solarunternehmen erhalten skalierbare
  *    Projektpotenziale".
  *  - Text 12 (Quadrant 3 oben) — "Die Gesellschaft profitiert von mehr
- *    sauberer Energie und weniger CO₂-Emissionen".
+ *    sauberer Energie und weniger CO2-Emissionen".
  *  - Text 9 (Quadrant 4 oben) — "Die Investoren erhalten eine gute
  *    Kapitalrendite für die Investition, welche sie tätigen.".
  *  - Text 12 (Quadrant 5 — EEG-Hinweis) — "Durch das Erneuerbare-
@@ -58,7 +58,7 @@ export default function Slide06Mission({ data }: { data: StudyDocumentData }) {
           {/* Quadrant 3 — Gesellschaft */}
           <div className="rounded-xl bg-muted-lime-50 p-6 text-[20px] leading-[1.4] text-foreground">
             <div className="mb-2 text-[20px] font-bold text-plant-green">Gesellschaft</div>
-            <p>Die Gesellschaft profitiert von mehr sauberer Energie und weniger CO₂-Emissionen</p>
+            <p>Die Gesellschaft profitiert von mehr sauberer Energie und weniger CO2-Emissionen</p>
           </div>
 
           {/* Quadrant 4 — Investoren */}

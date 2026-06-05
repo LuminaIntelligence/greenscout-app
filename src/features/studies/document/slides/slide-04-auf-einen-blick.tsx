@@ -14,6 +14,10 @@ import { SlideFrame } from "./_components/slide-frame";
  *
  * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
  *
+ * **Pass-3-Korrektur (Q14):** „CO2" wird durchgängig plain geschrieben
+ * (kein `<sub>2</sub>`, kein Unicode-₂) — das entspricht dem PPTX-
+ * Wortlaut und ist bewusste GreenScout-Schreibweise.
+ *
  * **Pass-2-Korrekturen (Q2 + Q3 User-Antworten):**
  *  - **Kein 3×2-Grid** — freies Layout wie im Original-PDF:
  *    - CO2-Absatz oben als breiter Fließtext + zentrierter "VIELEN DANK"-
@@ -96,19 +100,17 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
             Bestandteil (Q2). */}
         <div className="space-y-2 text-[15px] leading-[1.5] text-forest-green">
           <p>
-            Ihre Fläche erspart rund <span className="font-bold tabular-nums">{co2Jahr}</span> CO
-            <sub>2</sub> pro Jahr. Dieser Wert entspricht einer jährlichen CO
-            <sub>2</sub>-Bindung von bis zu{" "}
+            Ihre Fläche erspart rund <span className="font-bold tabular-nums">{co2Jahr}</span> CO2
+            pro Jahr. Dieser Wert entspricht einer jährlichen CO2-Bindung von bis zu{" "}
             <span className="font-bold tabular-nums">{co2Mischwald}</span> Hektar nachhaltig
             bewirtschafteten deutschen Mischwald, das entspricht ca.{" "}
             <span className="font-bold tabular-nums">{co2Fussballfelder}</span> Fußballfelder pro
             Jahr. Bei 20 Jahren Nutzungsdauer sind das{" "}
-            <span className="font-bold tabular-nums">{co2GesamtFmt}</span> Tonnen CO
-            <sub>2</sub>, das sind ca.{" "}
+            <span className="font-bold tabular-nums">{co2GesamtFmt}</span> Tonnen CO2, das sind ca.{" "}
             <span className="font-bold tabular-nums">{co2FussballfelderGesamt}</span> Fußballfelder!
           </p>
           <p className="text-center text-[18px] font-bold">
-            VIELEN DANK für Ihren Einsatz zu einer besseren CO<sub>2</sub> Bilanz !
+            VIELEN DANK für Ihren Einsatz zu einer besseren CO2 Bilanz !
           </p>
         </div>
 

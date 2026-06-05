@@ -1,11 +1,18 @@
 import { consultantFullName, customerDisplayName } from "../format";
 import type { StudyDocumentData } from "../types";
+import { BrandMark } from "./_components/brand-mark";
 import { SlideFrame } from "./_components/slide-frame";
 
 /**
  * Slide 1 — Deckblatt "Ihr Ergebnis".
  *
  * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
+ *
+ * **Pass-3-Korrektur (Q13 User-Antwort 2026-06-03):** Das eigentliche
+ * GreenScout-Logo wird jetzt aus dem PPTX-Asset-Pool gerendert
+ * (`public/assets/greenscout-logo-hero.png`, extrahiert via
+ * `scripts/extract-template-images.py`). Der frühere
+ * Gabarito-Text-Stand-in war Marken-Identitäts-Verlust.
  *
  * **Pass-2-Korrektur (Q1 User-Antwort):** Die Tagline „Flächen bewerten,
  * Entscheidung treffen, Einnahmen ohne eigene Investitionen" gehört
@@ -43,19 +50,15 @@ export default function Slide01Cover({ data }: { data: StudyDocumentData }) {
       slideNumber={1}
       customerLabel={customerName}
       showFooter={false}
+      showBrandMark={false}
       frameClassName="bg-forest-green text-white"
       contentClassName="text-white"
     >
       <div className="flex h-full flex-col items-center justify-between py-12">
-        {/* Hero brand lockup — GreenScout-Schriftzug + Tagline als visuelle Einheit */}
+        {/* Hero brand lockup — GreenScout-Wordmark + Tagline als visuelle Einheit */}
         <div className="mt-12 flex flex-col items-center gap-3">
-          {/* Brand wordmark (Logo-Asset fehlt im Asset-Pool — Text-Lockup als
-              treuer Stand-in für den visuellen "GreenScout e.V."-Schriftzug
-              aus dem PPTX). */}
-          <div className="font-[var(--font-gabarito-heading),system-ui,sans-serif] text-[72px] font-semibold leading-none text-white">
-            GreenScout e.V.
-            <span className="ml-1 align-top text-[20px]">®</span>
-          </div>
+          {/* Q13-Korrektur: echtes Logo aus dem PPTX-Asset-Pool statt Text-Stand-in. */}
+          <BrandMark variant="wordmark" alt="GreenScout e.V." className="h-[150px] w-auto" />
           {/* Tagline als direkte Subtitle der Marken-Einheit (Q1-Korrektur) */}
           <div className="text-[24px] font-normal text-white">
             Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen

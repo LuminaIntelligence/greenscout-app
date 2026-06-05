@@ -121,10 +121,12 @@ describe("Slide05VorherNachher", () => {
       images: { beforeUrl: "/api/uploads/before-id", afterUrl: "/api/uploads/after-id" },
     });
     const { container } = render(<Slide05VorherNachher data={withImages} />);
-    const imgs = container.querySelectorAll("img");
-    expect(imgs.length).toBe(2);
-    expect(imgs[0].getAttribute("src")).toBe("/api/uploads/before-id");
-    expect(imgs[1].getAttribute("src")).toBe("/api/uploads/after-id");
+    // PASS 3 (Q13): brand-mark chrome lives in <SlideFrame>; filter it out
+    // so we only count the BEFORE/AFTER content images.
+    const contentImgs = container.querySelectorAll("img:not([data-brand-mark])");
+    expect(contentImgs.length).toBe(2);
+    expect(contentImgs[0].getAttribute("src")).toBe("/api/uploads/before-id");
+    expect(contentImgs[1].getAttribute("src")).toBe("/api/uploads/after-id");
   });
 });
 

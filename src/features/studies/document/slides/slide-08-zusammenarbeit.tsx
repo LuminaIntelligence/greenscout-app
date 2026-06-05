@@ -7,6 +7,11 @@ import { SlideFrame } from "./_components/slide-frame";
  *
  * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
  *
+ * **Pass-3-Korrektur (Q15 User-Antwort 2026-06-03):** „Warum gerade jetzt?"
+ * wird nicht mehr als dunkelgrüne Footer-Box gerendert, sondern als
+ * Subheader + drei Pfeil-Bullets in normaler Forest-Green-Schrift auf
+ * weißem Grund — entspricht dem Original-PDF-Layout.
+ *
  * **Pass-2-Korrektur (Q6 User-Antwort):** Karten weiß statt
  * `bg-muted-lime-50`. SPEC §8.4 verlangt „sparing use of muted-lime for
  * accents" — die Nummerierung selbst ist Akzent genug.
@@ -89,19 +94,36 @@ export default function Slide08Zusammenarbeit({ data }: { data: StudyDocumentDat
           ))}
         </div>
 
-        {/* "Warum gerade jetzt?" Footer block */}
-        <div className="mt-2 rounded-xl bg-forest-green p-5 text-white">
-          <div className="text-[20px] font-bold">Warum gerade jetzt?</div>
-          <div className="mt-1 text-[16px] font-bold">Diese Machbarkeitsstudie bestätigt:</div>
-          <ul className="mt-2 space-y-1 text-[14px]">
-            <li>
-              Ihre eingereichte Fläche ist geeignet, um Sie an Investoren verpachtet zu werden.
+        {/* "Warum gerade jetzt?" Subheader + drei Pfeil-Bullets (Q15-Korrektur). */}
+        <div className="mt-2 space-y-2">
+          <h3 className="text-[22px] font-bold text-forest-green">Warum gerade jetzt?</h3>
+          <div className="text-[16px] font-bold text-forest-green">
+            Diese Machbarkeitsstudie bestätigt:
+          </div>
+          <ul className="space-y-1 text-[15px] text-forest-green">
+            <li className="flex items-start gap-2">
+              <span aria-hidden="true" className="leading-[1.4]">
+                →
+              </span>
+              <span>
+                Ihre eingereichte Fläche ist geeignet, um Sie an Investoren verpachtet zu werden.
+              </span>
             </li>
-            <li>
-              Die wirtschaftlichen Rahmenbedingungen sind tragfähig. Vorbehaltlich der Prüfung in
-              Phase II
+            <li className="flex items-start gap-2">
+              <span aria-hidden="true" className="leading-[1.4]">
+                →
+              </span>
+              <span>
+                Die wirtschaftlichen Rahmenbedingungen sind tragfähig. Vorbehaltlich der Prüfung in
+                Phase II
+              </span>
             </li>
-            <li>Wir gehen wie vertraglich vereinbart in Phase II über.</li>
+            <li className="flex items-start gap-2">
+              <span aria-hidden="true" className="leading-[1.4]">
+                →
+              </span>
+              <span>Wir gehen wie vertraglich vereinbart in Phase II über.</span>
+            </li>
           </ul>
         </div>
       </div>
