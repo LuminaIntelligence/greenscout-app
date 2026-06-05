@@ -8,6 +8,10 @@
 > Implementer hat diese NICHT eigenmächtig geändert (CLAUDE.md §7.4 —
 > Layout-Anpassungen jenseits Tokens sind Pause-Trigger). User-Sign-off
 > vor jeder einzelnen Korrektur.
+>
+> **Status 2026-06-04:** Alle 5 Klärungen vom User beantwortet
+> (Q13–Q17). Implementiert in Commit `a0d6f31` (PASS 3 Slide-Edits)
+> plus `02f2d6d` (Phase A Image-Extract). Audit-Trail unten.
 
 ---
 
@@ -24,6 +28,17 @@ unter `public/brand/` eingecheckt werden? Wenn ja: SVG erwartet.
 direkt unter Marken-Schriftzug" — das nutzt der Text-Stand-in
 erfolgreich, aber visuell ist das Original-Logo deutlich erkennbarer.
 
+**✅ Q13 vom User beantwortet 2026-06-02:** „Extrahieren, einchecken.
+Das Logo ist als embedded Image im PPTX-Archiv vorhanden. Schreib es
+nach `public/assets/greenscout-logo.png`. Verwendet werden soll es
+auf Slide 1 und überall sonst, wo das Logo im Original auftaucht."
+
+**Implementiert in `a0d6f31`:** `scripts/extract-template-images.py`
+extrahiert alle Picture-Shape-Blobs aus dem PPTX nach
+`public/assets/`. Logo als `greenscout-logo-hero.png` (Slide 1 Hero)
+und `greenscout-brand-mark.png` (oben rechts ab Slide 2 via neue
+`<BrandMark>`-Komponente). Gabarito-Text-Stand-in entfernt.
+
 ---
 
 ## Slide 4 — CO₂ als „CO2" vs. „CO₂"
@@ -38,6 +53,13 @@ ohne Subscript bleiben?
 character oder kann Typografie-Glätten? Default Pass 2: `<sub>` für
 visuelle Qualität, kann auf User-Wunsch entfernt werden.
 
+**✅ Q14 vom User beantwortet 2026-06-02:** „Plain CO2 — kein `<sub>`.
+Reproduzieren, nicht typografisch ‚aufwerten'. Gilt für **alle Slides**,
+nicht nur Slide 4."
+
+**Implementiert in `a0d6f31`:** Sweep über alle Slides + Helper —
+alle `<sub>2</sub>` und Unicode-`CO₂` durch plain `CO2` ersetzt.
+
 ---
 
 ## Slide 8 — „Warum gerade jetzt?"-Block Layout
@@ -51,6 +73,14 @@ Q6 das „sparsame Akzent-Verwendung" befolgt?
 
 **Kontext:** Q6 betraf nur die 4 Karten oben (muted-lime → weiß).
 „Warum gerade jetzt?" war in Q6 nicht adressiert.
+
+**✅ Q15 vom User beantwortet 2026-06-02:** „Ja, nachziehen. Dunkle
+Footer-Box raus, Original-Layout wiederherstellen: Subheader + drei
+Pfeil-Bullets in normaler Forest-Green-Schrift auf weißem Grund."
+
+**Implementiert in `a0d6f31`:** `slide-08-zusammenarbeit.tsx` —
+dunkelgrüne Footer-Box entfernt; „Warum gerade jetzt?" als Subheader
++ drei Pfeil-Bullets in Forest-Green-Schrift auf weiß.
 
 ---
 
@@ -67,6 +97,17 @@ das Slide-11-Layout selbst war nicht Thema.
 11 wurde nicht explizit besprochen. Konservativ: nicht angetastet
 in PASS 2.
 
+**✅ Q16 vom User beantwortet 2026-06-02:** „Ja, komplett nachziehen.
+Original-Layout exakt reproduzieren: vertikale 4-Schritt-Liste
+(PV-Erzeugung / Eigenverbrauch / Einspeisung / Wirkung) mit den
+ursprünglichen Pfeil-Shapes links und großem Foto rechts.
+**Keine 3-Spalten-KPI-Boxen.**"
+
+**Implementiert in `a0d6f31`:** `slide-11-energiefluss.tsx` komplett
+rewritten — 4-Schritt-Liste links (`slide11-step1.png` bis
+`slide11-step4.png`, aus PPTX extrahiert), großes Foto rechts
+(`slide11-foto.png`). KPI-Boxen entfernt.
+
 ---
 
 ## Slide 14 — Vergleich-Layout
@@ -78,6 +119,16 @@ das nicht angesprochen. Soll das nachgezogen werden?
 
 **Kontext:** Layout-Diskrepanz mittlerer Schwere — Text-Strings
 passen, visuelle Hierarchie weicht ab.
+
+**✅ Q17 vom User beantwortet 2026-06-02:** „Ja, als Balkendiagramm
+rendern. Zwei vertikale Balken nebeneinander (Ohne PV / Mit PV),
+Y-Achse als €-Skala, die Differenz darunter als ‚Jährliche Reduktion'
+beziffert. Implementierung als **pure SVG**, konsistent mit der
+Slide-15-Entscheidung; keine Recharts-Dep, kein §7.1-Trigger."
+
+**Implementiert in `a0d6f31`:** `slide-14-vergleich.tsx` komplett
+rewritten — pure SVG-Balkendiagramm (Ohne PV / Mit PV) mit €-Skala
+und „Jährliche Reduktion"-Annotation. Recharts nicht eingeführt.
 
 ---
 

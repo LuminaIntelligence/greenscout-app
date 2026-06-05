@@ -4176,3 +4176,34 @@ Plus: die Studien-Detail-Page (`src/app/(app)/studies/[id]/page.tsx`) importiert
 
 ---
 
+
+## 2026-06-04 — Pivot-2b PASS 3: Q13–Q17 Sign-off + Image-Extract
+
+**Context:** PR #66 Pass 2 hatte 5 neue Cross-Check-Befunde in `docs/pivot/clarifications-pass2.md` offen (Logo-Asset fehlt, CO2-Subscript-Frage, Slide 8 Layout, Slide 11 Layout-Mismatch, Slide 14 Vergleich-Layout). User-Direktive 2026-06-02 beantwortet alle fünf eindeutig.
+
+**Decisions:**
+- **Q13 (Slide 1 + Brand-Mark):** Logo aus PPTX via `shape.image.blob` extrahiert — neues Skript `scripts/extract-template-images.py` schreibt alle Picture-Shape-Blobs nach `public/assets/`. Logo eingecheckt als `greenscout-logo-hero.png` (Slide 1 Hero) und `greenscout-brand-mark.png` (oben rechts ab Slide 2 via neue `<BrandMark>`-Komponente in `slide-frame.tsx`). Gabarito-Text-Stand-in entfernt (war Marken-Identitäts-Verlust).
+- **Q14 (CO2-Schreibweise):** Sweep über alle Slides + Helper — alle `<sub>2</sub>` und Unicode-`CO₂` durch plain `CO2` ersetzt. PPTX-Wortlaut wird 1:1 reproduziert, nicht typografisch „aufgewertet".
+- **Q15 (Slide 8):** Dunkelgrüne Footer-Box entfernt; „Warum gerade jetzt?" als Subheader + drei Pfeil-Bullets in Forest-Green-Schrift auf weiß.
+- **Q16 (Slide 11):** 3-Spalten-KPI-Boxen entfernt; vertikale 4-Schritt-Liste links mit den aus PPTX extrahierten Pfeil-Shape-Bildern (`slide11-step1.png` … `slide11-step4.png`) + großem Foto rechts (`slide11-foto.png`).
+- **Q17 (Slide 14):** Textbasierte 2-Karten-Variante entfernt; pure SVG-Balkendiagramm (Ohne PV / Mit PV) mit €-Skala und „Jährliche Reduktion"-Annotation. Recharts nicht eingeführt — §7.1 vermieden, konsistent mit Slide-15-Entscheidung.
+
+**Affected:**
+- `scripts/extract-template-images.py` (neu) + `public/assets/pptx-images-manifest.json`
+- `public/assets/greenscout-logo-hero.png`, `greenscout-brand-mark.png`, `slide11-foto.png`, `slide11-step1..4.png`, plus `pptx-slideN-imageM.png` Pool
+- `src/features/studies/document/slides/_components/brand-mark.tsx` (neu)
+- `src/features/studies/document/slides/_components/slide-frame.tsx` (Brand-Mark-Slot)
+- `src/features/studies/document/slides/slide-01-cover.tsx` (Logo statt Text)
+- `src/features/studies/document/slides/slide-04-auf-einen-blick.tsx` (CO2-Sweep)
+- `src/features/studies/document/slides/slide-06-mission.tsx` (CO2-Sweep)
+- `src/features/studies/document/slides/slide-08-zusammenarbeit.tsx` (Subheader + Pfeil-Bullets)
+- `src/features/studies/document/slides/slide-11-energiefluss.tsx` (4-Schritt-Liste + Foto)
+- `src/features/studies/document/slides/slide-14-vergleich.tsx` (pure SVG BarChart)
+- `src/features/studies/document/slides/slides.test.tsx` (Test-Anpassungen)
+- `docs/pivot/clarifications-pass2.md` (alle 5 mit ✅-User-Antwort + Implementations-Verweis)
+- `docs/pivot/visual-verification/rendered-slide-NN.png` × 19 (werden im Hauptthread regeneriert)
+- `DECISIONS.md` — dieser Eintrag
+
+**Pause-Trigger-Check (§7):** keine. Reine Layout-/Asset-Korrekturen innerhalb autorisierter Pivot-Direction + User-Sign-off pro Frage. Recharts vermieden — §7.1 nicht getriggert. Auth/Schema/SMTP/DSGVO unangetastet.
+
+**Open question for the user:** keine. Beim nächsten Side-by-Side-Review nach Regeneration der PNGs entscheidet der User, ob PR ready oder weitere Pass-4-Runde.
