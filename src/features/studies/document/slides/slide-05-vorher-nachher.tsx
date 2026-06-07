@@ -58,52 +58,60 @@ export default function Slide05VorherNachher({ data }: { data: StudyDocumentData
   return (
     <SlideFrame slideNumber={5} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-4">
-        {/* Headline (Textfeld 19) */}
-        <h2 className="text-[28px] font-bold text-forest-green">Vorher - Nachher</h2>
+        {/* Headline (Textfeld 19) — Pivot-2d P1: font-extrabold (700+). */}
+        <h2 className="text-[28px] font-extrabold text-forest-green">Vorher - Nachher</h2>
 
-        {/* Two-column layout: Jetzt / Später */}
-        <div className="grid flex-1 grid-cols-2 gap-12">
-          {/* Left — Jetzt */}
-          <div className="flex flex-col gap-4">
-            <div className="text-[24px] font-bold text-forest-green">Jetzt:</div>
+        {/* Two-column layout: Jetzt / Später
+            Pivot-2d P3 (Whitespace): gap-12 → gap-8.
+            Pivot-2d P5 (Photo-Füllung): Spalten als flex-col mit klaren Höhen,
+            damit das Bild den verfügbaren Spaltenraum komplett füllt. */}
+        <div className="grid flex-1 grid-cols-2 gap-8">
+          {/* Left — Jetzt (BEFORE)
+              Pivot-2d B1: BEFORE-Fallback = `pptx-slide05-image2.png` (Dach
+              OHNE PV-Anlage). Pivot-2c hatte image1/image2 vertauscht. */}
+          <div className="flex flex-col gap-3">
+            <div className="text-[24px] font-extrabold text-forest-green">Jetzt:</div>
             <ImageSlot
               src={data.images.beforeUrl}
               alt="Dach vor PV-Installation"
               emptyLabel="Vorher-Bild fehlt"
               aspectClassName="aspect-[16/9]"
-              fallbackSrc="/assets/pptx-slide05-image1.png"
+              fallbackSrc="/assets/pptx-slide05-image2.png"
             />
-            <div className="rounded-xl bg-muted-lime-50 p-6 text-[18px] leading-[1.4] text-foreground">
+            <div className="rounded-xl bg-muted-lime-50 p-5 text-[18px] leading-[1.4] text-foreground">
               <div className="font-bold">Pachtzahlung vorab*</div>
-              <div className="mt-1 text-[24px] font-bold tabular-nums text-plant-green">
+              <div className="mt-1 text-[24px] font-extrabold tabular-nums text-plant-green">
                 ca. {pacht} EUR netto**
               </div>
               <div className="mt-1">einmalige Pachtzahlung für 20 Jahre</div>
             </div>
           </div>
 
-          {/* Right — Später */}
-          <div className="flex flex-col gap-4">
-            <div className="text-[24px] font-bold text-forest-green">Später:</div>
+          {/* Right — Später (AFTER)
+              Pivot-2d B1: AFTER-Fallback = `pptx-slide05-image1.png` (Dach
+              MIT PV-Anlage). Pivot-2c hatte image1/image2 vertauscht. */}
+          <div className="flex flex-col gap-3">
+            <div className="text-[24px] font-extrabold text-forest-green">Später:</div>
             <ImageSlot
               src={data.images.afterUrl}
               alt="Dach mit installierter PV-Anlage"
               emptyLabel="Nachher-Bild fehlt"
               aspectClassName="aspect-[16/9]"
-              fallbackSrc="/assets/pptx-slide05-image2.png"
+              fallbackSrc="/assets/pptx-slide05-image1.png"
             />
-            <div className="rounded-xl bg-plant-green-50 p-6 text-[18px] leading-[1.4] text-foreground">
+            <div className="rounded-xl bg-plant-green-50 p-5 text-[18px] leading-[1.4] text-foreground">
               <div className="font-bold">
                 Stromliefervertrag***: Direkter Bezug aus der PV-Anlage
               </div>
               <div className="mt-1 text-[20px] tabular-nums">
-                ca. {eigenverbrauchGesamt} kWh** laut PV-SOL
+                ca. <span className="font-bold text-plant-green">{eigenverbrauchGesamt}</span> kWh**
+                laut PV-SOL
               </div>
-              <div className="mt-3 text-[24px] font-bold tabular-nums text-plant-green">
+              <div className="mt-2 text-[24px] font-extrabold tabular-nums text-plant-green">
                 {pvVerkaufCtRaw} CENT netto / kWh
               </div>
               <div className="mt-1">Einsparpotential gegenüber dem heutigen Stromlieferanten</div>
-              <div className="mt-1 text-[20px] font-bold tabular-nums">
+              <div className="mt-1 text-[20px] font-extrabold tabular-nums text-plant-green">
                 ca. {ersparnis20} €** für 20 Jahre
               </div>
             </div>

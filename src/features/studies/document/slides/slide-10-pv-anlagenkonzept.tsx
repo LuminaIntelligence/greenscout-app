@@ -79,12 +79,13 @@ export default function Slide10PVAnlagenkonzept({ data }: { data: StudyDocumentD
       <div className="flex h-full flex-col gap-5">
         {/* Headline + Subtitle */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             PV-Anlagenkonzept: Dachbelegung und Eignung*
           </h2>
           <p className="text-[18px] text-foreground">
             Für <span className="font-bold">{objectName}</span> –{" "}
-            <span className="font-bold tabular-nums">{anlageKwp} kWp</span>, technisch geeignet
+            <span className="font-bold tabular-nums text-plant-green">{anlageKwp} kWp</span>,
+            technisch geeignet
           </p>
         </div>
 

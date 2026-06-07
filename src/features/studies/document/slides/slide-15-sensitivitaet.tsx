@@ -64,12 +64,12 @@ export default function Slide15Sensitivitaet({ data }: { data: StudyDocumentData
       <div className="flex h-full flex-col gap-5">
         {/* Headline + Subtitle */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Sensitivitätsanalyse: Strompreis-Szenarien
           </h2>
           <p className="text-[18px] text-foreground">
             Netzpreisvarianten und jährliche Einsparung bei PV-Strom{" "}
-            <span className="font-bold tabular-nums">{pvCt}</span> ct/kWh
+            <span className="font-bold tabular-nums text-plant-green">{pvCt}</span> ct/kWh
           </p>
         </div>
 

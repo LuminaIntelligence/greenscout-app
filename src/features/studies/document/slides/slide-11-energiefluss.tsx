@@ -82,29 +82,35 @@ export default function Slide11Energiefluss({ data }: { data: StudyDocumentData 
   return (
     <SlideFrame slideNumber={11} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-5">
-        {/* Headline + Subtitle */}
+        {/* Headline + Subtitle
+            Pivot-2d P1: font-extrabold für PowerPoint-typische Headline-Dichte.
+            Pivot-2d P4: dynamische Hero-Werte plant-green-bold. */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Energiefluss und Eigenverbrauch
           </h2>
           <p className="text-[18px] text-foreground">
-            PV-Erzeugung <span className="font-bold tabular-nums">{pvErzeugung}</span> kWh/Jahr –{" "}
-            <span className="font-bold tabular-nums">{quote}%</span> direkt genutzt
+            PV-Erzeugung{" "}
+            <span className="font-bold tabular-nums text-plant-green">{pvErzeugung}</span> kWh/Jahr
+            – <span className="font-bold tabular-nums text-plant-green">{quote}%</span> direkt
+            genutzt
           </p>
         </div>
 
         {/* Two-column body: 4-step vertical list links, großes Foto rechts. */}
         <div className="grid flex-1 grid-cols-[3fr_2fr] gap-10">
-          {/* Vertikale 4-Schritt-Liste mit nummerierten Pfeil-Shape-Icons */}
+          {/* Vertikale 4-Schritt-Liste mit Solid-Filled Plant-Green-Kreisen.
+              Pivot-2d P2: PPTX-Pfeil-Shape-Outline-PNGs ersetzt durch
+              SVG-Kreis mit weißer Zahl drin (PowerPoint-Original-Look). */}
           <ol className="flex flex-col justify-between gap-4">
             {steps.map((s) => (
               <li key={s.index} className="flex items-start gap-5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/assets/slide11-step${s.index}.png`}
-                  alt={`Schritt ${s.index}`}
-                  className="h-16 w-auto flex-shrink-0"
-                />
+                <div
+                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-plant-green text-[28px] font-extrabold leading-none text-white"
+                  aria-label={`Schritt ${s.index}`}
+                >
+                  {s.index}
+                </div>
                 <div className="flex-1">
                   <div className="text-[22px] font-bold text-forest-green">{s.title}</div>
                   <p className="mt-1 text-[16px] leading-[1.4] text-foreground">{s.body}</p>

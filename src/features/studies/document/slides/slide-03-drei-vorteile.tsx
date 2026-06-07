@@ -59,14 +59,18 @@ export default function Slide03DreiVorteile({ data }: { data: StudyDocumentData 
           <p className="mt-2">Öffnen sich drei zentrale Vorteile:</p>
         </div>
 
-        {/* Text 2 — Drei Vorteile */}
+        {/* Text 2 — Drei Vorteile.
+            Pivot-2d P4: dynamische Hero-Euro-Werte (`{pacht}`, `{ersparnisMonat}`,
+            `{ersparnis20}`) plant-green-bold hervorgehoben — der statische
+            Marketingtext bleibt schwarz-bold. */}
         <div className="space-y-4 text-[20px] leading-[1.45] text-foreground">
           <div>
             <span className="font-normal">Erstens:</span>{" "}
             <span>
               Ihre Fläche kann für ihr Unternehmen{" "}
               <span className="font-bold">
-                einmalige Pachteinnahmen, von bis zu {pacht} € erwirtschaften.
+                einmalige Pachteinnahmen, von bis zu{" "}
+                <span className="tabular-nums text-plant-green">{pacht} €</span> erwirtschaften.
               </span>
             </span>
           </div>
@@ -75,9 +79,13 @@ export default function Slide03DreiVorteile({ data }: { data: StudyDocumentData 
             <span>
               Grundsätzlich besteht die Möglichkeit, über einen Stromliefervertrag Ihr Unternehmen
               mit Strom aus der auf Ihrer Fläche zu errichtender Anlage zu versorgen, damit
-              monatlich bis zu <span className="font-bold">{ersparnisMonat} €</span> gegenüber ihren
-              heutigen Stromlieferanten einzusparen.{" "}
-              <span className="font-bold">Das sind bei 20 Jahren Laufzeit ca. {ersparnis20} €</span>
+              monatlich bis zu{" "}
+              <span className="font-bold tabular-nums text-plant-green">{ersparnisMonat} €</span>{" "}
+              gegenüber ihren heutigen Stromlieferanten einzusparen.{" "}
+              <span className="font-bold">
+                Das sind bei 20 Jahren Laufzeit ca.{" "}
+                <span className="tabular-nums text-plant-green">{ersparnis20} €</span>
+              </span>
             </span>
           </div>
           <div>

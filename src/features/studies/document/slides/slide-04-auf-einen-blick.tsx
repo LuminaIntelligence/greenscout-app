@@ -91,42 +91,50 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
 
   return (
     <SlideFrame slideNumber={4} customerLabel={customerName}>
-      {/* Pivot-2c A6: `justify-between` packt den Slide-Content über die ganze
-          1080px-Höhe (vorher hingen die Geld-Tiles zwar unten via `mt-auto`,
-          aber Header/CO2/kWp/Mittelblock stapelten sich nur 60% der Höhe und
-          die untere Hälfte wirkte leer). */}
-      <div className="flex h-full flex-col">
-        {/* Headline */}
-        <h2 className="text-center text-[32px] font-bold text-forest-green">Auf einen Blick</h2>
+      {/* Pivot-2d P3 (Whitespace-Reduktion): `gap-4` zwischen den Sektionen
+          statt `mt-auto`-getriebener Spreizung. Der Slide hängt jetzt direkt
+          oben an, nutzt Mid-Section-Gaps statt großer Lücken, und die
+          Bottom-Tiles sind nicht mehr „nach unten gedrückt". */}
+      <div className="flex h-full flex-col gap-4">
+        {/* Headline (Pivot-2d P1: font-extrabold für PowerPoint-Dichte) */}
+        <h2 className="text-center text-[32px] font-extrabold text-forest-green">
+          Auf einen Blick
+        </h2>
 
         {/* CO2-Fließtext über volle Breite — Q3-Korrektur: voller Satz inkl.
             "Fußballfelder!"-Endung, plus "VIELEN DANK"-Satz als integraler
-            Bestandteil (Q2). */}
-        <div className="mt-4 space-y-2 text-[16px] leading-[1.5] text-forest-green">
+            Bestandteil (Q2). Pivot-2d P4: Hero-Zahlen plant-green-bold. */}
+        <div className="space-y-2 text-[16px] leading-[1.5] text-forest-green">
           <p>
-            Ihre Fläche erspart rund <span className="font-bold tabular-nums">{co2Jahr}</span> CO2
-            pro Jahr. Dieser Wert entspricht einer jährlichen CO2-Bindung von bis zu{" "}
-            <span className="font-bold tabular-nums">{co2Mischwald}</span> Hektar nachhaltig
-            bewirtschafteten deutschen Mischwald, das entspricht ca.{" "}
-            <span className="font-bold tabular-nums">{co2Fussballfelder}</span> Fußballfelder pro
-            Jahr. Bei 20 Jahren Nutzungsdauer sind das{" "}
-            <span className="font-bold tabular-nums">{co2GesamtFmt}</span> Tonnen CO2, das sind ca.{" "}
-            <span className="font-bold tabular-nums">{co2FussballfelderGesamt}</span> Fußballfelder!
+            Ihre Fläche erspart rund{" "}
+            <span className="font-bold tabular-nums text-plant-green">{co2Jahr}</span> CO2 pro Jahr.
+            Dieser Wert entspricht einer jährlichen CO2-Bindung von bis zu{" "}
+            <span className="font-bold tabular-nums text-plant-green">{co2Mischwald}</span> Hektar
+            nachhaltig bewirtschafteten deutschen Mischwald, das entspricht ca.{" "}
+            <span className="font-bold tabular-nums text-plant-green">{co2Fussballfelder}</span>{" "}
+            Fußballfelder pro Jahr. Bei 20 Jahren Nutzungsdauer sind das{" "}
+            <span className="font-bold tabular-nums text-plant-green">{co2GesamtFmt}</span> Tonnen
+            CO2, das sind ca.{" "}
+            <span className="font-bold tabular-nums text-plant-green">
+              {co2FussballfelderGesamt}
+            </span>{" "}
+            Fußballfelder!
           </p>
-          <p className="text-center text-[18px] font-bold">
+          <p className="text-center text-[18px] font-extrabold">
             VIELEN DANK für Ihren Einsatz zu einer besseren CO2 Bilanz !
           </p>
         </div>
 
-        {/* Hero-kWp-Block zentriert — der visuelle Anker des Slides */}
-        <div className="mt-6 flex flex-col items-center">
+        {/* Hero-kWp-Block zentriert — der visuelle Anker des Slides
+            Pivot-2d P1: font-extrabold (800) für Hero-KPI. */}
+        <div className="flex flex-col items-center">
           <div className="flex items-baseline gap-2">
-            <span className="text-[96px] font-bold tabular-nums leading-none text-plant-green">
+            <span className="text-[96px] font-extrabold tabular-nums leading-none text-plant-green">
               {anlageKwp}
             </span>
             <span className="text-[44px] font-normal text-forest-green">kWp</span>
           </div>
-          <div className="mt-2 text-[22px] font-semibold text-forest-green">
+          <div className="mt-2 text-[22px] font-bold text-forest-green">
             Installierende Leistung
           </div>
           <div className="text-[15px] text-foreground opacity-70">
@@ -136,7 +144,7 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
 
         {/* Mittelblock: Objektstandort links, Eigenverbrauchskreis mittig,
             Hinweistext rechts. */}
-        <div className="mt-6 grid grid-cols-3 items-center gap-4">
+        <div className="grid grid-cols-3 items-center gap-4">
           {/* Left — Objektstandort */}
           <div className="text-[14px] text-forest-green">
             <div className="font-bold">Objektstandort:</div>
@@ -144,13 +152,15 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
             {flurstueckLabel ? <div>{flurstueckLabel}</div> : null}
           </div>
 
-          {/* Middle — Eigenverbrauchs-Kreis */}
+          {/* Middle — Eigenverbrauchs-Kreis (Pivot-2d P2 + B2):
+              Solid-Filled Plant-Green-Kreis mit weißem Text drin — ersetzt
+              den vorigen Outline-Kreis (`border-4 border-plant-green`). */}
           <div className="flex justify-center">
-            <div className="flex h-[160px] w-[160px] flex-col items-center justify-center rounded-full border-4 border-plant-green">
-              <div className="text-[36px] font-bold tabular-nums leading-none text-plant-green">
+            <div className="flex h-[180px] w-[180px] flex-col items-center justify-center rounded-full bg-plant-green">
+              <div className="text-[44px] font-extrabold tabular-nums leading-none text-white">
                 {eigenverbrauchsquote}%
               </div>
-              <div className="mt-1 text-[14px] font-semibold text-forest-green">Eigenverbrauch</div>
+              <div className="mt-1 text-[14px] font-bold text-white">Eigenverbrauch</div>
             </div>
           </div>
 
@@ -158,8 +168,8 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
           <div className="text-[13px] leading-[1.4] text-foreground">
             <div>
               Eigenverbrauch des Bedarfs: ca.{" "}
-              <span className="font-bold tabular-nums">{pvEigenverbrauch}</span> kWh (
-              {eigenverbrauchsquote} %)
+              <span className="font-bold tabular-nums text-plant-green">{pvEigenverbrauch}</span>{" "}
+              kWh ({eigenverbrauchsquote} %)
             </div>
             <div className="mt-1">Überschuss Produktion:</div>
             <div>
@@ -170,23 +180,24 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
         </div>
 
         {/* Drei Geld-Tiles als Reihe unten — `mt-auto` schiebt sie an den
-            Boden des verfügbaren Slide-Innenraums. */}
-        <div className="mt-auto grid grid-cols-3 gap-6 pt-8">
+            Boden des verfügbaren Slide-Innenraums.
+            Pivot-2d P1: font-extrabold (800) für Hero-Geld-Zahlen. */}
+        <div className="mt-auto grid grid-cols-3 gap-6 pt-4">
           {/* Pachteinnahmen */}
           <div className="flex flex-col items-center text-center">
-            <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
+            <div className="text-[44px] font-extrabold tabular-nums leading-none text-plant-green">
               {pachtEinmalig} €
             </div>
-            <div className="mt-2 text-[18px] font-semibold text-forest-green">Pachteinnahmen</div>
+            <div className="mt-2 text-[18px] font-bold text-forest-green">Pachteinnahmen</div>
             <div className="text-[13px] text-foreground opacity-70">Einmalig gleich zu Beginn</div>
           </div>
 
           {/* Jahresertrag */}
           <div className="flex flex-col items-center text-center">
-            <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
+            <div className="text-[44px] font-extrabold tabular-nums leading-none text-plant-green">
               {pvErzeugung} kWh
             </div>
-            <div className="mt-2 text-[18px] font-semibold text-forest-green">Jahresertrag</div>
+            <div className="mt-2 text-[18px] font-bold text-forest-green">Jahresertrag</div>
             <div className="text-[13px] text-foreground opacity-70">
               ca. <span className="tabular-nums">{gesamterzeugung20}</span> kWh auf 20 Jahre
             </div>
@@ -197,10 +208,10 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
 
           {/* Stromersparnis 20 Jahre */}
           <div className="flex flex-col items-center text-center">
-            <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
+            <div className="text-[44px] font-extrabold tabular-nums leading-none text-plant-green">
               ca. {ersparnis20} €
             </div>
-            <div className="mt-2 text-[18px] font-semibold text-forest-green">
+            <div className="mt-2 text-[18px] font-bold text-forest-green">
               Mögliche Stromersparnis für 20 Jahre
             </div>
             <div className="text-[13px] text-foreground opacity-70">
@@ -210,7 +221,7 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
         </div>
 
         {/* Footnote */}
-        <p className="mt-3 text-[12px] italic text-forest-green opacity-60">
+        <p className="mt-2 text-[12px] italic text-forest-green opacity-60">
           Vorläufige Kernergebnisse auf Basis der von Ihnen gelieferten Dokumente.
         </p>
       </div>

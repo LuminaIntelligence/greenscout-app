@@ -43,8 +43,9 @@ export default function Slide09Ausgangssituation({ data }: { data: StudyDocument
       no: "01",
       head: (
         <>
-          Ihr aktueller Netzstrompreis <span className="font-bold tabular-nums">{versorgerCt}</span>{" "}
-          netto ct/kWh
+          Ihr aktueller Netzstrompreis{" "}
+          <span className="font-bold tabular-nums text-plant-green">{versorgerCt}</span> netto
+          ct/kWh
         </>
       ),
       body: "Laut Ihrer Unterlagen",
@@ -74,9 +75,9 @@ export default function Slide09Ausgangssituation({ data }: { data: StudyDocument
   return (
     <SlideFrame slideNumber={9} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-4">
-        {/* Headline + Subtitle */}
+        {/* Headline + Subtitle (Pivot-2d P1: font-extrabold) */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Ausgangssituation: Markt- und Kostenrisiken
           </h2>
           <p className="text-[18px] text-foreground">

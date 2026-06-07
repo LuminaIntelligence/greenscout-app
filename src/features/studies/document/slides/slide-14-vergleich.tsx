@@ -56,39 +56,46 @@ export default function Slide14Vergleich({ data }: { data: StudyDocumentData }) 
   return (
     <SlideFrame slideNumber={14} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-6">
-        {/* Headline + Subtitle */}
+        {/* Headline + Subtitle
+            Pivot-2d P1: font-extrabold (700+) für PowerPoint-Headline-Dichte. */}
         <div className="space-y-1">
-          <h2 className="text-[32px] font-bold text-forest-green">Vergleich: Mit PV vs. Ohne PV</h2>
+          <h2 className="text-[32px] font-extrabold text-forest-green">
+            Vergleich: Mit PV vs. Ohne PV
+          </h2>
           <p className="text-[20px] text-foreground">
             Jährliche Stromkosten und direkte Einsparung
           </p>
         </div>
 
-        {/* Two-column body: 4-Zeilen-Listen-Layout links (65%) + Foto rechts (35%) */}
+        {/* Two-column body: 4-Zeilen-Listen-Layout links (65%) + Foto rechts (35%)
+            Pivot-2d P5: Foto-Container füllt seinen Spaltenbereich vollständig
+            (h-full + object-cover statt max-h-Klampung). */}
         <div className="grid flex-1 grid-cols-[65fr_35fr] gap-10">
-          {/* Linke Hälfte: horizontale 4-Zeilen-Liste */}
+          {/* Linke Hälfte: horizontale 4-Zeilen-Liste.
+              Pivot-2d P4: Alle Hero-Geld-Werte konsistent plant-green-bold
+              (vorher war 140.000 € rosa-rot via text-link → Marker-Rot-Leck). */}
           <ol className="flex flex-col justify-around gap-5">
             <li>
-              <div className="text-[22px] font-bold text-forest-green">
-                Ohne PV: ca. <span className="tabular-nums text-link">{ohnePv} €</span> Stromkosten
-                pro Jahr
+              <div className="text-[22px] font-extrabold text-forest-green">
+                Ohne PV: ca. <span className="tabular-nums text-plant-green">{ohnePv} €</span>{" "}
+                Stromkosten pro Jahr
               </div>
               <p className="mt-1 text-[16px] leading-[1.4] text-foreground">
                 Aktueller Bezug, volle Marktabhängigkeit
               </p>
             </li>
             <li>
-              <div className="text-[22px] font-bold text-forest-green">
+              <div className="text-[22px] font-extrabold text-forest-green">
                 Mit PV: ca. <span className="tabular-nums text-plant-green">{mitPv} €</span>{" "}
                 Stromkosten pro Jahr
               </div>
               <p className="mt-1 text-[16px] leading-[1.4] text-foreground">
                 Nach PV-Lieferung, fixer PV-Strompreis{" "}
-                <span className="tabular-nums">{pvCtRaw}</span> ct/kWh
+                <span className="font-bold tabular-nums text-plant-green">{pvCtRaw}</span> ct/kWh
               </p>
             </li>
             <li>
-              <div className="text-[22px] font-bold text-forest-green">
+              <div className="text-[22px] font-extrabold text-forest-green">
                 Jährliche Reduktion der Stromkosten: ca.{" "}
                 <span className="tabular-nums text-plant-green">{ersparnisJahr} €</span>
               </div>
@@ -97,7 +104,7 @@ export default function Slide14Vergleich({ data }: { data: StudyDocumentData }) 
               </p>
             </li>
             <li>
-              <div className="text-[20px] font-bold text-forest-green">
+              <div className="text-[20px] font-extrabold text-forest-green">
                 Ihre Vorteile wenn Sie den Pachtvertrag inklusive eines Stromliefervertrags
                 umsetzen.
               </div>
@@ -107,13 +114,15 @@ export default function Slide14Vergleich({ data }: { data: StudyDocumentData }) 
             </li>
           </ol>
 
-          {/* Rechte Hälfte: Roof-Foto aus PPTX-Asset-Pool */}
-          <div className="flex items-center justify-center">
+          {/* Rechte Hälfte: Roof-Foto aus PPTX-Asset-Pool.
+              Pivot-2d P5: Container füllt seinen Spaltenbereich komplett —
+              fester Aspect-Ratio-Container, kein `max-h`-Klampung mehr. */}
+          <div className="aspect-[4/3] h-full overflow-hidden rounded-xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/assets/pptx-slide14-image1.png"
               alt="PV-Anlage auf Dach"
-              className="h-full max-h-[700px] w-full rounded-xl object-cover"
+              className="h-full w-full object-cover"
             />
           </div>
         </div>

@@ -68,19 +68,22 @@ export default function Slide19Kontakt({ data }: { data: StudyDocumentData }) {
     <SlideFrame slideNumber={19} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-6">
         {/* Headline (Text 0) */}
-        <h2 className="text-[40px] font-bold text-forest-green">So geht es weiter!</h2>
+        <h2 className="text-[40px] font-extrabold text-forest-green">So geht es weiter!</h2>
 
         {/* Two columns: Links (55%) Termine + Berater + Closer
             Rechts (45%) Team-Foto + Kontaktdaten */}
         <div className="grid flex-1 grid-cols-[55fr_45fr] gap-10">
           {/* Linke Spalte */}
           <div className="flex flex-col">
-            {/* Berater-Block separat oben links */}
+            {/* Berater-Block separat oben links.
+                Pivot-2d P6: `text-link` (Rosa-Rot #CC3366) am Substitutions-
+                Run war ein CSS-Vererbungs-Leak — Berater-Name wechselt auf
+                forest-green, konsistent mit der GreenScout-Brand-Palette. */}
             <div className="space-y-1">
-              <div className="text-[20px] font-semibold text-forest-green">
+              <div className="text-[20px] font-bold text-forest-green">
                 Fachstelle Flächenprüfung
               </div>
-              <div className="text-[24px] font-bold text-link">{consultant}</div>
+              <div className="text-[24px] font-extrabold text-forest-green">{consultant}</div>
               <div className="text-[18px] text-foreground">GreenScout e.V.</div>
             </div>
 

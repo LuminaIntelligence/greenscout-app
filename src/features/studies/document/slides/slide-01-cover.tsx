@@ -68,9 +68,13 @@ export default function Slide01Cover({ data }: { data: StudyDocumentData }) {
           <div className="text-[32px] font-semibold text-white">{customerName}</div>
         </div>
 
-        {/* Bottom — "Eingereicht über <consultant> / direkt vom Unternehmen" */}
+        {/* Bottom — "Eingereicht über <consultant> / direkt vom Unternehmen"
+            Pivot-2d P6: `text-link` (Rosa-Rot #CC3366) am Substitutions-Run
+            war ein CSS-Vererbungs-Leak. Berater-Name wird wieder weiß (auf
+            grünem Hintergrund) gerendert, konsistent mit der Footer-Zeile. */}
         <div className="self-end text-[18px] font-bold text-white">
-          Eingereicht über <span className="text-link">{consultant}</span> / direkt vom Unternehmen
+          Eingereicht über <span className="font-extrabold">{consultant}</span> / direkt vom
+          Unternehmen
         </div>
       </div>
     </SlideFrame>
