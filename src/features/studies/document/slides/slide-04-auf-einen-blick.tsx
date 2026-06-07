@@ -91,14 +91,18 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
 
   return (
     <SlideFrame slideNumber={4} customerLabel={customerName}>
-      <div className="flex h-full flex-col gap-6">
+      {/* Pivot-2c A6: `justify-between` packt den Slide-Content über die ganze
+          1080px-Höhe (vorher hingen die Geld-Tiles zwar unten via `mt-auto`,
+          aber Header/CO2/kWp/Mittelblock stapelten sich nur 60% der Höhe und
+          die untere Hälfte wirkte leer). */}
+      <div className="flex h-full flex-col">
         {/* Headline */}
-        <h2 className="text-center text-[28px] font-bold text-forest-green">Auf einen Blick</h2>
+        <h2 className="text-center text-[32px] font-bold text-forest-green">Auf einen Blick</h2>
 
         {/* CO2-Fließtext über volle Breite — Q3-Korrektur: voller Satz inkl.
             "Fußballfelder!"-Endung, plus "VIELEN DANK"-Satz als integraler
             Bestandteil (Q2). */}
-        <div className="space-y-2 text-[15px] leading-[1.5] text-forest-green">
+        <div className="mt-4 space-y-2 text-[16px] leading-[1.5] text-forest-green">
           <p>
             Ihre Fläche erspart rund <span className="font-bold tabular-nums">{co2Jahr}</span> CO2
             pro Jahr. Dieser Wert entspricht einer jährlichen CO2-Bindung von bis zu{" "}
@@ -115,24 +119,24 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
         </div>
 
         {/* Hero-kWp-Block zentriert — der visuelle Anker des Slides */}
-        <div className="flex flex-col items-center">
+        <div className="mt-6 flex flex-col items-center">
           <div className="flex items-baseline gap-2">
-            <span className="text-[80px] font-bold tabular-nums leading-none text-plant-green">
+            <span className="text-[96px] font-bold tabular-nums leading-none text-plant-green">
               {anlageKwp}
             </span>
-            <span className="text-[40px] font-normal text-forest-green">kWp</span>
+            <span className="text-[44px] font-normal text-forest-green">kWp</span>
           </div>
-          <div className="mt-1 text-[20px] font-semibold text-forest-green">
+          <div className="mt-2 text-[22px] font-semibold text-forest-green">
             Installierende Leistung
           </div>
-          <div className="text-[14px] text-foreground opacity-70">
+          <div className="text-[15px] text-foreground opacity-70">
             Gesamtleistung der geplanten Anlage
           </div>
         </div>
 
         {/* Mittelblock: Objektstandort links, Eigenverbrauchskreis mittig,
             Hinweistext rechts. */}
-        <div className="grid grid-cols-3 items-center gap-4">
+        <div className="mt-6 grid grid-cols-3 items-center gap-4">
           {/* Left — Objektstandort */}
           <div className="text-[14px] text-forest-green">
             <div className="font-bold">Objektstandort:</div>
@@ -165,8 +169,9 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
           </div>
         </div>
 
-        {/* Drei Geld-Tiles als Reihe unten */}
-        <div className="mt-auto grid grid-cols-3 gap-6">
+        {/* Drei Geld-Tiles als Reihe unten — `mt-auto` schiebt sie an den
+            Boden des verfügbaren Slide-Innenraums. */}
+        <div className="mt-auto grid grid-cols-3 gap-6 pt-8">
           {/* Pachteinnahmen */}
           <div className="flex flex-col items-center text-center">
             <div className="text-[44px] font-bold tabular-nums leading-none text-plant-green">
@@ -205,7 +210,7 @@ export default function Slide04AufEinenBlick({ data }: { data: StudyDocumentData
         </div>
 
         {/* Footnote */}
-        <p className="text-[11px] italic text-forest-green opacity-60">
+        <p className="mt-3 text-[12px] italic text-forest-green opacity-60">
           Vorläufige Kernergebnisse auf Basis der von Ihnen gelieferten Dokumente.
         </p>
       </div>

@@ -5,7 +5,7 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 11 — "Energiefluss und Eigenverbrauch".
  *
- * Treue Reproduktion (Pivot-2b PASS 3, siehe DECISIONS 2026-06-03).
+ * Treue Reproduktion (Pivot-2c FINALE, siehe DECISIONS 2026-06-04).
  *
  * **Pass-3-Korrektur (Q16 User-Antwort 2026-06-03):** Komplett-Rewrite
  * vom Pass-2-3-Spalten-Layout zum Original-PDF-Layout — vertikale
@@ -15,6 +15,12 @@ import { SlideFrame } from "./_components/slide-frame";
  *   2. Eigenverbrauch
  *   3. Einspeisung
  *   4. Wirkung
+ *
+ * **Pivot-2c-Korrektur (2026-06-04):** Die Layout-Logik selbst war
+ * korrekt — die Bilder erschienen aber als Broken-Image-Icons im Render,
+ * weil die Auth-Middleware `/assets/*`-Requests zu `/login` umgeleitet
+ * hat (Slide 11 lädt 5 Assets aus `public/assets/`). Fix in
+ * `src/middleware.ts`: `/assets/` als public path. Slide-Code unverändert.
  *
  * Pfeil-Shape-Icons und das Foto kommen aus dem PPTX-Asset-Pool
  * (`public/assets/slide11-step{1..4}.png` + `public/assets/slide11-foto.png`,

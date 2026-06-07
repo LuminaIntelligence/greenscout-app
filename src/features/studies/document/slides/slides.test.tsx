@@ -110,10 +110,16 @@ describe("Slide05VorherNachher", () => {
     expect(container.textContent).toContain("CENT netto / kWh");
   });
 
-  it("renders placeholders when image URLs are null", () => {
+  it("falls back to the PPTX-default BEFORE/AFTER assets when URLs are null (Pivot-2c A2)", () => {
     const { container } = render(<Slide05VorherNachher data={data} />);
-    expect(container.textContent).toContain("Vorher-Bild fehlt");
-    expect(container.textContent).toContain("Nachher-Bild fehlt");
+    // Default images embedded as <img> from /assets/pptx-slide05-image{1,2}.png
+    const contentImgs = container.querySelectorAll("img:not([data-brand-mark])");
+    expect(contentImgs.length).toBe(2);
+    expect(contentImgs[0].getAttribute("src")).toBe("/assets/pptx-slide05-image1.png");
+    expect(contentImgs[1].getAttribute("src")).toBe("/assets/pptx-slide05-image2.png");
+    // Placeholder labels must NOT appear anymore once fallback assets render.
+    expect(container.textContent).not.toContain("Vorher-Bild fehlt");
+    expect(container.textContent).not.toContain("Nachher-Bild fehlt");
   });
 
   it("renders <img> tags when image URLs are present", () => {
