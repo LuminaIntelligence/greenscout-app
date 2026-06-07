@@ -188,6 +188,14 @@ function isPublicPath(pathname: string): boolean {
   // `/studie/<id>` (keine anderen `/studie/*`-Pfade — der `(public)`
   // Route-Group-Marker wird vom Bundler nicht in der URL gezeigt).
   if (pathname.startsWith("/studie/")) return true;
+  // Pivot-2b: Dev-Vorschau-Route /dev/slides wird nur in NODE_ENV=development
+  // serviert (die Page selbst returnt notFound() in Production via
+  // `process.env.NODE_ENV !== "production"`-Check). Damit ist ein Bypass hier
+  // ebenfalls dev-only sicher — Production ändert sich nicht. Notwendig, damit
+  // scripts/screenshot-slides.mjs (Side-by-Side-Verifikation) den dev-server
+  // ohne Auth-Session erreichen kann. Strikt auf `/dev/` gescoped — andere
+  // Pfade nicht abgedeckt.
+  if (process.env.NODE_ENV !== "production" && pathname.startsWith("/dev/")) return true;
   return false;
 }
 

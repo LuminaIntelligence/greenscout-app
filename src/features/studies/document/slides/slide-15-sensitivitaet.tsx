@@ -6,71 +6,103 @@ import type { StudyDocumentData } from "../types";
 import { SlideFrame } from "./_components/slide-frame";
 
 /**
- * Slide 15 — Sensitivitätsanalyse: Strompreis-Szenarien.
+ * Slide 15 — "Sensitivitätsanalyse: Strompreis-Szenarien".
  *
- * Original-PDF: Drei Szenarien (Basis / Moderat / Hoch). Pro Szenario
- * Netzpreis + resultierende Jahres-Ersparnis. Re-Berechnung via
- * `composeAll` mit substituiertem `versorgerPreisEurKwh`.
+ * Treue Reproduktion (Pivot-2b). Statische Texte wörtlich aus dem PPTX
+ * (siehe `template-content.json` Slide 15):
  *
- * **Chart-Wahl:** Pure SVG-Bar-Chart, kein Recharts. Recharts ist
- * nicht im `package.json` — neue Top-Level-Dep wäre §7.1-Pause-Trigger
- * und der User hat „SVG oder Recharts" als Alternative explizit
- * benannt. Drei Bars sind trivial in SVG.
+ *  - Text 0 — "Sensitivitätsanalyse: Strompreis-Szenarien".
+ *  - Text 1 — "Netzpreisvarianten und jährliche Einsparung bei PV-Strom
+ *    {{pv_verkauf_ct_kwh}} ct/kWh".
+ *  - Text 2/3 — Basisszenario / "Bei {{szenario_1_preis_ct_kwh}} ct/kWh
+ *    Netzstrom: ca. {{szenario_1_ersparnis_eur}} € Einsparung pro Jahr".
+ *  - Text 4/5 — "Moderates Szenario" / "Bei {{szenario_2_preis_ct_kwh}}
+ *    ct/kWh Netzstrom: ca. {{szenario_2_ersparnis_eur}} € Einsparung pro
+ *    Jahr".
+ *  - Text 6/7 — "Hohes Szenario" / "Bei {{szenario_3_preis_ct_kwh}}
+ *    ct/kWh Netzstrom: ca. {{szenario_3_ersparnis_eur}} € Einsparung pro
+ *    Jahr".
+ *  - Text 9 — "Je höher der Netzstrompreis steigt, desto größer wird der
+ *    wirtschaftliche Vorteil der PV-Anlage. Studien zeigen dass der
+ *    zukünftige Strombedarf von Unternehmen voraussichtlich steigen wird
+ *    – getrieben durch KI-Anwendungen, fortschreitende Automatisierung
+ *    sowie die Elektrifizierung von Fahrzeugflotten."
+ *
+ * **Chart-Wahl:** Pure SVG-Bar-Chart, kein Recharts. User-Bestätigung
+ * 2026-06-02: Slide 15 bleibt pure SVG, kein neuer Dependency-Layer.
  */
 export default function Slide15Sensitivitaet({ data }: { data: StudyDocumentData }) {
-  const pvCt = Number(data.study.pvVerkaufEurKwh) * 100;
+  const customerName = customerDisplayName(data.customer);
+  const pvCt = formatCentPerKwh(Number(data.study.pvVerkaufEurKwh) * 100).replace(" ct/kWh", "");
   const baseInput = toCalcInput(data);
 
-  const szenarien: Array<{ label: string; preisCt: number; ersparnisEur: number }> = [];
-  if (data.study.szenarioPreis1 !== null) {
-    const preisCt = Number(data.study.szenarioPreis1) * 100;
+  type Scenario = {
+    label: "Basisszenario" | "Moderates Szenario" | "Hohes Szenario";
+    preisCt: number;
+    ersparnisEur: number;
+  };
+  const szenarien: Scenario[] = [];
+  const scenarioMeta: Array<{ src: typeof data.study.szenarioPreis1; label: Scenario["label"] }> = [
+    { src: data.study.szenarioPreis1, label: "Basisszenario" },
+    { src: data.study.szenarioPreis2, label: "Moderates Szenario" },
+    { src: data.study.szenarioPreis3, label: "Hohes Szenario" },
+  ];
+  for (const m of scenarioMeta) {
+    if (m.src === null) continue;
+    const preisCt = Number(m.src) * 100;
     const ersparnis = composeAll({
       ...baseInput,
-      versorgerPreisEurKwh: Number(data.study.szenarioPreis1),
+      versorgerPreisEurKwh: Number(m.src),
     }).ersparnisProJahr;
-    szenarien.push({ label: "Basis", preisCt, ersparnisEur: ersparnis });
-  }
-  if (data.study.szenarioPreis2 !== null) {
-    const preisCt = Number(data.study.szenarioPreis2) * 100;
-    const ersparnis = composeAll({
-      ...baseInput,
-      versorgerPreisEurKwh: Number(data.study.szenarioPreis2),
-    }).ersparnisProJahr;
-    szenarien.push({ label: "Moderat", preisCt, ersparnisEur: ersparnis });
-  }
-  if (data.study.szenarioPreis3 !== null) {
-    const preisCt = Number(data.study.szenarioPreis3) * 100;
-    const ersparnis = composeAll({
-      ...baseInput,
-      versorgerPreisEurKwh: Number(data.study.szenarioPreis3),
-    }).ersparnisProJahr;
-    szenarien.push({ label: "Hoch", preisCt, ersparnisEur: ersparnis });
+    szenarien.push({ label: m.label, preisCt, ersparnisEur: ersparnis });
   }
 
   const maxValue = szenarien.length > 0 ? Math.max(...szenarien.map((s) => s.ersparnisEur), 1) : 1;
 
   return (
-    <SlideFrame slideNumber={15} customerLabel={customerDisplayName(data.customer)}>
-      <div className="flex h-full flex-col space-y-12">
-        <div className="space-y-2">
-          <div className="slide-caption uppercase tracking-widest text-plant-green">
-            Sensitivität
-          </div>
-          <h2 className="slide-h2">Netzpreisvarianten bei PV-Strom {formatCentPerKwh(pvCt)}</h2>
+    <SlideFrame slideNumber={15} customerLabel={customerName}>
+      <div className="flex h-full flex-col gap-5">
+        {/* Headline + Subtitle */}
+        <div className="space-y-1">
+          <h2 className="text-[28px] font-bold text-forest-green">
+            Sensitivitätsanalyse: Strompreis-Szenarien
+          </h2>
+          <p className="text-[18px] text-foreground">
+            Netzpreisvarianten und jährliche Einsparung bei PV-Strom{" "}
+            <span className="font-bold tabular-nums">{pvCt}</span> ct/kWh
+          </p>
         </div>
-        <div className="grid flex-1 grid-cols-2 gap-12">
+
+        {/* Side-by-side: Chart links, Text-Liste rechts */}
+        <div className="grid flex-1 grid-cols-2 gap-8">
           <SensitivityChart szenarien={szenarien} maxValue={maxValue} />
-          <div className="space-y-6">
+          <div className="flex flex-col gap-4">
             {szenarien.map((s) => (
-              <SzenarioRow
-                key={s.label}
-                label={s.label}
-                preisLabel={formatCentPerKwh(s.preisCt)}
-                ersparnisLabel={`${formatEurNumber(s.ersparnisEur)} €`}
-              />
+              <div key={s.label} className="rounded-xl bg-muted-lime-50 p-5">
+                <div className="text-[18px] font-bold text-forest-green">{s.label}</div>
+                <p className="mt-1 text-[16px] leading-[1.4] text-foreground">
+                  Bei{" "}
+                  <span className="font-bold tabular-nums">
+                    {formatCentPerKwh(s.preisCt).replace(" ct/kWh", "")}
+                  </span>{" "}
+                  ct/kWh Netzstrom: <span className="font-bold">ca.</span>{" "}
+                  <span className="font-bold tabular-nums text-plant-green">
+                    {formatEurNumber(s.ersparnisEur)} €
+                  </span>{" "}
+                  Einsparung pro Jahr
+                </p>
+              </div>
             ))}
           </div>
         </div>
+
+        {/* Closing */}
+        <p className="text-[15px] leading-[1.4] text-foreground">
+          Je höher der Netzstrompreis steigt, desto größer wird der wirtschaftliche Vorteil der
+          PV-Anlage. Studien zeigen dass der zukünftige Strombedarf von Unternehmen voraussichtlich
+          steigen wird – getrieben durch KI-Anwendungen, fortschreitende Automatisierung sowie die
+          Elektrifizierung von Fahrzeugflotten.
+        </p>
       </div>
     </SlideFrame>
   );
@@ -84,7 +116,7 @@ function SensitivityChart({
   maxValue: number;
 }) {
   const width = 700;
-  const height = 600;
+  const height = 500;
   const padding = { top: 40, right: 40, bottom: 80, left: 80 };
   const chartHeight = height - padding.top - padding.bottom;
   const chartWidth = width - padding.left - padding.right;
@@ -99,7 +131,6 @@ function SensitivityChart({
       role="img"
       aria-label="Sensitivitäts-Chart"
     >
-      {/* Y-Axis */}
       <line
         x1={padding.left}
         x2={padding.left}
@@ -108,7 +139,6 @@ function SensitivityChart({
         stroke="#2D473E"
         strokeWidth="2"
       />
-      {/* X-Axis */}
       <line
         x1={padding.left}
         x2={width - padding.right}
@@ -117,7 +147,6 @@ function SensitivityChart({
         stroke="#2D473E"
         strokeWidth="2"
       />
-      {/* Bars */}
       {szenarien.map((s, i) => {
         const ratio = s.ersparnisEur / maxValue;
         const barHeight = chartHeight * ratio;
@@ -136,7 +165,8 @@ function SensitivityChart({
               fontSize="22"
               fill="#2D473E"
             >
-              {formatEurNumber(s.ersparnisEur)} €
+              {new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(s.ersparnisEur)}{" "}
+              €
             </text>
             <text
               x={cx}
@@ -157,32 +187,16 @@ function SensitivityChart({
               fill="#2D473E"
               opacity="0.7"
             >
-              {formatCentPerKwh(s.preisCt)}
+              {new Intl.NumberFormat("de-DE", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              }).format(s.preisCt)}{" "}
+              ct/kWh
             </text>
           </g>
         );
       })}
     </svg>
-  );
-}
-
-function SzenarioRow({
-  label,
-  preisLabel,
-  ersparnisLabel,
-}: {
-  label: string;
-  preisLabel: string;
-  ersparnisLabel: string;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-muted-lime-300 bg-muted-lime-50 px-8 py-6">
-      <div>
-        <div className="slide-caption uppercase tracking-widest">Szenario {label}</div>
-        <div className="slide-h4 tabular-nums text-forest-green-700">{preisLabel}</div>
-      </div>
-      <div className="slide-h2 tabular-nums text-plant-green">{ersparnisLabel}</div>
-    </div>
   );
 }
 

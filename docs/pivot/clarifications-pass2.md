@@ -1,0 +1,150 @@
+# Pivot-2b — Klärungsfragen aus PASS 2 Cross-Check
+
+> Diese Liste sammelt **NEUE** visuelle Diskrepanzen die beim systematischen
+> Vergleich `rendered-slide-NN.png` ↔ `original-slide-NN.png` während
+> PASS 2 aufgefallen sind — über die 12 User-beantworteten Fragen aus
+> `clarifications.md` hinaus.
+>
+> Implementer hat diese NICHT eigenmächtig geändert (CLAUDE.md §7.4 —
+> Layout-Anpassungen jenseits Tokens sind Pause-Trigger). User-Sign-off
+> vor jeder einzelnen Korrektur.
+>
+> **Status 2026-06-04:** Alle 5 Klärungen vom User beantwortet
+> (Q13–Q17). Implementiert in Commit `a0d6f31` (PASS 3 Slide-Edits)
+> plus `02f2d6d` (Phase A Image-Extract). Audit-Trail unten.
+
+---
+
+## Slide 1 — Hero-Lockup ohne Original-Logo-Asset
+
+**Frage:** Das Original-PDF zeigt das eigentliche GreenScout-Logo
+(stilisiertes Haus mit Blatt + Wortmarke „GreenScout e.V.®") auf
+forest-green-Background. Im Repo gibt es kein SVG/PNG-Asset dafür.
+Die Pass-2-Reproduktion nutzt den **Text** „GreenScout e.V." in
+Gabarito Semibold 72pt als Stand-in. Soll ein echtes Logo-Asset
+unter `public/brand/` eingecheckt werden? Wenn ja: SVG erwartet.
+
+**Kontext:** Slide 1 Hero-Komposition; Q1-Antwort fordert „Subtitle
+direkt unter Marken-Schriftzug" — das nutzt der Text-Stand-in
+erfolgreich, aber visuell ist das Original-Logo deutlich erkennbarer.
+
+**✅ Q13 vom User beantwortet 2026-06-02:** „Extrahieren, einchecken.
+Das Logo ist als embedded Image im PPTX-Archiv vorhanden. Schreib es
+nach `public/assets/greenscout-logo.png`. Verwendet werden soll es
+auf Slide 1 und überall sonst, wo das Logo im Original auftaucht."
+
+**Implementiert in `a0d6f31`:** `scripts/extract-template-images.py`
+extrahiert alle Picture-Shape-Blobs aus dem PPTX nach
+`public/assets/`. Logo als `greenscout-logo-hero.png` (Slide 1 Hero)
+und `greenscout-brand-mark.png` (oben rechts ab Slide 2 via neue
+`<BrandMark>`-Komponente). Gabarito-Text-Stand-in entfernt.
+
+---
+
+## Slide 4 — CO₂ als „CO2" vs. „CO₂"
+
+**Frage:** Original-PDF schreibt durchgängig „CO2" (ohne ₂-Subscript)
+— das ist der PPTX-Wortlaut. Die Reproduktion verwendet `<sub>2</sub>`
+für korrekteres Textsatz-Verhalten (siehe SPEC §8.4 SaaS-Niveau).
+Bewusste Abweichung oder soll die Reproduktion textgetreu „CO2"
+ohne Subscript bleiben?
+
+**Kontext:** Q3-Antwort sagt nur „1:1 Wortlaut" — das ist character-by-
+character oder kann Typografie-Glätten? Default Pass 2: `<sub>` für
+visuelle Qualität, kann auf User-Wunsch entfernt werden.
+
+**✅ Q14 vom User beantwortet 2026-06-02:** „Plain CO2 — kein `<sub>`.
+Reproduzieren, nicht typografisch ‚aufwerten'. Gilt für **alle Slides**,
+nicht nur Slide 4."
+
+**Implementiert in `a0d6f31`:** Sweep über alle Slides + Helper —
+alle `<sub>2</sub>` und Unicode-`CO₂` durch plain `CO2` ersetzt.
+
+---
+
+## Slide 8 — „Warum gerade jetzt?"-Block Layout
+
+**Frage:** Im Original-PDF ist „Warum gerade jetzt?" nicht eine
+forest-green-Box am Fuß der Karten, sondern ein eigener Subheader
+mit drei Pfeil-Bullets (→ Symbol) in normaler Forest-Green-Schrift.
+Die Pass-1-Reproduktion zeigt es als dunkelgrünen, kompakten
+Footer-Block. Soll das auch in PASS 2 angepasst werden — analog zu
+Q6 das „sparsame Akzent-Verwendung" befolgt?
+
+**Kontext:** Q6 betraf nur die 4 Karten oben (muted-lime → weiß).
+„Warum gerade jetzt?" war in Q6 nicht adressiert.
+
+**✅ Q15 vom User beantwortet 2026-06-02:** „Ja, nachziehen. Dunkle
+Footer-Box raus, Original-Layout wiederherstellen: Subheader + drei
+Pfeil-Bullets in normaler Forest-Green-Schrift auf weißem Grund."
+
+**Implementiert in `a0d6f31`:** `slide-08-zusammenarbeit.tsx` —
+dunkelgrüne Footer-Box entfernt; „Warum gerade jetzt?" als Subheader
++ drei Pfeil-Bullets in Forest-Green-Schrift auf weiß.
+
+---
+
+## Slide 11 — Layout „4-Step-Liste mit Pfeilen" vs. „3-KPI-Box + Wirkung"
+
+**Frage:** Original-PDF zeigt Slide 11 als vertikale 4-Schritt-Liste
+mit nummerierten Pfeil-Shapes (1=PV-Erzeugung, 2=Eigenverbrauch,
+3=Einspeisung, 4=Wirkung) plus großes Foto rechts. Die Pass-1-
+Reproduktion macht 3-Spalten-KPI-Boxen + Wirkung-Footer-Banner. Soll
+das umgebaut werden? Q12 hat „Marker-Rot → Bold" approved, aber
+das Slide-11-Layout selbst war nicht Thema.
+
+**Kontext:** Q11 (Slide 19 Termin-Vorschläge) approved, aber Slide
+11 wurde nicht explizit besprochen. Konservativ: nicht angetastet
+in PASS 2.
+
+**✅ Q16 vom User beantwortet 2026-06-02:** „Ja, komplett nachziehen.
+Original-Layout exakt reproduzieren: vertikale 4-Schritt-Liste
+(PV-Erzeugung / Eigenverbrauch / Einspeisung / Wirkung) mit den
+ursprünglichen Pfeil-Shapes links und großem Foto rechts.
+**Keine 3-Spalten-KPI-Boxen.**"
+
+**Implementiert in `a0d6f31`:** `slide-11-energiefluss.tsx` komplett
+rewritten — 4-Schritt-Liste links (`slide11-step1.png` bis
+`slide11-step4.png`, aus PPTX extrahiert), großes Foto rechts
+(`slide11-foto.png`). KPI-Boxen entfernt.
+
+---
+
+## Slide 14 — Vergleich-Layout
+
+**Frage:** Original-PDF zeigt Slide 14 als zwei-Spalten Balkendiagramm
+oder Tabelle „Mit PV / Ohne PV" mit konkreten Zahlen. Pass-1-Repro
+ist eine textbasierte 2-Karten-Variante. User-Antworten 1-12 haben
+das nicht angesprochen. Soll das nachgezogen werden?
+
+**Kontext:** Layout-Diskrepanz mittlerer Schwere — Text-Strings
+passen, visuelle Hierarchie weicht ab.
+
+**✅ Q17 vom User beantwortet 2026-06-02:** „Ja, als Balkendiagramm
+rendern. Zwei vertikale Balken nebeneinander (Ohne PV / Mit PV),
+Y-Achse als €-Skala, die Differenz darunter als ‚Jährliche Reduktion'
+beziffert. Implementierung als **pure SVG**, konsistent mit der
+Slide-15-Entscheidung; keine Recharts-Dep, kein §7.1-Trigger."
+
+**Implementiert in `a0d6f31`:** `slide-14-vergleich.tsx` komplett
+rewritten — pure SVG-Balkendiagramm (Ohne PV / Mit PV) mit €-Skala
+und „Jährliche Reduktion"-Annotation. Recharts nicht eingeführt.
+
+---
+
+## Slide 6, 12, 13, 15, 16, 18, 19 — visuell akzeptabel
+
+**Status:** Im Pass-2-Cross-Check keine groben Layout-Diskrepanzen
+oder Text-Lücken aufgefallen über die Q1-Q12-Antworten hinaus. Sollte
+der User beim Sign-off-PR-Review trotzdem etwas finden, wird das in
+einer dritten Klärungsrunde nachgezogen.
+
+---
+
+## Methodische Anmerkung — Pass-2-Scope-Disziplin
+
+Implementer hat sich auf die **12 User-beantworteten Klärungsfragen**
+beschränkt. Die hier gelisteten Befunde sind ausdrücklich
+**out-of-scope für PASS 2** und werden erst nach User-Sign-off in
+PASS 3 angegangen. Das entspricht CLAUDE.md §7.4: visuelle
+Layout-Änderungen jenseits der Design-Tokens sind Pause-Trigger.

@@ -4040,3 +4040,170 @@ Plus: die Studien-Detail-Page (`src/app/(app)/studies/[id]/page.tsx`) importiert
 
 **Open question for the user:** Keine. Erster Deploy nach Merge sollte sauber durchlaufen — Detail-Seite muss 200 zurückgeben, „Dokument generieren" muss funktionieren.
 
+
+
+---
+
+## 2026-06-02 — Pivot-2b: Slide-Reproduktion statt Slide-Neudesign (user-confirmed)
+
+**Context:** Der §7.10-Pivot (PRs #60–#63) hat die 19 React-Slide-Komponenten als „eigenständige Neuinterpretation" gebaut — Implementer hat per CLAUDE.md §14.2 Decide-and-document im Zweifel modernisiert (eigene Headlines wie „Ihre Anlage in Zahlen", „Strategischer Partner", „Klimabilanz") statt den PPTX-Wortlaut 1:1 zu reproduzieren. User-Auftrag 2026-06-02: alle 19 Slide-Komponenten ersetzen durch **wörtliche PPTX-Reproduktionen**. Architektonisch bleibt alles erhalten (React-Komponenten-pro-Slide, Playwright-PDF, HMAC-Token-Link). Nur Slide-Inhalt wird neu gebaut.
+
+**Decisions:**
+
+- **PPTX-File aus git-history restored.** `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` wurde im §7.10-Pivot PR #60 (Commit `15de1b1`) entfernt. Pivot-2b restored es aus dem Pre-Pivot-Parent-Commit `e54dd35` als Source of Truth für die mechanische Text-Extraktion. Additiv, nicht destruktiv. Bleibt im Repo. CLAUDE.md §7.12 (Spec-Conflict — PPTX im Repo) vom User explizit per „Default-OK" 2026-06-02 gelöst.
+
+- **`python-pptx` lokal-only.** NICHT zurück in `services/python/requirements.txt` — die Production-Service-Dep-Bereinigung aus §7.10-Pivot bleibt erhalten. Stattdessen lokales Mini-Venv unter `scripts/.venv-pptx-extract/` (in `.gitignore` via `.venv-*/`-Pattern), Setup-Anleitung in `scripts/README-extract-template.md`. Generiertes JSON wird im Repo versioniert.
+
+- **Text-Extraktion mechanisch.** `scripts/extract-template-text.py` läuft mit python-pptx durch das PPTX und schreibt `src/features/studies/document/template-content.json` (19 slides, 221 shapes, 601 runs, jeweils mit Marker-Rot-Heuristik, Schriftgröße, Bold/Italic, EMU-Geometrie). Verhindert Drift durch manuelles Abtippen. `.prettierignore` ergänzt um das JSON, damit prettier es nicht reformattiert (Source of Truth ist python json.dump).
+
+- **19 Slide-Komponenten rewriten.** Alle `src/features/studies/document/slides/slide-NN-*.tsx` neu geschrieben:
+  - Statische Texte (Headlines, Body-Sätze, Bullets, Fußnoten) **wörtlich aus dem PPTX-JSON** übernommen — keine Eigenformulierung.
+  - Dynamische Werte (Anlagen-KPIs, Geldbeträge, CO₂-Werte, Customer-Daten, Berater-Namen, Termine, Bilder) über `StudyDocumentData`-Props.
+  - Layout nahe am PPTX (Spaltenanordnung, Farbflächen, Bildpositionen), aber kein pixel-perfektes Matching — die Reproduktion wird im Side-by-Side-Verify gegen das Original-PDF abgenommen, nicht über Auto-Position-Mapping.
+
+- **Slide 15 bleibt pure SVG** (User-Bestätigung 2026-06-02). Kein neuer Dependency-Layer (Recharts wäre §7.1-Pause-Trigger). Drei Bars + Achsen sind trivial in SVG.
+
+- **Slide 5 Bilder mit `object-cover` + identischer Bounding-Box** (User-Bestätigung). „Jetzt:" / „Später:" als Spalten-Header laut PPTX.
+
+- **`?only=N`-Query-Erweiterung in `/dev/slides`.** `searchParams.only` (1..19) rendert nur eine isolierte Slide ohne Header. Wird vom `scripts/screenshot-slides.mjs`-Playwright-Skript konsumiert um die `rendered-slide-NN.png`-Side-by-Side-Artifacts zu erzeugen.
+
+- **Side-by-Side-Verifikation als persistente Artifacts.** 19 `original-slide-NN.png` (aus dem Original-PDF via PyMuPDF gerendert, 2304×1296) sind committed unter `docs/pivot/visual-verification/`. Die 19 korrespondierenden `rendered-slide-NN.png` (aus `screenshot-slides.mjs`) kommen als Follow-up-Commit lokal nachgereicht — in der Agent-Sandbox scheitert next dev Boot (siehe Skript-Header-Caveat).
+
+- **PR als DRAFT geöffnet.** User-Sign-off auf die Side-by-Sides ist explizit verlangt vor Ready-for-Review + Auto-Merge.
+
+- **Klärungsfragen in `docs/pivot/clarifications.md`.** 11 wörtliche Fragen an den User pro Slide festgehalten (kein Eigeninterpretation). Im PR-Body referenziert.
+
+**Affected:**
+
+- `templates/Machbarkeitsstudie-PV-Template_v1_6.pptx` (restored aus git-history)
+- `.gitignore` (`.venv-*/` Pattern für lokales pptx-Venv)
+- `.prettierignore` (`template-content.json`)
+- `scripts/extract-template-text.py` (neu)
+- `scripts/README-extract-template.md` (neu)
+- `scripts/screenshot-slides.mjs` (neu)
+- `src/features/studies/document/template-content.json` (neu, generiert: 19 slides, 221 shapes, 601 runs)
+- `src/features/studies/document/slides/slide-01-cover.tsx` bis `slide-19-kontakt.tsx` (alle 19 rewriten)
+- `src/features/studies/document/slides/_components/template-content.ts` (neu, JSON-Loader + EMU-Helper)
+- `src/features/studies/document/slides/slides.test.tsx` (Smoke-Tests neu, prüfen wörtliche PPTX-Strings)
+- `src/app/(dev)/dev/slides/page.tsx` (`?only=N`-Support)
+- `docs/pivot/visual-verification/original-slide-NN.png` × 19 (committed, 2304×1296)
+- `docs/pivot/clarifications.md` (11 Klärungsfragen)
+- `DECISIONS.md` — dieser Eintrag
+- `TASKS.md` — neue Sub-Task „T-060b Slide-Reproduktion" Status `🟦 IN PROGRESS`
+
+**Tests:** 112/112 Vitest-document-tests grün. 982/982 Vitest-Gesamtsuite grün. 168/168 pytest grün. TypeScript, ESLint, Prettier clean.
+
+**Pause-Trigger-Check (§7):**
+
+- **§7.1** (neue Top-Level-Dep) — keine. `python-pptx` ist lokal-only via Pip-User-Install / Mini-Venv; bleibt nicht in `services/python/requirements.txt`. `PyMuPDF` (für PDF→PNG) genauso lokal-only. Keine `package.json`-Änderungen.
+- **§7.3** (Auth/Security) — nicht berührt.
+- **§7.4** (UI-/UX-Layout-Änderungen) — die Slide-Layouts ändern sich gegenüber PR #61 substanziell. Aber: das ist der **explizite User-Auftrag** vom 2026-06-02. Die Reproduktion bleibt innerhalb der SPEC §8.1-Tokens (forest-green / plant-green / muted-lime / forest / link) und SPEC §8.2-Typografie (Gabarito Semibold / Regular). Kein neuer Token.
+- **§7.10** (Architektur-Pivot) — bereits autorisiert; dies ist Korrektur innerhalb der Pivot-Architektur, nicht ein neuer Pivot.
+- **§7.12** (Spec-Conflict — PPTX im Repo) — User-Default-OK 2026-06-02.
+
+**Open questions for the user:** siehe `docs/pivot/clarifications.md` (11 Slide-spezifische Fragen). PR-Body listet sie batched auf.
+
+---
+
+## 2026-06-02 — Pivot-2b PASS 2: Sign-off-Korrekturen + Extract-Skript-Bugfix
+
+**Context:** PR #66 PASS 1 hatte 12 Klärungsfragen offen + zwei aus Slide 4 / Slide 17 sichtbare Anzeichen für Bugs im `extract-template-text.py`-Skript (verlorene Runs / abgeschnittene Sätze). User-Sign-off-Pass am 2026-06-02 mit allen 12 Antworten + Direktion „Skript-Fix first, dann Slides".
+
+**Decisions:**
+
+- **Extract-Skript reviewed und korrigiert** (`scripts/extract-template-text.py`):
+  - Pro Paragraph wird jetzt ein `joined_text`-Feld geschrieben — alle Runs in Reihenfolge konkateniert. Bugursache: Pass-1-Konsumenten (Slide-Komponenten) hatten Run-Verlust beim manuellen Konkatenieren, dadurch Mid-Sentence-Abbruch in Slide 4 (CO₂-Schluss) und falsche Annahme „Phase-6 hat keine Ergebnisse" in Slide 17.
+  - Rekursion in Group-Shapes (`MSO_SHAPE_TYPE.GROUP → shape.shapes`) als Defense-in-Depth gegen spätere Template-Updates. Im aktuellen PPTX-State keine Group-Shapes vorhanden.
+  - `template-content.json` regeneriert (19 Slides / 221 Shapes / 601 Runs — gleich wie Pass 1, also keine Shape/Run-Drift; nur strukturelle JSON-Erweiterung um `joined_text` + `paragraphs[]`).
+  - Slide 4 Textfeld 27: voller CO₂-Satz inkl. „Fußballfelder!"-Endung bestätigt.
+  - Slide 17: alle 7 Spalten-Ergebnis-Shapes (Textfeld 8/9/10/11/12/13/21) bestätigt.
+
+- **Slide 1 (Q1):** Tagline ist jetzt direkter Subtitle der „GreenScout e.V."-Marken-Einheit (Hero-Komposition zentriert auf forest-green-Background). Pass-2-Frage offen: kein Brand-Logo-Asset im Repo, Text-Stand-in genutzt — siehe `docs/pivot/clarifications-pass2.md`.
+
+- **Slide 4 (Q2 + Q3):** Freies Layout statt 3×2-Grid:
+  - CO₂-Fließtext oben über volle Breite + „VIELEN DANK"-Schlusssatz als integraler Absatz-Bestandteil (kein eigenes 6. Tile).
+  - kWp-Hero zentriert (44pt+).
+  - Eigenverbrauchs-Kreis + Erklärung als 3-Spalten-Mittelblock.
+  - 3 Geld-Tiles als Reihe unten (Pachteinnahmen / Jahresertrag / Stromersparnis).
+  - Objektstandort links neben Kreis.
+  - CO₂-Satz endet mit „Fußballfelder!" (Q3-Korrektur).
+
+- **Slide 5 (Q4):** Volle Footnote-Wortlaute aus PPTX, endet mit „…zzgl. Stromsteuer".
+
+- **Slide 7 (Q5):** Single-Liste mit Icon-Bullets statt 2-Karten-Layout. Reihenfolge:
+  1. „Durch Beauftragung des Auswertepaketes... 998 €"
+  2. **Phase I:** Header (bold)
+  3. **Phase II:** Header (bold)
+  4. „Aufbau tragfähiger Kontakte..."
+  5. „Unterstützung bei Vertragsumsetzung..."
+  6. „Förderung nachhaltiger Energieerzeugung..."
+
+- **Slide 8 (Q6):** Karten weiß mit muted-lime-300-Border statt `bg-muted-lime-50`. „Warum gerade jetzt?"-Block bleibt forest-green — nicht in Q6 adressiert; siehe `clarifications-pass2.md` für Folge-Frage.
+
+- **Slide 10 (Q8):** Modul-Info-Phrase Format: `X kWp, Y Module, Z m²` (Komma-Trennung, kein „Modulfläche"-Wort). Tiles weiß analog Q6.
+
+- **Slide 17 (Q9 + Q10):** 7-Spalten-Timeline statt 6-Spalten:
+  - Spalten-Reihenfolge: Phase I → Vor-Phase II → Phase II → **Phase III (Projektrechte Vermarktung)** → Projektumsetzung → Inbetriebnahme → **Bis 20 Jahre**.
+  - „Projektrechte Vermarktung und -Verkauf" gehört in Spalte 4 (Phase III), nicht als letzte Spalte.
+  - „Sie sparen" ist Ergebnis-Label der 7. Spalte (Q9), kein Mitten-Box.
+  - „Jetzt ist notwendig"-Block als 180px-breite linke Spalte vor dem 7er-Grid (matcht Original-PDF-Layout).
+  - Inhalt + Ergebnisse in zwei eigenen Grid-Rows mit `min-content 1fr min-content` für saubere Spaltenhöhen.
+
+- **Slides 9, 11, 12 (Q7, Q11, Q12) Default approved:** Bold-Marker-Stil, Termin-Block mit „oder"-Separator, kein Marker-Rot im Output. Keine Code-Änderungen nötig.
+
+- **Cross-Check Befunde out-of-scope für PASS 2:** Slide 1 Logo-Asset, Slide 4 CO₂-Subscript-Stil, Slide 8 „Warum gerade jetzt?"-Layout, Slide 11 4-Step-Layout, Slide 14 Vergleich-Layout — alle in `docs/pivot/clarifications-pass2.md` festgehalten; PR-Body referenziert.
+
+**Affected:**
+- `scripts/extract-template-text.py` (joined_text + group recursion)
+- `src/features/studies/document/template-content.json` (regeneriert, +2743 Zeilen wegen joined_text-Felder)
+- `src/features/studies/document/slides/_components/template-content.ts` (Type-Erweiterung)
+- `src/features/studies/document/slides/_components/slide-frame.tsx` (frameClassName-Prop für Slide 1)
+- `src/features/studies/document/slides/slide-01-cover.tsx` (Hero-Komposition, forest-green-bg)
+- `src/features/studies/document/slides/slide-04-auf-einen-blick.tsx` (freies Layout)
+- `src/features/studies/document/slides/slide-05-vorher-nachher.tsx` (volle Footnote)
+- `src/features/studies/document/slides/slide-07-partner.tsx` (Single-Liste)
+- `src/features/studies/document/slides/slide-08-zusammenarbeit.tsx` (weiße Karten)
+- `src/features/studies/document/slides/slide-10-pv-anlagenkonzept.tsx` (Modul-Phrase, weiße Karten)
+- `src/features/studies/document/slides/slide-17-timeline.tsx` (7 Spalten korrekte Reihenfolge)
+- `src/features/studies/document/slides/slides.test.tsx` (Slide-17-Test auf 7 Spalten angepasst)
+- `docs/pivot/clarifications.md` (User-Antworten als Audit-Trail eingearbeitet)
+- `docs/pivot/clarifications-pass2.md` (neue Klärungsfragen aus Cross-Check)
+- `docs/pivot/visual-verification/rendered-slide-NN.png` × 19 (regeneriert)
+
+**Pause-Trigger-Check (§7):** keine. Pivot-Architektur, Layout-Anpassung innerhalb autorisierter SPEC §8.1-Tokens, kein neuer Dep, kein Auth, kein Schema. User-Direktion vom 2026-06-02 erteilt die Slide-Layout-Änderungen explizit.
+
+**Open question for the user:** siehe `docs/pivot/clarifications-pass2.md` (5 neue Cross-Check-Befunde, alle out-of-scope für PASS 2). PR-Body referenziert.
+
+---
+
+
+## 2026-06-04 — Pivot-2b PASS 3: Q13–Q17 Sign-off + Image-Extract
+
+**Context:** PR #66 Pass 2 hatte 5 neue Cross-Check-Befunde in `docs/pivot/clarifications-pass2.md` offen (Logo-Asset fehlt, CO2-Subscript-Frage, Slide 8 Layout, Slide 11 Layout-Mismatch, Slide 14 Vergleich-Layout). User-Direktive 2026-06-02 beantwortet alle fünf eindeutig.
+
+**Decisions:**
+- **Q13 (Slide 1 + Brand-Mark):** Logo aus PPTX via `shape.image.blob` extrahiert — neues Skript `scripts/extract-template-images.py` schreibt alle Picture-Shape-Blobs nach `public/assets/`. Logo eingecheckt als `greenscout-logo-hero.png` (Slide 1 Hero) und `greenscout-brand-mark.png` (oben rechts ab Slide 2 via neue `<BrandMark>`-Komponente in `slide-frame.tsx`). Gabarito-Text-Stand-in entfernt (war Marken-Identitäts-Verlust).
+- **Q14 (CO2-Schreibweise):** Sweep über alle Slides + Helper — alle `<sub>2</sub>` und Unicode-`CO₂` durch plain `CO2` ersetzt. PPTX-Wortlaut wird 1:1 reproduziert, nicht typografisch „aufgewertet".
+- **Q15 (Slide 8):** Dunkelgrüne Footer-Box entfernt; „Warum gerade jetzt?" als Subheader + drei Pfeil-Bullets in Forest-Green-Schrift auf weiß.
+- **Q16 (Slide 11):** 3-Spalten-KPI-Boxen entfernt; vertikale 4-Schritt-Liste links mit den aus PPTX extrahierten Pfeil-Shape-Bildern (`slide11-step1.png` … `slide11-step4.png`) + großem Foto rechts (`slide11-foto.png`).
+- **Q17 (Slide 14):** Textbasierte 2-Karten-Variante entfernt; pure SVG-Balkendiagramm (Ohne PV / Mit PV) mit €-Skala und „Jährliche Reduktion"-Annotation. Recharts nicht eingeführt — §7.1 vermieden, konsistent mit Slide-15-Entscheidung.
+
+**Affected:**
+- `scripts/extract-template-images.py` (neu) + `public/assets/pptx-images-manifest.json`
+- `public/assets/greenscout-logo-hero.png`, `greenscout-brand-mark.png`, `slide11-foto.png`, `slide11-step1..4.png`, plus `pptx-slideN-imageM.png` Pool
+- `src/features/studies/document/slides/_components/brand-mark.tsx` (neu)
+- `src/features/studies/document/slides/_components/slide-frame.tsx` (Brand-Mark-Slot)
+- `src/features/studies/document/slides/slide-01-cover.tsx` (Logo statt Text)
+- `src/features/studies/document/slides/slide-04-auf-einen-blick.tsx` (CO2-Sweep)
+- `src/features/studies/document/slides/slide-06-mission.tsx` (CO2-Sweep)
+- `src/features/studies/document/slides/slide-08-zusammenarbeit.tsx` (Subheader + Pfeil-Bullets)
+- `src/features/studies/document/slides/slide-11-energiefluss.tsx` (4-Schritt-Liste + Foto)
+- `src/features/studies/document/slides/slide-14-vergleich.tsx` (pure SVG BarChart)
+- `src/features/studies/document/slides/slides.test.tsx` (Test-Anpassungen)
+- `docs/pivot/clarifications-pass2.md` (alle 5 mit ✅-User-Antwort + Implementations-Verweis)
+- `docs/pivot/visual-verification/rendered-slide-NN.png` × 19 (werden im Hauptthread regeneriert)
+- `DECISIONS.md` — dieser Eintrag
+
+**Pause-Trigger-Check (§7):** keine. Reine Layout-/Asset-Korrekturen innerhalb autorisierter Pivot-Direction + User-Sign-off pro Frage. Recharts vermieden — §7.1 nicht getriggert. Auth/Schema/SMTP/DSGVO unangetastet.
+
+**Open question for the user:** keine. Beim nächsten Side-by-Side-Review nach Regeneration der PNGs entscheidet der User, ob PR ready oder weitere Pass-4-Runde.

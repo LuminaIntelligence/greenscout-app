@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { BrandMark } from "./brand-mark";
+
 /**
  * §7.10-Pivot PR 2 — Shared 1920×1080 slide container.
  *
@@ -12,6 +14,11 @@ import type { ReactNode } from "react";
  *     marker (bottom);
  *   - consistent left/right inner padding so slides don't all
  *     re-implement gutter spacing.
+ *
+ * **Pivot-2b PASS 3 (Q13):** Das kleine GreenScout-Brand-Mark (oben rechts
+ * auf jeder Slide ab Slide 2 im Original-PDF) ist jetzt Bestandteil des
+ * Frames. Slide 1 (Cover) opt-outet via `showBrandMark={false}` weil es
+ * seinen eigenen Hero-Wordmark zentral plaziert.
  *
  * The `data-slide-number` attribute on the root element is consumed by
  * the PR 3 Playwright print route to enforce `page-break-after` between
@@ -30,6 +37,19 @@ interface SlideFrameProps {
   children: ReactNode;
   /** Extra Tailwind classes applied to the inner content wrapper. */
   contentClassName?: string;
+  /**
+   * Optional override for the outer `.slide-frame` background. Slide 1
+   * (Cover) sets this to `bg-forest-green` so the full 1920×1080 canvas
+   * is dark-green instead of the default white. Pass `text-white` here as
+   * well if the foreground colour needs to flip for the whole frame.
+   */
+  frameClassName?: string;
+  /**
+   * Whether the small GreenScout brand-mark (Q13) is rendered in the top
+   * right corner. Defaults to `true` so every slide gets it; Slide 1
+   * (Cover) opt-outs because it carries its own central Hero wordmark.
+   */
+  showBrandMark?: boolean;
 }
 
 const DEFAULT_TOTAL_SLIDES = 19;
@@ -41,14 +61,19 @@ export function SlideFrame({
   showFooter = true,
   children,
   contentClassName,
+  frameClassName,
+  showBrandMark = true,
 }: SlideFrameProps) {
   return (
     <section
-      className="slide-frame"
+      className={`slide-frame relative ${frameClassName ?? ""}`}
       data-slide-number={slideNumber}
       data-slide-total={totalSlides}
       aria-label={`Slide ${slideNumber} von ${totalSlides}`}
     >
+      {showBrandMark ? (
+        <BrandMark variant="small" className="absolute right-8 top-8 h-16 w-auto" />
+      ) : null}
       <div className={`flex h-full flex-col px-24 py-16 ${contentClassName ?? ""}`}>
         <div className="flex-1">{children}</div>
         {showFooter ? (

@@ -28,6 +28,11 @@ services/python/.venv/**
 templates/*.pptx
 templates/*.pdf
 
+# Auto-generated PPTX-Text-Extraktion (siehe scripts/extract-template-text.py).
+# Format folgt python json.dump(indent=2). Prettier würde es identisch
+# formatieren, aber bei Drift soll der python-Output Source of Truth bleiben.
+src/features/studies/document/template-content.json
+
 # Markdown — Prettier sometimes reflows code blocks and tables in ways that
 # diverge from our authoring style. Keep MD untouched in MVP; revisit if it
 # becomes a problem.
