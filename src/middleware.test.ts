@@ -230,6 +230,30 @@ describe("middleware routing", () => {
     }
   });
 
+  it("returns pass-through for /assets/* (Pivot-2c A1: PPTX-Asset-Pool public)", async () => {
+    // Slide-Renderer (BrandMark + Foto-Assets auf Slides 5/11/14/19) binden
+    // statische Bilder per `<img src="/assets/...">`. Ohne diesen Bypass
+    // werden Asset-Requests session-gated und der Renderer zeigt Broken-Image-
+    // Icons statt Logo + Fotos. Pivot-2c systemischer Fix A1 + A2.
+    const response = (await middleware(
+      buildRequest("/assets/greenscout-logo-hero.png", null),
+      {} as never,
+    )) as NextResponse;
+    expect(response.status).toBe(200);
+    expectAllHeaders(response);
+  });
+
+  it("does not bypass /uploads/* or /api/* via the /assets/-bypass", async () => {
+    // Defensive: the public path is strictly `/assets/`, NOT `/uploads/`
+    // (Berater-Uploads stay session-gated) and NOT `/api/uploads/...`.
+    const uploads = (await middleware(
+      buildRequest("/uploads/study-123/before.png", null),
+      {} as never,
+    )) as NextResponse;
+    expect(uploads.status).toBe(307);
+    expect(uploads.headers.get("location")).toBe("http://localhost:3000/login");
+  });
+
   it("redirects to /login when an unauthenticated user hits a protected route", async () => {
     const response = (await middleware(buildRequest("/", null), {} as never)) as NextResponse;
     expect(response.status).toBe(307);
