@@ -196,6 +196,17 @@ function isPublicPath(pathname: string): boolean {
   // ohne Auth-Session erreichen kann. Strikt auf `/dev/` gescoped — andere
   // Pfade nicht abgedeckt.
   if (process.env.NODE_ENV !== "production" && pathname.startsWith("/dev/")) return true;
+  // Pivot-2c (2026-06-04): `/assets/*` ist der statische Asset-Pool, der vom
+  // Slide-Renderer (BrandMark, Slide-11/14/19-Fotos, Step-Pfeile) konsumiert
+  // wird. Diese Assets sind PPTX-Original-Blobs und enthalten keinerlei
+  // schützenswerte Daten — die Slide-Komponenten binden sie per relativem
+  // `<img src="/assets/...">`. Ohne diesen Bypass leitet die Auth-Middleware
+  // die Asset-Requests (die ohne Session beim Playwright-Screenshot-Lauf und
+  // beim öffentlichen `/studie/<id>?t=...`-Share-Link kommen) auf `/login`
+  // weiter, was als Broken-Image-Icon im Render-Output erscheint. Strikt auf
+  // `/assets/` gescoped (kein `/uploads/`, kein `/api/` — diese bleiben
+  // session-gated). Verifikation: A1 + A2 aus Pivot-2c-Master-Defekt-Liste.
+  if (pathname.startsWith("/assets/")) return true;
   return false;
 }
 

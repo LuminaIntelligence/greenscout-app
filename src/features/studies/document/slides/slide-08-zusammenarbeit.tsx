@@ -68,7 +68,7 @@ export default function Slide08Zusammenarbeit({ data }: { data: StudyDocumentDat
       <div className="flex h-full flex-col gap-4">
         {/* Headline + Subtitle (Text 0 + Text 1) */}
         <div className="space-y-2">
-          <h2 className="text-[32px] font-bold text-forest-green">
+          <h2 className="text-[32px] font-extrabold text-forest-green">
             Warum eine Zusammenarbeit sinnvoll ist
           </h2>
           <p className="text-[18px] text-foreground">Greifbare Vorteile auf mehreren Ebenen</p>

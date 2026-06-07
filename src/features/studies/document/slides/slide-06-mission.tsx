@@ -36,7 +36,7 @@ export default function Slide06Mission({ data }: { data: StudyDocumentData }) {
         </div>
 
         {/* Headline (Text 3) */}
-        <h2 className="text-[32px] font-bold text-forest-green">Dafür stehen wir:</h2>
+        <h2 className="text-[32px] font-extrabold text-forest-green">Dafür stehen wir:</h2>
 
         {/* Four quadrants */}
         <div className="grid flex-1 grid-cols-2 gap-6">

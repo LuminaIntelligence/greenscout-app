@@ -44,15 +44,17 @@ export default function Slide12Stromliefervertrag({ data }: { data: StudyDocumen
   return (
     <SlideFrame slideNumber={12} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-4">
-        {/* Headline + Subtitle */}
+        {/* Headline + Subtitle.
+            Pivot-2d P1: font-extrabold + P4: dynamische Hero-Werte plant-green. */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Wirtschaftlichkeit: Stromliefervertrag
           </h2>
           <p className="text-[18px] text-foreground">
-            PV-Strom <span className="font-bold tabular-nums">{pvCt}</span> ct/kWh vs. Netzstrom{" "}
-            <span className="font-bold tabular-nums">{versorgerCt}</span> ct/kWh – Jährliche und
-            20-jährige Kundenvorteile
+            PV-Strom <span className="font-bold tabular-nums text-plant-green">{pvCt}</span> ct/kWh
+            vs. Netzstrom{" "}
+            <span className="font-bold tabular-nums text-plant-green">{versorgerCt}</span> ct/kWh –
+            Jährliche und 20-jährige Kundenvorteile
           </p>
         </div>
 

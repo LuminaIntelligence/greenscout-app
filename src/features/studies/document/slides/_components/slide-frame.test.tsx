@@ -83,4 +83,33 @@ describe("ImageSlot", () => {
     const { container } = render(<ImageSlot src="/x" alt="a" emptyLabel="e" className="extra" />);
     expect(container.querySelector(".extra")).not.toBeNull();
   });
+
+  it("renders the fallbackSrc when src is null (Pivot-2c A2)", () => {
+    const { container } = render(
+      <ImageSlot
+        src={null}
+        alt="Vorher"
+        emptyLabel="Vorher-Bild fehlt"
+        fallbackSrc="/assets/pptx-slide05-image1.png"
+      />,
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("src")).toBe("/assets/pptx-slide05-image1.png");
+    // Placeholder label must NOT appear when fallback is rendered.
+    expect(container.textContent).not.toContain("Vorher-Bild fehlt");
+  });
+
+  it("prefers src over fallbackSrc when both are set (Pivot-2c A2)", () => {
+    const { container } = render(
+      <ImageSlot
+        src="/api/uploads/real"
+        alt="Vorher"
+        emptyLabel="empty"
+        fallbackSrc="/assets/pptx-slide05-image1.png"
+      />,
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("/api/uploads/real");
+  });
 });

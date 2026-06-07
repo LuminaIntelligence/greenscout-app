@@ -35,12 +35,13 @@ export default function Slide13Langfristig({ data }: { data: StudyDocumentData }
   const pacht = formatEurNumber(data.derived.pachtEinnahmeEinmalig);
   const gesamtvorteil = formatEurNumber(data.derived.gesamtvorteil);
 
+  // Pivot-2d P4: dynamische Hero-Werte plant-green-bold hervorgehoben.
   const rows = [
     {
       head: (
         <>
           Jährliche Einsparung durch PV-Strom:{" "}
-          <span className="tabular-nums">ca. {ersparnisJahr} €</span>
+          <span className="font-bold tabular-nums text-plant-green">ca. {ersparnisJahr} €</span>
         </>
       ),
       body: "Basisannahme für kumulierte Darstellung",
@@ -49,7 +50,7 @@ export default function Slide13Langfristig({ data }: { data: StudyDocumentData }
       head: (
         <>
           Kumulierte Einsparung über 20 Jahre:{" "}
-          <span className="tabular-nums">ca. {ersparnis20} €</span>
+          <span className="font-bold tabular-nums text-plant-green">ca. {ersparnis20} €</span>
         </>
       ),
       body: "Keine Strompreissteigerung",
@@ -57,7 +58,8 @@ export default function Slide13Langfristig({ data }: { data: StudyDocumentData }
     {
       head: (
         <>
-          Einmalige Dachpacht: <span className="tabular-nums">{pacht} €</span> (positive
+          Einmalige Dachpacht:{" "}
+          <span className="font-bold tabular-nums text-plant-green">{pacht} €</span> (positive
           Einmalzahlung)
         </>
       ),
@@ -68,9 +70,9 @@ export default function Slide13Langfristig({ data }: { data: StudyDocumentData }
   return (
     <SlideFrame slideNumber={13} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-5">
-        {/* Headline + Subtitle */}
+        {/* Headline + Subtitle (Pivot-2d P1: font-extrabold). */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Langfristige Wirtschaftlichkeit: 20 Jahre
           </h2>
           <p className="text-[18px] text-foreground">

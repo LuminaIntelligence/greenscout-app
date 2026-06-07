@@ -55,6 +55,23 @@ export function formatCentPerKwh(valueInCents: number): string {
 }
 
 /**
+ * Pivot-2c A3 — Raw German two-decimal number without any unit suffix.
+ *
+ * Used when the slide text statically supplies the unit (e.g. „CENT netto /
+ * kWh" auf Slide 5, „ct/kWh" auf Slide 14) and only the bare numeric value
+ * (`22,00`) should be inserted. Replaces the fragile
+ * `formatCentPerKwh(...).replace(" ct/kWh", "")`-pattern that silently broke
+ * when the suffix used a non-breaking space and the `.replace()`-needle used
+ * a regular space.
+ */
+export function formatNumberDe2(value: number): string {
+  return new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+/**
  * Integer German thousands-separated. Example: `12345` → `12.345`.
  */
 export function formatIntegerDe(value: number): string {

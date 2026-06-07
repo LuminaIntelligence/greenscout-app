@@ -4,7 +4,11 @@
  *
  * Wraps a fixed aspect-ratio container with `<img>` + `object-cover`.
  * `src === null` → renders a Brand-Lime-outlined placeholder card with
- * a label so the consultant can see at a glance which slot is empty.
+ * a label, ODER (Pivot-2c A2) das PPTX-Default-Asset, das vom Caller via
+ * `fallbackSrc` mitgegeben wird. Der Default-Fallback wird genutzt, wenn
+ * die Studie noch keine eigenen BEFORE/AFTER-Bilder hat — so zeigt das
+ * Dokument trotzdem die Original-PPTX-Motive (Roof-Fotos) und keine
+ * gestrichelten Platzhalter. Berater-Uploads überschreiben den Fallback.
  *
  * Uses plain `<img>` rather than `next/image` because the renderer is
  * read by Playwright's headless Chromium in PR 3, which doesn't go
@@ -20,6 +24,12 @@ interface ImageSlotProps {
   aspectClassName?: string;
   /** Tailwind className for additional container styling. */
   className?: string;
+  /**
+   * Pivot-2c A2 — Default-PPTX-Asset, das gerendert wird, wenn `src === null`.
+   * Wenn weder `src` noch `fallbackSrc` gesetzt sind, fällt der Slot auf die
+   * gestrichelte Empty-State-Card mit `emptyLabel` zurück.
+   */
+  fallbackSrc?: string;
 }
 
 export function ImageSlot({
@@ -28,10 +38,13 @@ export function ImageSlot({
   emptyLabel,
   aspectClassName = "aspect-[16/9]",
   className,
+  fallbackSrc,
 }: ImageSlotProps) {
   const containerClass = `relative overflow-hidden rounded-lg ${aspectClassName} ${className ?? ""}`;
 
-  if (src === null) {
+  const effectiveSrc = src ?? fallbackSrc ?? null;
+
+  if (effectiveSrc === null) {
     return (
       <div
         className={`${containerClass} flex items-center justify-center border-4 border-dashed border-muted-lime-400 bg-muted-lime-50`}
@@ -46,7 +59,7 @@ export function ImageSlot({
   return (
     <div className={containerClass}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} className="h-full w-full object-cover" />
+      <img src={effectiveSrc} alt={alt} className="h-full w-full object-cover" />
     </div>
   );
 }

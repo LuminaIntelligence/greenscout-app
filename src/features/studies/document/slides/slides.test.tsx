@@ -110,10 +110,21 @@ describe("Slide05VorherNachher", () => {
     expect(container.textContent).toContain("CENT netto / kWh");
   });
 
-  it("renders placeholders when image URLs are null", () => {
+  it("falls back to the PPTX-default BEFORE/AFTER assets when URLs are null (Pivot-2c A2, Pivot-2d B1)", () => {
     const { container } = render(<Slide05VorherNachher data={data} />);
-    expect(container.textContent).toContain("Vorher-Bild fehlt");
-    expect(container.textContent).toContain("Nachher-Bild fehlt");
+    // Default images embedded as <img> from /assets/pptx-slide05-image{1,2}.png.
+    // Pivot-2d B1: image2 = BEFORE (Dach ohne PV), image1 = AFTER (mit PV).
+    // Pivot-2c hatte die Zuordnung vertauscht — visuelle Verifikation gegen
+    // `public/assets/pptx-slide05-image1.png` (PV-Modulen drauf) und
+    // `pptx-slide05-image2.png` (rotbraune Dachziegel, keine PV) hat das
+    // belegt.
+    const contentImgs = container.querySelectorAll("img:not([data-brand-mark])");
+    expect(contentImgs.length).toBe(2);
+    expect(contentImgs[0].getAttribute("src")).toBe("/assets/pptx-slide05-image2.png");
+    expect(contentImgs[1].getAttribute("src")).toBe("/assets/pptx-slide05-image1.png");
+    // Placeholder labels must NOT appear anymore once fallback assets render.
+    expect(container.textContent).not.toContain("Vorher-Bild fehlt");
+    expect(container.textContent).not.toContain("Nachher-Bild fehlt");
   });
 
   it("renders <img> tags when image URLs are present", () => {

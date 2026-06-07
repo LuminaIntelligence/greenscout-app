@@ -5,7 +5,7 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 11 — "Energiefluss und Eigenverbrauch".
  *
- * Treue Reproduktion (Pivot-2b PASS 3, siehe DECISIONS 2026-06-03).
+ * Treue Reproduktion (Pivot-2c FINALE, siehe DECISIONS 2026-06-04).
  *
  * **Pass-3-Korrektur (Q16 User-Antwort 2026-06-03):** Komplett-Rewrite
  * vom Pass-2-3-Spalten-Layout zum Original-PDF-Layout — vertikale
@@ -15,6 +15,12 @@ import { SlideFrame } from "./_components/slide-frame";
  *   2. Eigenverbrauch
  *   3. Einspeisung
  *   4. Wirkung
+ *
+ * **Pivot-2c-Korrektur (2026-06-04):** Die Layout-Logik selbst war
+ * korrekt — die Bilder erschienen aber als Broken-Image-Icons im Render,
+ * weil die Auth-Middleware `/assets/*`-Requests zu `/login` umgeleitet
+ * hat (Slide 11 lädt 5 Assets aus `public/assets/`). Fix in
+ * `src/middleware.ts`: `/assets/` als public path. Slide-Code unverändert.
  *
  * Pfeil-Shape-Icons und das Foto kommen aus dem PPTX-Asset-Pool
  * (`public/assets/slide11-step{1..4}.png` + `public/assets/slide11-foto.png`,
@@ -76,29 +82,35 @@ export default function Slide11Energiefluss({ data }: { data: StudyDocumentData 
   return (
     <SlideFrame slideNumber={11} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-5">
-        {/* Headline + Subtitle */}
+        {/* Headline + Subtitle
+            Pivot-2d P1: font-extrabold für PowerPoint-typische Headline-Dichte.
+            Pivot-2d P4: dynamische Hero-Werte plant-green-bold. */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Energiefluss und Eigenverbrauch
           </h2>
           <p className="text-[18px] text-foreground">
-            PV-Erzeugung <span className="font-bold tabular-nums">{pvErzeugung}</span> kWh/Jahr –{" "}
-            <span className="font-bold tabular-nums">{quote}%</span> direkt genutzt
+            PV-Erzeugung{" "}
+            <span className="font-bold tabular-nums text-plant-green">{pvErzeugung}</span> kWh/Jahr
+            – <span className="font-bold tabular-nums text-plant-green">{quote}%</span> direkt
+            genutzt
           </p>
         </div>
 
         {/* Two-column body: 4-step vertical list links, großes Foto rechts. */}
         <div className="grid flex-1 grid-cols-[3fr_2fr] gap-10">
-          {/* Vertikale 4-Schritt-Liste mit nummerierten Pfeil-Shape-Icons */}
+          {/* Vertikale 4-Schritt-Liste mit Solid-Filled Plant-Green-Kreisen.
+              Pivot-2d P2: PPTX-Pfeil-Shape-Outline-PNGs ersetzt durch
+              SVG-Kreis mit weißer Zahl drin (PowerPoint-Original-Look). */}
           <ol className="flex flex-col justify-between gap-4">
             {steps.map((s) => (
               <li key={s.index} className="flex items-start gap-5">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/assets/slide11-step${s.index}.png`}
-                  alt={`Schritt ${s.index}`}
-                  className="h-16 w-auto flex-shrink-0"
-                />
+                <div
+                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-plant-green text-[28px] font-extrabold leading-none text-white"
+                  aria-label={`Schritt ${s.index}`}
+                >
+                  {s.index}
+                </div>
                 <div className="flex-1">
                   <div className="text-[22px] font-bold text-forest-green">{s.title}</div>
                   <p className="mt-1 text-[16px] leading-[1.4] text-foreground">{s.body}</p>

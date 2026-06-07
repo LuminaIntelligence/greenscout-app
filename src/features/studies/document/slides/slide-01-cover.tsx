@@ -6,30 +6,24 @@ import { SlideFrame } from "./_components/slide-frame";
 /**
  * Slide 1 — Deckblatt "Ihr Ergebnis".
  *
- * Treue Reproduktion (Pivot-2b PASS 2, siehe DECISIONS 2026-06-02).
+ * Treue Reproduktion (Pivot-2c FINALE, siehe DECISIONS 2026-06-04).
  *
- * **Pass-3-Korrektur (Q13 User-Antwort 2026-06-03):** Das eigentliche
- * GreenScout-Logo wird jetzt aus dem PPTX-Asset-Pool gerendert
- * (`public/assets/greenscout-logo-hero.png`, extrahiert via
- * `scripts/extract-template-images.py`). Der frühere
- * Gabarito-Text-Stand-in war Marken-Identitäts-Verlust.
+ * **Pivot-2c-Korrekturen (2026-06-04) gegen `original-slide-01.png`:**
+ *  - **A5 Hintergrund:** Plant-Green (`#6A8F4E`) statt Forest-Green —
+ *    Original ist mittel-grünes Sage, nicht dunkelgrünes Forest-Green.
+ *  - **A1 Logo lädt jetzt:** Middleware-`/assets/`-Bypass repariert
+ *    (siehe `src/middleware.ts`). Das war der eigentliche A1-Bug.
+ *  - **Kundenname-Doppelung entfernt:** Pass-3 zeigte erst Company-Name
+ *    + dann ObjectName — Original zeigt nur einen Kundennamen unter
+ *    der „Ihr Ergebnis"-Headline.
+ *  - **Hero-Hierarchie geschärft:** „Ihr Ergebnis" als zentraler Hero
+ *    ~120px, direkt darunter der Kundenname als Untertitel.
  *
- * **Pass-2-Korrektur (Q1 User-Antwort):** Die Tagline „Flächen bewerten,
- * Entscheidung treffen, Einnahmen ohne eigene Investitionen" gehört
- * **direkt unter den GreenScout-Schriftzug als Subtitle der Marken-
- * Einheit** — nicht oben links, nicht unter „Ihr Ergebnis", sondern als
- * gebundene Subtitle der Brand-Lockup-Einheit. Die PPTX-Mittenkoordinate
- * für das Tagline-Textfeld ist irreführend gegenüber dem visuellen
- * Original-PDF.
+ * **Pass-3 Q13:** GreenScout-Logo aus dem PPTX-Asset-Pool
+ * (`public/assets/greenscout-logo-hero.png`).
  *
- * **Weitere Pass-2-Korrekturen aus visueller Verifikation gegen
- * original-slide-01.png:**
- *  - Background: forest-green (statt weiß).
- *  - Hero-Lockup zentriert: "GreenScout e.V." Schriftzug in weiß +
- *    Tagline darunter in weiß.
- *  - "Ihr Ergebnis" zentriert weiß bold.
- *  - "Eingereicht über..." unten rechts in weiß; "Berater"-Name in
- *    Akzent-Rot (#CC3366 = SPEC §8.1 link-Farbe).
+ * **Pass-2 Q1:** Tagline „Flächen bewerten…" als direkte Subtitle der
+ * Brand-Lockup-Einheit unter dem Wordmark — nicht losgelöst.
  *
  * Statische Texte wörtlich aus dem PPTX (siehe `template-content.json`
  * Slide 1):
@@ -51,34 +45,36 @@ export default function Slide01Cover({ data }: { data: StudyDocumentData }) {
       customerLabel={customerName}
       showFooter={false}
       showBrandMark={false}
-      frameClassName="bg-forest-green text-white"
+      frameClassName="bg-plant-green text-white"
       contentClassName="text-white"
     >
-      <div className="flex h-full flex-col items-center justify-between py-12">
+      <div className="flex h-full flex-col items-center justify-between py-16">
         {/* Hero brand lockup — GreenScout-Wordmark + Tagline als visuelle Einheit */}
-        <div className="mt-12 flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-4">
           {/* Q13-Korrektur: echtes Logo aus dem PPTX-Asset-Pool statt Text-Stand-in. */}
-          <BrandMark variant="wordmark" alt="GreenScout e.V." className="h-[150px] w-auto" />
+          <BrandMark variant="wordmark" alt="GreenScout e.V." className="h-[180px] w-auto" />
           {/* Tagline als direkte Subtitle der Marken-Einheit (Q1-Korrektur) */}
-          <div className="text-[24px] font-normal text-white">
+          <div className="text-[28px] font-normal text-white">
             Flächen bewerten, Entscheidung treffen, Einnahmen ohne eigene Investitionen
           </div>
         </div>
 
         {/* Center — Hero "Ihr Ergebnis" + Customer/Object identification */}
-        <div className="flex flex-col items-center gap-8">
-          <h1 className="font-[var(--font-gabarito-heading),system-ui,sans-serif] text-[120px] font-semibold leading-none text-white">
+        <div className="flex flex-col items-center gap-6">
+          <h1 className="font-[var(--font-gabarito-heading),system-ui,sans-serif] text-[140px] font-semibold leading-none text-white">
             Ihr Ergebnis
           </h1>
-          <div className="space-y-1 text-center">
-            <div className="text-[28px] font-semibold text-white">{customerName}</div>
-            <div className="text-[20px] text-white opacity-90">{data.study.objectName}</div>
-          </div>
+          {/* Pivot-2c: nur ein Kundenname (vorher Doppelung Company + Object). */}
+          <div className="text-[32px] font-semibold text-white">{customerName}</div>
         </div>
 
-        {/* Bottom — "Eingereicht über <consultant> / direkt vom Unternehmen" */}
-        <div className="self-end text-[16px] font-bold text-white">
-          Eingereicht über <span className="text-link">{consultant}</span> / direkt vom Unternehmen
+        {/* Bottom — "Eingereicht über <consultant> / direkt vom Unternehmen"
+            Pivot-2d P6: `text-link` (Rosa-Rot #CC3366) am Substitutions-Run
+            war ein CSS-Vererbungs-Leak. Berater-Name wird wieder weiß (auf
+            grünem Hintergrund) gerendert, konsistent mit der Footer-Zeile. */}
+        <div className="self-end text-[18px] font-bold text-white">
+          Eingereicht über <span className="font-extrabold">{consultant}</span> / direkt vom
+          Unternehmen
         </div>
       </div>
     </SlideFrame>
