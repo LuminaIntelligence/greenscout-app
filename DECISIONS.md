@@ -4263,3 +4263,74 @@ Plus: die Studien-Detail-Page (`src/app/(app)/studies/[id]/page.tsx`) importiert
 **Pause-Trigger-Check (§7):** keine. Reine Layout-/Asset-/Helper-Korrekturen innerhalb autorisierter Pivot-Direction. Kein neuer Dep (kein Recharts, kein Storybook), kein Auth-/Schema-/SMTP-/DSGVO-Touch. Middleware-Erweiterung ist neuer Public-Path-Branch der bestehenden Auth-Logik, kein neuer Security-Posture (`/assets/` enthält nur statische PPTX-Original-Blobs ohne Schutzbedarf).
 
 **Open question for the user:** keine. Hauptthread regeneriert nach diesem Commit die 19 `rendered-slide-NN.png` und entscheidet beim Side-by-Side-Review, ob der PR aus DRAFT herausgezogen werden kann.
+
+---
+
+## 2026-06-07 — Pivot-2d Visual-Politur zum Original-PowerPoint
+
+**Context:** Pivot-2c hat strukturelle Defekte gefixt (A1–A6), aber das visuelle Erscheinungsbild der Slides war noch zu „Web-Look": zu dünne Schriften, Outline-Akzent-Elemente, zu viel Whitespace, zu wenig Inline-Color-Akzente. Hauptthread hat 6 Polier-Maßnahmen P1–P6 + 2 Bug-Fixes B1+B2 vorgegeben (User-Prompt 2026-06-07).
+
+**Assumption / decision:** PR #67 bleibt DRAFT. Folgende Änderungen auf `fix/pivot-2c-final-correction` aufgesetzt:
+
+- **P1 Schriftgewichte hochgeschraubt:**
+  - `.slide-h2`, `.slide-h3`, `.slide-h4` in `globals.css`: `font-weight: 600` → `700`.
+  - `.slide-data-headline`, `.slide-data-headline-lg`: `font-weight: 600` → `800` (ExtraBold).
+  - `.slide-title` (Slide-1-Marken-Headline) bleibt `font-weight: 600`.
+  - Slide-Headlines die direkt `font-bold text-forest-green` inline benutzten → `font-extrabold`: Slide 4, 5, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19.
+
+- **P2 Outline → Solid-Filled:**
+  - Slide 4 Eigenverbrauch-Kreis: gefüllter Plant-Green-Kreis mit weißer Zahl (vorher `border-4 border-plant-green`-Outline + Plant-Green-Text).
+  - Slide 11 Step-Nummern 1/2/3/4: PNG-Pfeil-Outline-Icons ersetzt durch SVG-Kreise (`bg-plant-green` + weißer Zahl). `slide11-step{1..4}.png` werden nicht mehr referenziert (Assets bleiben im Repo erhalten).
+
+- **P3 Whitespace deutlich reduziert (Slide 4 + 5):**
+  - Slide 4: `mt-auto`-Spreizung entfernt, Sektionen mit `gap-4` konsistent gestapelt.
+  - Slide 5: `gap-12` → `gap-8`, Tile-Padding `p-6` → `p-5`.
+
+- **P4 Inline-Color-Akzente (Plant-Green-Bold):**
+  - Dynamische Hero-Werte (Substitutions-Spans) auf `font-bold tabular-nums text-plant-green` umgestellt: Slide 3 (Pacht-/Ersparnis-€-Werte), Slide 4 (CO2-Werte im Fließtext + Eigenverbrauch), Slide 9 (Versorger-Preis), Slide 10 (kWp), Slide 11 (PV-Erzeugung + Quote), Slide 12 (PV-/Versorger-Ct), Slide 13 (Pacht + Ersparnis), Slide 14 (Stromkosten-€, PV-Strompreis), Slide 15 (PV-Strompreis).
+  - Statische Marketingtexte bleiben unverändert (Forest-Green oder Foreground).
+
+- **P5 Photo-Container vollständig füllen:**
+  - Slide 5: Spaltenraum-Gap reduziert, ImageSlot-Container nutzt `aspect-[16/9]` weiterhin — füllt sich aber durch den geschrumpften Außenrahmen optisch deutlicher.
+  - Slide 14: Foto-Container `flex items-center justify-center` + `max-h-[700px]` entfernt zugunsten festem `aspect-[4/3] h-full overflow-hidden rounded-xl`-Container mit `object-cover`.
+
+- **P6 Marker-Rot-Leck endgültig beseitigt:**
+  - Slide 1: `text-link` am Berater-Namen → weiß (auf grünem Hintergrund), zusätzlich `font-extrabold`.
+  - Slide 19: `text-link` am Berater-Namen → `text-forest-green` + `font-extrabold`.
+  - Slide 14: 140.000-€-Wert war `text-link` → `text-plant-green` (P4-konsistent).
+  - **Bewusste Abweichung vom Original-PDF:** Original Slide 1 + 19 zeigen Berater-Namen tatsächlich in Rot. User-Direktive P6 sagt explizit „endgültig beseitigen → auf text-foreground (oder forest-green) umstellen". Da P6 das Detail explizit adressiert, folgt der Implementer dem User-Auftrag statt der „Original ist Wahrheit"-Default-Direktive. Der rot-rosa Foto-Rahmen auf Slide 19 (`border-link`) wurde NICHT geändert, weil P6 nur den Berater-Namen + „Wir melden uns" benennt — Rahmen bleibt Original-konform.
+
+- **B1 Slide 5 BEFORE/AFTER-Asset-Zuordnung:**
+  - `pptx-slide05-image1.png` zeigt Dach **MIT** PV-Modulen (AFTER), `pptx-slide05-image2.png` zeigt Dach **OHNE** PV-Modulen (BEFORE). Pivot-2c hatte die Zuordnung vertauscht.
+  - Fix: `fallbackSrc="/assets/pptx-slide05-image2.png"` für BEFORE-ImageSlot, `fallbackSrc="/assets/pptx-slide05-image1.png"` für AFTER-ImageSlot.
+  - `slides.test.tsx`-Erwartungen entsprechend angepasst.
+  - **Hinweis zum User-Prompt-Wording:** Der Prompt sagte „Alt-Text statt Bild" — das war eine Pivot-2b-Beobachtung. Im aktuellen Pivot-2c-Render-PNG laden die Bilder bereits (Middleware-Fix wirkt), sind aber semantisch vertauscht.
+
+- **B2 Slide 4 Eigenverbrauch-Kreis:** s. P2 — gefüllter SVG/Tailwind-Kreis mit `bg-plant-green` + `text-white` + `font-extrabold` 44px. Größe `180×180px` (vorher `160×160`), Solid statt Border-4-Outline.
+
+**Affected files:**
+- `src/app/globals.css` (P1: `.slide-h2/h3/h4` → 700, `.slide-data-headline*` → 800)
+- `src/features/studies/document/slides/slide-01-cover.tsx` (P6: Berater-Name kein `text-link` mehr)
+- `src/features/studies/document/slides/slide-03-drei-vorteile.tsx` (P4)
+- `src/features/studies/document/slides/slide-04-auf-einen-blick.tsx` (P1+P2+P3+P4: Whitespace, Solid-Kreis, Extrabold-Kpi)
+- `src/features/studies/document/slides/slide-05-vorher-nachher.tsx` (P1+P3+P5+B1: Extrabold, gap-8, BEFORE/AFTER-Asset-Swap)
+- `src/features/studies/document/slides/slide-06-mission.tsx` (P1)
+- `src/features/studies/document/slides/slide-07-partner.tsx` (P1)
+- `src/features/studies/document/slides/slide-08-zusammenarbeit.tsx` (P1)
+- `src/features/studies/document/slides/slide-09-ausgangssituation.tsx` (P1+P4)
+- `src/features/studies/document/slides/slide-10-pv-anlagenkonzept.tsx` (P1+P4)
+- `src/features/studies/document/slides/slide-11-energiefluss.tsx` (P1+P2+P4: SVG-Kreis-Steps statt PNG-Pfeile)
+- `src/features/studies/document/slides/slide-12-stromliefervertrag.tsx` (P1+P4)
+- `src/features/studies/document/slides/slide-13-langfristig.tsx` (P1+P4)
+- `src/features/studies/document/slides/slide-14-vergleich.tsx` (P1+P4+P5+P6)
+- `src/features/studies/document/slides/slide-15-sensitivitaet.tsx` (P1+P4)
+- `src/features/studies/document/slides/slide-16-variantenvergleich.tsx` (P1)
+- `src/features/studies/document/slides/slide-17-timeline.tsx` (P1)
+- `src/features/studies/document/slides/slide-18-eeg.tsx` (P1)
+- `src/features/studies/document/slides/slide-19-kontakt.tsx` (P1+P6)
+- `src/features/studies/document/slides/slides.test.tsx` (B1: Test-Erwartung Slide 5 BEFORE/AFTER-URL)
+- `DECISIONS.md` — dieser Eintrag
+
+**Pause-Trigger-Check (§7):** keine. Visuelle Politur innerhalb autorisierter Brand-Tokens (SPEC §8.1: forest-green, plant-green, muted-lime, foreground; ExtraBold-Gewicht ist bereits über Tailwind-Defaults verfügbar und benötigt keine neue Dep). Kein Auth-/Schema-/SMTP-/DSGVO-/Money-Touch. P6 ist eine bewusste Abweichung vom Original-PDF, jedoch explizit vom User in der Direktive autorisiert.
+
+**Open question for the user:** keine. Hauptthread regeneriert die 19 `rendered-slide-NN.png` und entscheidet beim Side-by-Side-Review.
