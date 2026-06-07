@@ -13,6 +13,7 @@ import {
   formatIntegerDe,
   formatKwh,
   formatKwp,
+  formatNumberDe2,
   formatPercent,
   formatTerminDe,
   formatTonnes,
@@ -42,6 +43,17 @@ describe("formatCentPerKwh", () => {
   it("always two decimals + NBSP + ct/kWh", () => {
     expect(formatCentPerKwh(22)).toBe(`22,00${NBSP}ct/kWh`);
     expect(formatCentPerKwh(35.5)).toBe(`35,50${NBSP}ct/kWh`);
+  });
+});
+
+describe("formatNumberDe2 (Pivot-2c A3)", () => {
+  it("two decimals, NO unit suffix", () => {
+    expect(formatNumberDe2(22)).toBe("22,00");
+    expect(formatNumberDe2(35.5)).toBe("35,50");
+    expect(formatNumberDe2(1234.567)).toBe("1.234,57");
+  });
+  it("formats zero", () => {
+    expect(formatNumberDe2(0)).toBe("0,00");
   });
 });
 
