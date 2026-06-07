@@ -171,7 +171,7 @@ export default function Slide17Timeline({ data }: { data: StudyDocumentData }) {
     <SlideFrame slideNumber={17} customerLabel={customerName}>
       <div className="flex h-full flex-col gap-3">
         {/* Headline (Text 0) */}
-        <h2 className="text-center text-[28px] font-bold text-forest-green">
+        <h2 className="text-center text-[28px] font-extrabold text-forest-green">
           Der Weg zur Inbetriebnahme
         </h2>
 

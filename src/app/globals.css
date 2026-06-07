@@ -127,7 +127,9 @@
     font-family: var(--font-gabarito-body), system-ui, sans-serif;
   }
 
-  /* Hero-Headline (Slide 1 Titelseite, Slide 2 "Herzlichen Glückwunsch") */
+  /* Hero-Headline (Slide 1 Titelseite, Slide 2 "Herzlichen Glückwunsch")
+   * Pivot-2d P1: Slide-1-Marken-Headline behält Gabarito-SemiBold (600).
+   * Inhaltliche Slide-Hero-Headlines auf Slide 2/4/9/11/… nutzen `.slide-h2`. */
   .slide-title {
     font-family: var(--font-gabarito-heading), system-ui, sans-serif;
     font-weight: 600;
@@ -137,26 +139,29 @@
     letter-spacing: -0.01em;
   }
 
-  /* Sekundäre Headline (Slide 4 "Auf einen Blick", Slide 13 etc.) */
+  /* Sekundäre Headline (Slide 4 "Auf einen Blick", Slide 13 etc.)
+   * Pivot-2d P1: 600 → 700 für PowerPoint-typische Headline-Dichte. */
   .slide-h2 {
     font-family: var(--font-gabarito-heading), system-ui, sans-serif;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 48px;
     line-height: 1.1;
     color: var(--color-forest-green);
   }
 
+  /* Pivot-2d P1: 600 → 700 für PowerPoint-typische Headline-Dichte. */
   .slide-h3 {
     font-family: var(--font-gabarito-heading), system-ui, sans-serif;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 32px;
     line-height: 1.15;
     color: var(--color-forest-green);
   }
 
+  /* Pivot-2d P1: 600 → 700 für PowerPoint-typische Headline-Dichte. */
   .slide-h4 {
     font-family: var(--font-gabarito-heading), system-ui, sans-serif;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 24px;
     line-height: 1.2;
     color: var(--color-forest-green);
@@ -189,10 +194,11 @@
   }
 
   /* Riesen-Datenzahl (Slide 4 „4.720.000", „24.600", „110") — das visuelle
-   * Hero-Element der „Auf einen Blick"-Slide */
+   * Hero-Element der „Auf einen Blick"-Slide.
+   * Pivot-2d P1: 600 → 800 (ExtraBold) für PowerPoint-typische KPI-Dichte. */
   .slide-data-headline {
     font-family: var(--font-gabarito-heading), system-ui, sans-serif;
-    font-weight: 600;
+    font-weight: 800;
     font-size: 96px;
     line-height: 1;
     color: var(--color-plant-green);
@@ -200,9 +206,10 @@
     letter-spacing: -0.02em;
   }
 
+  /* Pivot-2d P1: 600 → 800 (ExtraBold) für PowerPoint-typische KPI-Dichte. */
   .slide-data-headline-lg {
     font-family: var(--font-gabarito-heading), system-ui, sans-serif;
-    font-weight: 600;
+    font-weight: 800;
     font-size: 128px;
     line-height: 1;
     color: var(--color-plant-green);

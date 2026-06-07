@@ -75,7 +75,7 @@ export default function Slide07Partner({ data }: { data: StudyDocumentData }) {
       <div className="flex h-full flex-col gap-6">
         {/* Headline + Subtitle */}
         <div className="space-y-2">
-          <h2 className="text-[32px] font-bold leading-[1.1] text-forest-green">
+          <h2 className="text-[32px] font-extrabold leading-[1.1] text-forest-green">
             Wir sind ihr strategischer Partner in der Energiewende
           </h2>
           <p className="text-[18px] leading-[1.4] text-foreground">

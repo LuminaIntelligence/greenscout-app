@@ -66,7 +66,7 @@ export default function Slide18EEG({ data }: { data: StudyDocumentData }) {
       <div className="flex h-full flex-col gap-5">
         {/* Headline + Subtitle */}
         <div className="space-y-1">
-          <h2 className="text-[24px] font-bold leading-[1.2] text-forest-green">
+          <h2 className="text-[24px] font-extrabold leading-[1.2] text-forest-green">
             Das Erneuerbare-Energien-Gesetz (EEG) - Vorteile für Flächenverpächter
           </h2>
           <p className="text-[18px] text-foreground">

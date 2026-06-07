@@ -64,7 +64,7 @@ export default function Slide16Variantenvergleich({ data }: { data: StudyDocumen
       <div className="flex h-full flex-col gap-5">
         {/* Headline + Subtitle */}
         <div className="space-y-1">
-          <h2 className="text-[28px] font-bold text-forest-green">
+          <h2 className="text-[28px] font-extrabold text-forest-green">
             Variantenvergleich und Empfehlung
           </h2>
           <p className="text-[18px] text-foreground">
